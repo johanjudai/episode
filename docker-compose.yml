@@ -4,13 +4,32 @@ services:
     image: episode:local
     container_name: episode
     restart: unless-stopped
+    # Comment out the `ports` block if you only expose Episode through a
+    # reverse proxy on the shared `proxy` network below.
     ports:
-      - '3000:3000'
+      - '${EPISODE_BIND_ADDR:-0.0.0.0}:${EPISODE_BIND_PORT:-3000}:3000'
     volumes:
       - episode-data:/data
     environment:
       EPISODE_ORIGIN: ${EPISODE_ORIGIN:-http://localhost:3000}
       EPISODE_TMDB_API_KEY: ${EPISODE_TMDB_API_KEY:-}
+    # networks:
+    #   - default       # internal: episode ↔ its own DB (the named volume)
+    #   - proxy         # external: where your Caddy / Traefik / NPM lives
+    #
+    # --- Traefik labels (uncomment if you use Traefik) ---
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.docker.network=proxy
+    #   - traefik.http.routers.episode.rule=Host(`episode.home.lan`)
+    #   - traefik.http.routers.episode.entrypoints=websecure
+    #   - traefik.http.routers.episode.tls.certresolver=letsencrypt
+    #   - traefik.http.services.episode.loadbalancer.server.port=3000
 
 volumes:
   episode-data:
+
+# --- External network (uncomment to share with your reverse proxy) ---
+# networks:
+#   proxy:
+#     external: true
