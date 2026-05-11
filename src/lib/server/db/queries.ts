@@ -57,7 +57,13 @@ export async function getEpisodesToWatch(now: Date = new Date()): Promise<
         sql`${episodes.airDate} IS NOT NULL`
       )
     )
-    .orderBy(asc(episodes.airDate))
+    /* sort by series → season → episode so the JS-side dedupe picks the
+     * earliest unwatched episode per series */
+    .orderBy(
+      asc(episodes.seriesTmdbId),
+      asc(episodes.seasonNumber),
+      asc(episodes.episodeNumber)
+    )
     .all();
 }
 
@@ -218,22 +224,26 @@ export async function getSeries(tmdbId: number): Promise<Series | null> {
   return rows[0] ?? null;
 }
 
-export async function getRecentWatched(limit = 20): Promise<
-  Array<{
-    episodeId: number;
-    watchedAt: Date;
-    seriesName: string;
-    seasonNumber: number;
-    episodeNumber: number;
-    episodeName: string | null;
-    runtimeMinutes: number | null;
-  }>
-> {
+export interface WatchedRow {
+  episodeId: number;
+  seriesTmdbId: number;
+  watchedAt: Date;
+  seriesName: string;
+  seriesPoster: string | null;
+  seasonNumber: number;
+  episodeNumber: number;
+  episodeName: string | null;
+  runtimeMinutes: number | null;
+}
+
+export async function getRecentWatched(limit = 20): Promise<WatchedRow[]> {
   return db
     .select({
       episodeId: watched.episodeId,
+      seriesTmdbId: episodes.seriesTmdbId,
       watchedAt: watched.watchedAt,
       seriesName: series.name,
+      seriesPoster: series.posterPath,
       seasonNumber: episodes.seasonNumber,
       episodeNumber: episodes.episodeNumber,
       episodeName: episodes.name,
@@ -245,6 +255,50 @@ export async function getRecentWatched(limit = 20): Promise<
     .orderBy(desc(watched.watchedAt))
     .limit(limit)
     .all();
+}
+
+export interface FollowedSeriesProgress {
+  tmdbId: number;
+  name: string;
+  posterPath: string | null;
+  firstAirDate: string | null;
+  status: string | null;
+  numberOfSeasons: number | null;
+  watchedCount: number;
+  totalEpisodes: number;
+  addedAt: Date | null;
+}
+
+export async function getFollowedSeriesWithProgress(): Promise<FollowedSeriesProgress[]> {
+  const rows = db
+    .select({
+      tmdbId: series.tmdbId,
+      name: series.name,
+      posterPath: series.posterPath,
+      firstAirDate: series.firstAirDate,
+      status: series.status,
+      numberOfSeasons: series.numberOfSeasons,
+      addedAt: series.addedAt,
+      totalEpisodes: sql<number>`(
+        SELECT COUNT(*) FROM ${episodes}
+        WHERE ${episodes.seriesTmdbId} = ${series.tmdbId}
+      )`,
+      watchedCount: sql<number>`(
+        SELECT COUNT(*) FROM ${watched}
+        JOIN ${episodes} ON ${episodes.id} = ${watched.episodeId}
+        WHERE ${episodes.seriesTmdbId} = ${series.tmdbId}
+      )`
+    })
+    .from(series)
+    .where(isNull(series.removedAt))
+    .orderBy(desc(series.addedAt))
+    .all();
+
+  return rows.map((r) => ({
+    ...r,
+    totalEpisodes: Number(r.totalEpisodes),
+    watchedCount: Number(r.watchedCount)
+  }));
 }
 
 export async function getStats(): Promise<{

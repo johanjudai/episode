@@ -42,14 +42,14 @@
       <div class="stat__num stat__accent">{t.value}<small>{t.unit}</small></div>
       <div class="stat__label">Temps total</div>
     </div>
-    <div class="stat">
+    <a class="stat stat--link" href="/series" aria-label={`Voir mes ${data.stats.seriesCount} séries suivies`}>
       <div class="stat__num">{data.stats.seriesCount}</div>
-      <div class="stat__label">Séries suivies</div>
-    </div>
-    <div class="stat">
+      <div class="stat__label">Séries suivies →</div>
+    </a>
+    <a class="stat stat--link" href="/history" aria-label={`Voir l'historique des ${data.stats.episodesWatched} épisodes`}>
       <div class="stat__num">{data.stats.episodesWatched}</div>
-      <div class="stat__label">Épisodes vus</div>
-    </div>
+      <div class="stat__label">Épisodes vus →</div>
+    </a>
     <div class="stat">
       <div class="stat__num">—</div>
       <div class="stat__label">Streak</div>
@@ -59,10 +59,13 @@
   {#if data.history.length > 0}
     <section>
       <div class="section">
-        <div class="section__title">Historique récent</div>
+        <div class="section__title">
+          Historique récent
+          <a class="section__count" href="/history" style="text-decoration: none">Voir tout →</a>
+        </div>
       </div>
       <ul class="history">
-        {#each data.history as h, i (h.episodeId)}
+        {#each data.history.slice(0, 10) as h, i (h.episodeId)}
           {@const colorVariants = ['', 'history__dot--blue', 'history__dot--yellow']}
           <li>
             <span class={`history__dot ${colorVariants[i % 3]}`} aria-hidden="true"></span>

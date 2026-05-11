@@ -45,6 +45,19 @@
   function cancelUnfollow() {
     removeModal = null;
   }
+
+  function relativeRecent(ms: number, now: Date): string {
+    const diff = Math.max(0, now.getTime() - ms);
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 1) return "À l'instant";
+    if (mins < 60) return `Il y a ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Il y a ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'Hier';
+    if (days < 7) return `Il y a ${days} j`;
+    return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
 </script>
 
 <svelte:head><title>À voir — Episode</title></svelte:head>
@@ -59,6 +72,34 @@
       <div class="topbar__date">{todayLabel}</div>
     </div>
   </header>
+
+  {#if data.recent.length > 0}
+    <section>
+      <div class="section">
+        <div class="section__title">
+          Vu récemment
+          <a class="section__count" href="/history" style="text-decoration: none">Tout →</a>
+        </div>
+      </div>
+      <ul class="history" style="border-bottom: var(--border-w) solid var(--border)">
+        {#each data.recent as r (r.episodeId)}
+          <li>
+            <span class="history__dot" aria-hidden="true"></span>
+            <div>
+              <a href={`/series/${r.seriesTmdbId}`} style="text-decoration: none; color: inherit">
+                <strong>{r.seriesName}</strong> · {formatEpisodeCode(r.seasonNumber, r.episodeNumber)}
+              </a>
+              <div class="ep-date">
+                {r.episodeName ?? `Épisode ${r.episodeNumber}`}
+                {#if r.runtimeMinutes}· {r.runtimeMinutes} min{/if}
+              </div>
+            </div>
+            <span class="history__time">{relativeRecent(new Date(r.watchedAt).getTime(), today)}</span>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
 
   <section>
     <div class="section">

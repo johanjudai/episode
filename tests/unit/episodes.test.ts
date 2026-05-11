@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { countUnwatchedBefore, findInProgressSeason } from '$lib/utils/episodes';
+import {
+  countUnwatchedBefore,
+  findInProgressSeason,
+  pickNextPerSeries
+} from '$lib/utils/episodes';
 import type { SeasonProgress } from '$lib/utils/episodes';
 
 const sample: SeasonProgress[] = [
@@ -26,7 +30,6 @@ describe('countUnwatchedBefore (episode mode)', () => {
   });
 
   it('does not count the target episode itself', () => {
-    // S2E1 is unwatched but is the target → 0 before it (S1 is fully watched)
     expect(countUnwatchedBefore(sample, 2, 1)).toBe(0);
   });
 
@@ -48,7 +51,6 @@ describe('countUnwatchedBefore (episode mode)', () => {
   });
 
   it('counts unwatched in same season before target', () => {
-    // checking S2E3: S1 fully watched, S2E1+S2E2 unwatched → 2
     expect(countUnwatchedBefore(sample, 2, 3)).toBe(2);
   });
 
@@ -63,11 +65,10 @@ describe('countUnwatchedBefore (episode mode)', () => {
         ]
       }
     ];
-    expect(countUnwatchedBefore(seasons, 2, 2)).toBe(2); // S1E1 + S2E1
+    expect(countUnwatchedBefore(seasons, 2, 2)).toBe(2);
   });
 
   it('ignores episodes after the target', () => {
-    // checking S2E1 with S2E2, S2E3 unwatched — those don't count (after target)
     expect(countUnwatchedBefore(sample, 2, 1)).toBe(0);
   });
 });
@@ -95,8 +96,6 @@ describe('countUnwatchedBefore (season mode)', () => {
         episodes: [{ episodeNumber: 1, watched: false }]
       }
     ];
-    // For season 3, count unwatched in S1 (1) + S2 (1) = 2.
-    // S3 own episodes are not counted.
     expect(countUnwatchedBefore(seasons, 3)).toBe(2);
   });
 
@@ -174,5 +173,52 @@ describe('findInProgressSeason', () => {
       }
     ];
     expect(findInProgressSeason(seasons)).toBe(3);
+  });
+});
+
+describe('pickNextPerSeries', () => {
+  it('returns one row per series, keeping the first occurrence', () => {
+    const eps = [
+      { seriesTmdbId: 1, seasonNumber: 3, episodeNumber: 1 },
+      { seriesTmdbId: 1, seasonNumber: 3, episodeNumber: 2 },
+      { seriesTmdbId: 1, seasonNumber: 4, episodeNumber: 1 },
+      { seriesTmdbId: 2, seasonNumber: 1, episodeNumber: 5 },
+      { seriesTmdbId: 2, seasonNumber: 1, episodeNumber: 6 }
+    ];
+    const out = pickNextPerSeries(eps);
+    expect(out).toEqual([
+      { seriesTmdbId: 1, seasonNumber: 3, episodeNumber: 1 },
+      { seriesTmdbId: 2, seasonNumber: 1, episodeNumber: 5 }
+    ]);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(pickNextPerSeries([])).toEqual([]);
+  });
+
+  it('preserves input order (series order, not re-sorted)', () => {
+    const eps = [
+      { seriesTmdbId: 2, seasonNumber: 1, episodeNumber: 1 },
+      { seriesTmdbId: 1, seasonNumber: 1, episodeNumber: 1 }
+    ];
+    const out = pickNextPerSeries(eps);
+    expect(out.map((e) => e.seriesTmdbId)).toEqual([2, 1]);
+  });
+
+  it('handles a single series with many episodes', () => {
+    const eps = [
+      { seriesTmdbId: 7, seasonNumber: 1, episodeNumber: 1 },
+      { seriesTmdbId: 7, seasonNumber: 1, episodeNumber: 2 },
+      { seriesTmdbId: 7, seasonNumber: 1, episodeNumber: 3 }
+    ];
+    expect(pickNextPerSeries(eps)).toHaveLength(1);
+  });
+
+  it('keeps extra fields on the kept row', () => {
+    const eps = [
+      { seriesTmdbId: 1, seasonNumber: 1, episodeNumber: 1, name: 'Pilot' },
+      { seriesTmdbId: 1, seasonNumber: 1, episodeNumber: 2, name: 'Second' }
+    ];
+    expect(pickNextPerSeries(eps)[0].name).toBe('Pilot');
   });
 });

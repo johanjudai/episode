@@ -1,22 +1,26 @@
 import type { Actions, PageServerLoad } from './$types';
 import {
   getEpisodesToWatch,
+  getRecentWatched,
   getUpcomingEpisodes,
   markEpisodeWatched,
   unfollowSeries
 } from '$lib/server/db/queries';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
+import { pickNextPerSeries } from '$lib/utils/episodes';
 
 export const load: PageServerLoad = async () => {
   const now = new Date();
-  const [toWatch, upcoming] = await Promise.all([
+  const [allUnwatched, upcoming, recent] = await Promise.all([
     getEpisodesToWatch(now),
-    getUpcomingEpisodes(7, now)
+    getUpcomingEpisodes(7, now),
+    getRecentWatched(3)
   ]);
   return {
-    toWatch,
+    toWatch: pickNextPerSeries(allUnwatched),
     upcoming,
+    recent,
     now: now.toISOString()
   };
 };
