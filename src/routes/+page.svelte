@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
+  import { onMount, tick } from 'svelte';
   import { deserialize, applyAction } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { fade, scale } from 'svelte/transition';
@@ -45,6 +46,19 @@
   function cancelUnfollow() {
     removeModal = null;
   }
+
+  /* Hide "Vu récemment" above the fold on initial mount: scroll past it so
+   * "À voir maintenant" sits at the top. The user has to pull/scroll up to
+   * reveal the recent items. */
+  let toWatchRef: HTMLElement | undefined = $state();
+
+  onMount(async () => {
+    await tick();
+    if (!toWatchRef || data.recent.length === 0) return;
+    const rect = toWatchRef.getBoundingClientRect();
+    const target = window.scrollY + rect.top;
+    window.scrollTo({ top: target, behavior: 'instant' as ScrollBehavior });
+  });
 
   function relativeRecent(ms: number, now: Date): string {
     const diff = Math.max(0, now.getTime() - ms);
@@ -101,7 +115,7 @@
     </section>
   {/if}
 
-  <section>
+  <section bind:this={toWatchRef} id="to-watch">
     <div class="section">
       <div class="section__title">
         À voir maintenant

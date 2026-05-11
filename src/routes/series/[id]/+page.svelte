@@ -71,6 +71,8 @@
   }
 
   function interceptSeason({ formData, cancel }: { formData: FormData; cancel: () => void }) {
+    /* Unticking a fully-watched season is always immediate — no confirmation. */
+    if (formData.get('watched') !== 'true') return;
     const s = Number(formData.get('seasonNumber'));
     const count = countUnwatchedBefore(data.seasons, s);
     if (count === 0) return;
@@ -170,10 +172,13 @@
         </div>
         <form method="POST" action="?/markSeason" use:enhance={interceptSeason} style="display:contents">
           <input type="hidden" name="seasonNumber" value={s.seasonNumber} />
+          <input type="hidden" name="watched" value={isComplete ? 'false' : 'true'} />
           <button
             class="season__checkall"
             type="submit"
-            aria-label={`Tout cocher saison ${s.seasonNumber}`}
+            aria-label={isComplete
+              ? `Décocher saison ${s.seasonNumber}`
+              : `Tout cocher saison ${s.seasonNumber}`}
             aria-pressed={isComplete}
           >{isComplete ? '✓' : '○'}</button>
         </form>

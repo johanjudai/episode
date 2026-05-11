@@ -12,7 +12,8 @@ import {
   markSeasonsUpTo,
   markSeriesWatched,
   unfollowSeries,
-  unmarkEpisodeWatched
+  unmarkEpisodeWatched,
+  unmarkSeasonWatched
 } from '$lib/server/db/queries';
 import { db, episodes, seasons, watched } from '$lib/server/db';
 import { and, eq } from 'drizzle-orm';
@@ -89,6 +90,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 const SeasonForm = z.object({
   seasonNumber: z.coerce.number().int().positive(),
+  watched: z.enum(['true', 'false']).default('true'),
   markPrevious: z.enum(['true', 'false']).optional()
 });
 
@@ -258,6 +260,12 @@ export const actions: Actions = {
     const form = await request.formData();
     const parsed = SeasonForm.safeParse(Object.fromEntries(form));
     if (!parsed.success) return fail(400, { error: 'Saison invalide' });
+
+    if (parsed.data.watched === 'false') {
+      /* Unticking a season — series row must already exist; no TMDB sync needed. */
+      await unmarkSeasonWatched(id, parsed.data.seasonNumber);
+      return { success: true };
+    }
 
     await ensureFollowed(id, apiKey);
     await ensureEpisodeRow(id, parsed.data.seasonNumber, 1, apiKey).catch(() => 0);

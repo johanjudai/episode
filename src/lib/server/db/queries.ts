@@ -130,6 +130,22 @@ export async function markSeasonWatched(
   }
 }
 
+export async function unmarkSeasonWatched(
+  seriesTmdbId: number,
+  seasonNumber: number
+): Promise<void> {
+  const eps = db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(
+      and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
+    )
+    .all();
+  for (const ep of eps) {
+    db.delete(watched).where(eq(watched.episodeId, ep.id)).run();
+  }
+}
+
 export async function markEpisodesUpTo(
   seriesTmdbId: number,
   seasonNumber: number,
@@ -270,6 +286,9 @@ export interface FollowedSeriesProgress {
 }
 
 export async function getFollowedSeriesWithProgress(): Promise<FollowedSeriesProgress[]> {
+  /* Drizzle's `sql` template inlines column refs unqualified (e.g. "id" instead
+   * of "episodes"."id"), which collides on the watched-episode join. Use raw
+   * SQL strings with explicit table.column qualification in the subqueries. */
   const rows = db
     .select({
       tmdbId: series.tmdbId,
@@ -280,13 +299,13 @@ export async function getFollowedSeriesWithProgress(): Promise<FollowedSeriesPro
       numberOfSeasons: series.numberOfSeasons,
       addedAt: series.addedAt,
       totalEpisodes: sql<number>`(
-        SELECT COUNT(*) FROM ${episodes}
-        WHERE ${episodes.seriesTmdbId} = ${series.tmdbId}
+        SELECT COUNT(*) FROM episodes
+        WHERE episodes.series_tmdb_id = series.tmdb_id
       )`,
       watchedCount: sql<number>`(
-        SELECT COUNT(*) FROM ${watched}
-        JOIN ${episodes} ON ${episodes.id} = ${watched.episodeId}
-        WHERE ${episodes.seriesTmdbId} = ${series.tmdbId}
+        SELECT COUNT(*) FROM watched
+        JOIN episodes ON episodes.id = watched.episode_id
+        WHERE episodes.series_tmdb_id = series.tmdb_id
       )`
     })
     .from(series)
