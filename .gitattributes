@@ -1,0 +1,26 @@
+# Default to LF endings to keep cross-platform diffs sane.
+* text=auto eol=lf
+
+# Files that MUST stay LF (CRLF would break shebangs / shell parsing).
+*.sh        text eol=lf
+*.mjs       text eol=lf
+*.js        text eol=lf
+*.ts        text eol=lf
+*.svelte    text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.sql       text eol=lf
+
+# Binary files — never normalize.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.ico       binary
+*.gif       binary
+*.sqlite    binary
+*.db        binary
