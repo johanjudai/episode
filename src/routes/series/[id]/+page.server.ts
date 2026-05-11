@@ -7,7 +7,9 @@ import {
   getSeries,
   getSetting,
   markEpisodeWatched,
+  markEpisodesUpTo,
   markSeasonWatched,
+  markSeasonsUpTo,
   markSeriesWatched,
   unfollowSeries,
   unmarkEpisodeWatched
@@ -80,21 +82,22 @@ export const load: PageServerLoad = async ({ params }) => {
       runtimeMinutes: detail.episode_run_time?.[0] ?? null
     },
     seasons: seasonsOut,
-    followed: !!followed,
+    followed: !!followed && !followed.removedAt,
     progress: { watched: watchedCount, total: totalEpisodes }
   };
 };
 
-const SeasonForm = z.object({ seasonNumber: z.coerce.number().int().positive() });
+const SeasonForm = z.object({
+  seasonNumber: z.coerce.number().int().positive(),
+  markPrevious: z.enum(['true', 'false']).optional()
+});
+
 const EpisodeForm = z.object({
   seasonNumber: z.coerce.number().int().nonnegative(),
   episodeNumber: z.coerce.number().int().nonnegative(),
-  watched: z.enum(['true', 'false'])
+  watched: z.enum(['true', 'false']),
+  markPrevious: z.enum(['true', 'false']).optional()
 });
-
-async function syncSeasonsToDb(tmdbId: number): Promise<void> {
-  // No-op stub. Real sync happens when episodes are marked.
-}
 
 async function ensureEpisodeRow(
   tmdbId: number,
@@ -163,71 +166,115 @@ async function ensureEpisodeRow(
   return epRow.id;
 }
 
+async function syncAllSeasons(tmdbId: number, apiKey: string): Promise<void> {
+  const tmdb = createTmdbClient({ apiKey });
+  const detail = await tmdb.tvDetail(tmdbId);
+  await Promise.all(
+    (detail.seasons ?? [])
+      .filter((s) => s.season_number > 0)
+      .map((s) => ensureEpisodeRow(tmdbId, s.season_number, 1, apiKey).catch(() => 0))
+  );
+}
+
+/**
+ * Ensure the series exists in DB with a current `addedAt` and removed=null,
+ * and that all of its seasons/episodes are synced so the home view can pick up
+ * upcoming episodes. Idempotent — safe to call on every mark action.
+ */
+async function ensureFollowed(tmdbId: number, apiKey: string): Promise<void> {
+  const existing = await getSeries(tmdbId);
+  const alreadyFollowed = existing && !existing.removedAt;
+  if (alreadyFollowed) return;
+
+  const tmdb = createTmdbClient({ apiKey });
+  const detail = await tmdb.tvDetail(tmdbId);
+  await followSeries({
+    tmdbId: detail.id,
+    name: detail.name,
+    posterPath: detail.poster_path ?? null,
+    overview: detail.overview ?? null,
+    firstAirDate: detail.first_air_date ?? null,
+    status: detail.status ?? null,
+    network: detail.networks?.[0]?.name ?? null,
+    numberOfSeasons: detail.number_of_seasons ?? null,
+    numberOfEpisodes: detail.number_of_episodes ?? null
+  });
+  await syncAllSeasons(tmdbId, apiKey);
+}
+
+function requireApiKey(): Promise<string> {
+  return getSetting('tmdb.api_key').then(
+    (k) => k ?? process.env.EPISODE_TMDB_API_KEY ?? ''
+  );
+}
+
 export const actions: Actions = {
   follow: async ({ params }) => {
     const id = Number(params.id);
-    const apiKey = (await getSetting('tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+    const apiKey = await requireApiKey();
     if (!apiKey) return fail(412, { error: 'Clé TMDB manquante' });
-    const tmdb = createTmdbClient({ apiKey });
-    const detail = await tmdb.tvDetail(id);
-    await followSeries({
-      tmdbId: detail.id,
-      name: detail.name,
-      posterPath: detail.poster_path ?? null,
-      overview: detail.overview ?? null,
-      firstAirDate: detail.first_air_date ?? null,
-      status: detail.status ?? null,
-      network: detail.networks?.[0]?.name ?? null,
-      numberOfSeasons: detail.number_of_seasons ?? null,
-      numberOfEpisodes: detail.number_of_episodes ?? null
-    });
+    await ensureFollowed(id, apiKey);
     return { success: true };
   },
+
   unfollow: async ({ params }) => {
     const id = Number(params.id);
     await unfollowSeries(id);
     return { success: true };
   },
+
   markEpisode: async ({ params, request }) => {
     const id = Number(params.id);
-    const apiKey = (await getSetting('tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+    const apiKey = await requireApiKey();
     if (!apiKey) return fail(412, { error: 'Clé TMDB manquante' });
     const form = await request.formData();
     const parsed = EpisodeForm.safeParse(Object.fromEntries(form));
     if (!parsed.success) return fail(400, { error: 'Données invalides' });
+
+    await ensureFollowed(id, apiKey);
     const epId = await ensureEpisodeRow(
       id,
       parsed.data.seasonNumber,
       parsed.data.episodeNumber,
       apiKey
     );
-    if (parsed.data.watched === 'true') await markEpisodeWatched(epId);
-    else await unmarkEpisodeWatched(epId);
+
+    if (parsed.data.watched === 'true') {
+      if (parsed.data.markPrevious === 'true') {
+        await markEpisodesUpTo(id, parsed.data.seasonNumber, parsed.data.episodeNumber);
+      } else {
+        await markEpisodeWatched(epId);
+      }
+    } else {
+      await unmarkEpisodeWatched(epId);
+    }
     return { success: true };
   },
+
   markSeason: async ({ params, request }) => {
     const id = Number(params.id);
-    const apiKey = (await getSetting('tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+    const apiKey = await requireApiKey();
     if (!apiKey) return fail(412, { error: 'Clé TMDB manquante' });
     const form = await request.formData();
     const parsed = SeasonForm.safeParse(Object.fromEntries(form));
     if (!parsed.success) return fail(400, { error: 'Saison invalide' });
-    // Pre-sync season into DB
+
+    await ensureFollowed(id, apiKey);
     await ensureEpisodeRow(id, parsed.data.seasonNumber, 1, apiKey).catch(() => 0);
-    await markSeasonWatched(id, parsed.data.seasonNumber);
+
+    if (parsed.data.markPrevious === 'true') {
+      await markSeasonsUpTo(id, parsed.data.seasonNumber);
+    } else {
+      await markSeasonWatched(id, parsed.data.seasonNumber);
+    }
     return { success: true };
   },
+
   markAll: async ({ params }) => {
     const id = Number(params.id);
-    const apiKey = (await getSetting('tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+    const apiKey = await requireApiKey();
     if (!apiKey) return fail(412, { error: 'Clé TMDB manquante' });
-    const tmdb = createTmdbClient({ apiKey });
-    const detail = await tmdb.tvDetail(id);
-    for (const s of detail.seasons ?? []) {
-      if (s.season_number > 0) {
-        await ensureEpisodeRow(id, s.season_number, 1, apiKey).catch(() => 0);
-      }
-    }
+    await ensureFollowed(id, apiKey);
     await markSeriesWatched(id);
     return { success: true };
   }

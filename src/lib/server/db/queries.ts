@@ -1,6 +1,6 @@
 import { db, settings, series, seasons, episodes, watched } from './index';
 import type { Series, Episode } from './index';
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 
 export async function getSetting(key: string): Promise<string | null> {
   const rows = db.select().from(settings).where(eq(settings.key, key)).all();
@@ -114,6 +114,56 @@ export async function markSeasonWatched(
     .from(episodes)
     .where(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
+    )
+    .all();
+  for (const ep of eps) {
+    db.insert(watched)
+      .values({ episodeId: ep.id, watchedAt: at })
+      .onConflictDoNothing({ target: watched.episodeId })
+      .run();
+  }
+}
+
+export async function markEpisodesUpTo(
+  seriesTmdbId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+  at: Date = new Date()
+): Promise<void> {
+  const eps = db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(
+      and(
+        eq(episodes.seriesTmdbId, seriesTmdbId),
+        or(
+          lt(episodes.seasonNumber, seasonNumber),
+          and(
+            eq(episodes.seasonNumber, seasonNumber),
+            lte(episodes.episodeNumber, episodeNumber)
+          )
+        )
+      )
+    )
+    .all();
+  for (const ep of eps) {
+    db.insert(watched)
+      .values({ episodeId: ep.id, watchedAt: at })
+      .onConflictDoNothing({ target: watched.episodeId })
+      .run();
+  }
+}
+
+export async function markSeasonsUpTo(
+  seriesTmdbId: number,
+  seasonNumber: number,
+  at: Date = new Date()
+): Promise<void> {
+  const eps = db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(
+      and(eq(episodes.seriesTmdbId, seriesTmdbId), lte(episodes.seasonNumber, seasonNumber))
     )
     .all();
   for (const ep of eps) {
