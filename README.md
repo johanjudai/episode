@@ -49,15 +49,80 @@ npm run coverage           # coverage report
 
 > **Hard gate**: `npm run build` runs `prebuild` which runs the unit-test suite. **If any test fails, the build does not produce an artifact.** CI enforces the same.
 
-## Self-hosting (Docker)
+## Self-hosting (Docker, homelab)
+
+### 1. Clone and configure
+
+```bash
+git clone https://github.com/yourself/episode.git
+cd episode
+cp .env.example .env
+# edit .env — at minimum set EPISODE_ORIGIN to the URL you'll access from
+```
+
+`.env` example for a homelab behind a reverse proxy at `https://episode.home.lan`:
+
+```env
+EPISODE_ORIGIN=https://episode.home.lan
+EPISODE_TMDB_API_KEY=               # optional — can also be set in /settings
+```
+
+### 2. Build and run
 
 ```bash
 docker compose up -d --build
 ```
 
-Episode is now on `http://localhost:3000`. Put it behind a reverse proxy (Caddy / nginx) for HTTPS.
+The first build takes ~2-4 minutes — it installs deps, **runs the full test suite (123 tests, hard gate)**, then builds the SvelteKit bundle. If any test fails the image is not produced.
 
-The SQLite database is stored in the `episode-data` named volume — back it up by copying the volume contents.
+Episode is now serving on `http://<homelab-ip>:3000`. The container runs migrations automatically on every start, then launches the Node server.
+
+### 3. Put it behind HTTPS
+
+PWA install on mobile **requires HTTPS** (Chrome refuses to install a non-secure origin). Easiest setup with Caddy on the homelab:
+
+```caddy
+episode.home.lan {
+  reverse_proxy 127.0.0.1:3000
+}
+```
+
+Caddy will issue a Let's Encrypt cert automatically if DNS resolves publicly, or you can use an internal CA (e.g. mkcert) for `.lan` domains.
+
+### 4. Install as a "phone app" (PWA shortcut)
+
+On your phone:
+
+1. Open `https://episode.home.lan` in **Chrome** (Android) or **Safari** (iOS)
+2. **Chrome → menu (⋮) → "Installer l'application"** (or "Ajouter à l'écran d'accueil")
+3. **Safari → bouton Partager → "Sur l'écran d'accueil"**
+
+You'll get an icon on the home screen. Tapping it opens Episode in standalone mode — no browser chrome, splash-style theme color on the status bar, full-screen experience. It's not a `.apk` file but it behaves exactly like a native app.
+
+### Backup
+
+The SQLite database is in the `episode-data` named volume.
+
+```bash
+# Backup
+docker run --rm -v episode_episode-data:/data -v $(pwd):/backup \
+  alpine tar czf /backup/episode-backup-$(date +%F).tar.gz -C /data .
+
+# Restore
+docker run --rm -v episode_episode-data:/data -v $(pwd):/backup \
+  alpine sh -c "cd /data && tar xzf /backup/episode-backup-YYYY-MM-DD.tar.gz"
+```
+
+Or just copy `/var/lib/docker/volumes/episode_episode-data/_data/episode.sqlite*` directly.
+
+### Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Migrations run automatically on every container start.
 
 ## TMDB API key
 
@@ -99,10 +164,11 @@ mockups/                          Static HTML/CSS wireframes (design source)
 
 ## Roadmap
 
-- [ ] Capacitor wrapper for Android APK builds
+- [ ] Capacitor wrapper for a real Android `.apk` (currently the PWA install covers most use cases)
 - [ ] Background TMDB sync (job to refresh series airing status)
-- [ ] CSV/Trakt importers
+- [ ] Trakt OAuth import (cleaner than TV Time scraping, real public API)
 - [ ] Optional password protection for self-host
+- [ ] Pre-generated PNG icons for the manifest (currently SVG-only)
 
 ## License
 

@@ -19,7 +19,7 @@
     "test:e2e": "playwright test",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/lib/server/db/migrate.ts",
+    "db:migrate": "EPISODE_MIGRATIONS_FOLDER=./src/lib/server/db/migrations node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {

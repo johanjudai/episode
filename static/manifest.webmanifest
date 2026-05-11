@@ -1,0 +1,22 @@
+{
+  "name": "Episode",
+  "short_name": "Episode",
+  "description": "Open-source TV series tracker — focused, mobile-first, self-hostable.",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAF8",
+  "theme_color": "#D62828",
+  "lang": "fr-FR",
+  "categories": ["entertainment", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
