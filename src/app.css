@@ -1128,6 +1128,112 @@ a {
   gap: var(--s-3);
 }
 
+/* ========== Motion (light Pixel/Material 3 vibe over Bauhaus skeleton) ========== */
+
+/* Bauhaus mobile: shapes drift independently. Different periods → endlessly
+   changing compositions without ever fully syncing. */
+@keyframes drift-circle {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(14px, -8px) rotate(-30deg);
+  }
+  50% {
+    transform: translate(26px, 4px) rotate(-60deg);
+  }
+  75% {
+    transform: translate(10px, 14px) rotate(-30deg);
+  }
+}
+
+@keyframes tilt-square {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-10px, 8px) rotate(18deg);
+  }
+  50% {
+    transform: translate(2px, 18px) rotate(0deg);
+  }
+  75% {
+    transform: translate(12px, 8px) rotate(-18deg);
+  }
+}
+
+@keyframes spin-tri {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(0, 0) rotate(360deg);
+  }
+}
+
+.onboarding__hero .shape--circle {
+  animation: drift-circle 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+.onboarding__hero .shape--square {
+  animation: tilt-square 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.onboarding__hero .shape--tri {
+  animation: spin-tri 28s linear infinite;
+  will-change: transform;
+  transform-origin: 50% 60%;
+}
+
+/* Spring-ish press feedback on interactive elements. Bauhaus stays rectangular,
+   but the tactile response gets a slight Pixel-style "give". */
+.btn,
+.iconbtn,
+.episode__action,
+.season__checkall,
+.theme-picker__opt,
+.checkbox {
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:active,
+.iconbtn:active,
+.episode__action:active,
+.season__checkall:active,
+.theme-picker__opt:active {
+  transform: scale(0.95);
+}
+
+.checkbox:active {
+  transform: scale(0.88);
+}
+
+/* Progress bar fill glides instead of jumping */
+.progress__fill {
+  transition: width 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Respect user's OS-level preference even if the in-app a11y toggle is off */
+@media (prefers-reduced-motion: reduce) {
+  .onboarding__hero .shape {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 .empty {
   padding: var(--s-7) var(--s-4);
   text-align: center;

@@ -2,6 +2,8 @@
   import type { PageProps } from './$types';
   import { enhance, deserialize, applyAction } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
+  import { slide, scale, fade } from 'svelte/transition';
+  import { backOut, quintOut } from 'svelte/easing';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
@@ -184,7 +186,7 @@
         >{isExpanded ? '▴' : '▾'}</button>
       </div>
       {#if isExpanded}
-        <ul class="season__list">
+        <ul class="season__list" transition:slide={{ duration: 220, easing: quintOut }}>
           {#each s.episodes as ep (ep.episodeNumber)}
             <li>
               <form method="POST" action="?/markEpisode" use:enhance={interceptEpisode} style="display:contents">
@@ -214,8 +216,14 @@
 </main>
 
 {#if pending}
-  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-    <div class="modal">
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="confirm-title"
+    transition:fade={{ duration: 140 }}
+  >
+    <div class="modal" transition:scale={{ duration: 260, start: 0.92, easing: backOut }}>
       <div class="modal__kicker">Confirmation</div>
       <h2 class="modal__title" id="confirm-title">{pending.title}</h2>
       <p class="modal__body">{pending.body}</p>

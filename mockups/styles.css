@@ -898,6 +898,43 @@ input, button, [role="switch"], [role="button"], a {
 .spacer { flex: 1; }
 .row { display: flex; align-items: center; gap: var(--s-3); }
 
+/* ========== Motion ========== */
+@keyframes drift-circle {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25%      { transform: translate(14px, -8px) rotate(-30deg); }
+  50%      { transform: translate(26px, 4px) rotate(-60deg); }
+  75%      { transform: translate(10px, 14px) rotate(-30deg); }
+}
+@keyframes tilt-square {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25%      { transform: translate(-10px, 8px) rotate(18deg); }
+  50%      { transform: translate(2px, 18px) rotate(0deg); }
+  75%      { transform: translate(12px, 8px) rotate(-18deg); }
+}
+@keyframes spin-tri {
+  from { transform: translate(0, 0) rotate(0deg); }
+  to   { transform: translate(0, 0) rotate(360deg); }
+}
+.onboarding__hero .shape--circle { animation: drift-circle 18s ease-in-out infinite; will-change: transform; }
+.onboarding__hero .shape--square { animation: tilt-square 22s ease-in-out infinite; will-change: transform; }
+.onboarding__hero .shape--tri    { animation: spin-tri 28s linear infinite; will-change: transform; transform-origin: 50% 60%; }
+
+.btn, .iconbtn, .episode__action, .season__checkall, .theme-picker__opt, .checkbox {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn:active, .iconbtn:active, .episode__action:active, .season__checkall:active, .theme-picker__opt:active { transform: scale(0.95); }
+.checkbox:active { transform: scale(0.88); }
+.progress__fill { transition: width 0.45s cubic-bezier(0.65, 0, 0.35, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding__hero .shape { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* ========== Rank badge (tendances) ========== */
 .rank {
   position: absolute;
