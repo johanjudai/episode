@@ -1,8 +1,10 @@
 <script lang="ts">
   import Mark from '$lib/components/Mark.svelte';
+  import AvatarPicker from '$lib/components/AvatarPicker.svelte';
   import { initialOf } from '$lib/utils/format';
 
   let name = $state('');
+  let avatar = $state('');
   const initial = $derived(name ? initialOf(name) : '?');
 </script>
 
@@ -42,10 +44,9 @@
 
     <div class="field">
       <span class="field__label">Photo de profil</span>
-      <div class="avatar-upload">
-        <div class="avatar" aria-hidden="true">{initial}</div>
-        <span class="field__help">Optionnel — configurable plus tard dans Paramètres.</span>
-      </div>
+      <AvatarPicker {initial} onChange={(d) => (avatar = d)} />
+      <input type="hidden" name="avatar" value={avatar} />
+      <span class="field__help">Optionnel — modifiable plus tard dans Paramètres.</span>
     </div>
 
     <div class="spacer"></div>

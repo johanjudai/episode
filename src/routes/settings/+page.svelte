@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { PageProps } from './$types';
   import BottomNav from '$lib/components/BottomNav.svelte';
+  import AvatarPicker from '$lib/components/AvatarPicker.svelte';
+  import { initialOf } from '$lib/utils/format';
 
   let { data, form }: PageProps = $props();
+
+  let avatarValue = $state<string>(data.profile.avatar ?? '');
 
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
   let reduceMotion = $state(false);
@@ -76,6 +80,22 @@
       <button class="btn btn--secondary" type="submit">Enregistrer</button>
       {#if form?.scope === 'profile' && form?.success}
         <span class="field__help" style="margin-left: var(--s-3)">Enregistré ✓</span>
+      {/if}
+    </form>
+
+    <form method="POST" action="?/updateAvatar" style="margin-top: var(--s-5)">
+      <span class="field__label" style="display: block; margin-bottom: var(--s-3)">Photo de profil</span>
+      <AvatarPicker
+        initial={initialOf(data.profile.name)}
+        current={data.profile.avatar}
+        onChange={(d) => (avatarValue = d)}
+      />
+      <input type="hidden" name="avatar" value={avatarValue} />
+      {#if avatarValue !== (data.profile.avatar ?? '')}
+        <button class="btn btn--accent" type="submit" style="margin-top: var(--s-3)">Enregistrer</button>
+      {/if}
+      {#if form?.scope === 'avatar' && form?.success}
+        <span class="field__help" style="margin-left: var(--s-3)">Photo mise à jour ✓</span>
       {/if}
     </form>
   </section>

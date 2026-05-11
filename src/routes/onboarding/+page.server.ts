@@ -1,6 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { setSetting } from '$lib/server/db/queries';
+import { isAvatarDataUrl, MAX_AVATAR_LENGTH } from '$lib/utils/avatar';
 import { z } from 'zod';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -10,7 +11,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 const Profile = z.object({
   name: z.string().trim().min(1).max(80),
-  avatar: z.string().max(500_000).optional()
+  avatar: z
+    .string()
+    .max(MAX_AVATAR_LENGTH)
+    .refine((v) => v === '' || isAvatarDataUrl(v), 'Image invalide')
+    .optional()
 });
 
 export const actions: Actions = {
@@ -21,7 +26,7 @@ export const actions: Actions = {
       avatar: form.get('avatar') ?? undefined
     });
     if (!parsed.success) {
-      return fail(400, { error: 'Nom invalide', fieldErrors: parsed.error.flatten().fieldErrors });
+      return fail(400, { error: 'Données invalides', fieldErrors: parsed.error.flatten().fieldErrors });
     }
     await setSetting('profile.name', parsed.data.name);
     if (parsed.data.avatar) await setSetting('profile.avatar', parsed.data.avatar);
