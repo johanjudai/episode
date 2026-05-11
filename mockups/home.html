@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>À voir — Episode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div>
+      <div class="mark" aria-hidden="true">
+        <span class="mark__circle"></span>
+        <span class="mark__square"></span>
+        <span class="mark__tri"></span>
+      </div>
+      <h1 class="topbar__title" style="margin-top: 8px">Episode</h1>
+    </div>
+    <div style="text-align: right">
+      <div class="topbar__date">Lun. 11 Mai</div>
+    </div>
+  </header>
+
+  <section>
+    <div class="section">
+      <div class="section__title">
+        À voir maintenant
+        <span class="section__count">3</span>
+      </div>
+    </div>
+
+    <div class="swipe-hint">→ Glissez à droite pour marquer vu &nbsp;·&nbsp; ← Gauche pour retirer la série</div>
+
+    <div class="episode">
+      <div class="episode__cover episode__cover--red" aria-hidden="true">SV</div>
+      <div>
+        <div class="episode__series">Severance</div>
+        <h3 class="episode__title">Cold Harbor</h3>
+        <div class="episode__meta">S02 · E10 · 56 min</div>
+      </div>
+      <button class="episode__action" aria-label="Marquer vu : Severance S02E10">✓</button>
+    </div>
+
+    <div class="episode">
+      <div class="episode__cover" aria-hidden="true">TL</div>
+      <div>
+        <div class="episode__series">The Last of Us</div>
+        <h3 class="episode__title">Through the Valley</h3>
+        <div class="episode__meta">S02 · E02 · 51 min</div>
+      </div>
+      <button class="episode__action" aria-label="Marquer vu : The Last of Us S02E02">✓</button>
+    </div>
+
+    <div class="episode">
+      <div class="episode__cover episode__cover--blue" aria-hidden="true">AN</div>
+      <div>
+        <div class="episode__series">Andor</div>
+        <h3 class="episode__title">Welcome to the Rebellion</h3>
+        <div class="episode__meta">S02 · E07 · 48 min</div>
+      </div>
+      <button class="episode__action" aria-label="Marquer vu : Andor S02E07">✓</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="section">
+      <div class="section__title">
+        À venir
+        <span class="section__count">7 jours</span>
+      </div>
+    </div>
+
+    <div class="upcoming">
+      <div class="upcoming__row">
+        <div class="upcoming__day" aria-hidden="true">Mar<strong>12</strong></div>
+        <div>
+          <div class="episode__series">The Bear</div>
+          <h3 class="episode__title">Season 4 Premiere</h3>
+          <div class="episode__meta">S04 · E01</div>
+        </div>
+        <span class="ep-date">Demain</span>
+      </div>
+      <div class="upcoming__row">
+        <div class="upcoming__day" aria-hidden="true">Mer<strong>13</strong></div>
+        <div>
+          <div class="episode__series">Silo</div>
+          <h3 class="episode__title">The Mechanical</h3>
+          <div class="episode__meta">S02 · E03</div>
+        </div>
+        <span class="ep-date">+2j</span>
+      </div>
+      <div class="upcoming__row">
+        <div class="upcoming__day" aria-hidden="true">Ven<strong>15</strong></div>
+        <div>
+          <div class="episode__series">Foundation</div>
+          <h3 class="episode__title">The Mathematician's Ghost</h3>
+          <div class="episode__meta">S03 · E01</div>
+        </div>
+        <span class="ep-date">+4j</span>
+      </div>
+      <div class="upcoming__row">
+        <div class="upcoming__day" aria-hidden="true">Dim<strong>17</strong></div>
+        <div>
+          <div class="episode__series">House of the Dragon</div>
+          <h3 class="episode__title">A Son for a Son</h3>
+          <div class="episode__meta">S03 · E01</div>
+        </div>
+        <span class="ep-date">+6j</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="spacer"></div>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <a href="home.html" aria-current="page">À voir</a>
+    <a href="search.html">Recherche</a>
+    <a href="profile.html">Profil</a>
+  </nav>
+</main>
+</body>
+</html>

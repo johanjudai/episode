@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Profil — Episode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <h1 class="topbar__title">Profil</h1>
+    <a href="settings.html" class="iconbtn" aria-label="Paramètres">⚙</a>
+  </header>
+
+  <section class="profile-head">
+    <div class="avatar" aria-hidden="true">P</div>
+    <div>
+      <div class="profile-head__name">Pierre</div>
+      <div class="profile-head__since">Membre depuis Mai 2026</div>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat__num stat__accent">312<small>h</small></div>
+      <div class="stat__label">Temps total</div>
+    </div>
+    <div class="stat">
+      <div class="stat__num">47</div>
+      <div class="stat__label">Séries suivies</div>
+    </div>
+    <div class="stat">
+      <div class="stat__num">1 248</div>
+      <div class="stat__label">Épisodes vus</div>
+    </div>
+    <div class="stat">
+      <div class="stat__num">23<small>j</small></div>
+      <div class="stat__label">Streak actuelle</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section">
+      <div class="section__title">
+        Historique récent
+        <span class="section__count">Voir tout →</span>
+      </div>
+    </div>
+    <ul class="history">
+      <li>
+        <span class="history__dot" aria-hidden="true"></span>
+        <div>
+          <strong>Severance</strong> · S02 E01
+          <div class="ep-date">Aujourd'hui · 56 min</div>
+        </div>
+        <span class="history__time">22:14</span>
+      </li>
+      <li>
+        <span class="history__dot history__dot--blue" aria-hidden="true"></span>
+        <div>
+          <strong>The Bear</strong> · S03 E10
+          <div class="ep-date">Hier · 38 min</div>
+        </div>
+        <span class="history__time">21:02</span>
+      </li>
+      <li>
+        <span class="history__dot history__dot--yellow" aria-hidden="true"></span>
+        <div>
+          <strong>Andor</strong> · S02 E06
+          <div class="ep-date">9 Mai · 48 min</div>
+        </div>
+        <span class="history__time">20:48</span>
+      </li>
+      <li>
+        <span class="history__dot" aria-hidden="true"></span>
+        <div>
+          <strong>Silo</strong> · S02 E02
+          <div class="ep-date">8 Mai · 51 min</div>
+        </div>
+        <span class="history__time">22:30</span>
+      </li>
+      <li>
+        <span class="history__dot history__dot--blue" aria-hidden="true"></span>
+        <div>
+          <strong>Foundation</strong> · S02 E10
+          <div class="ep-date">5 Mai · 53 min</div>
+        </div>
+        <span class="history__time">19:12</span>
+      </li>
+    </ul>
+  </section>
+
+  <div class="spacer"></div>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <a href="home.html">À voir</a>
+    <a href="search.html">Recherche</a>
+    <a href="profile.html" aria-current="page">Profil</a>
+  </nav>
+</main>
+</body>
+</html>

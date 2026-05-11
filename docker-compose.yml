@@ -1,0 +1,16 @@
+services:
+  episode:
+    build: .
+    image: episode:local
+    container_name: episode
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - episode-data:/data
+    environment:
+      EPISODE_ORIGIN: ${EPISODE_ORIGIN:-http://localhost:3000}
+      EPISODE_TMDB_API_KEY: ${EPISODE_TMDB_API_KEY:-}
+
+volumes:
+  episode-data:

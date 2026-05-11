@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Episode — Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { padding: 32px 24px; background: #E8E5DC; min-height: 100vh; }
+  [data-theme="dark"] body { background: #1A1A1A; }
+
+  .gallery { max-width: 1500px; margin: 0 auto; }
+
+  .gallery__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    padding-bottom: 24px;
+    border-bottom: 3px solid var(--fg);
+  }
+
+  .gallery__head h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 3rem;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-top: 12px;
+  }
+
+  .gallery__lead { color: var(--muted); margin-top: 8px; max-width: 420px; }
+
+  .gallery__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 32px;
+  }
+
+  .gallery__item {
+    background: var(--bg);
+    border: 2px solid var(--fg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gallery__item h2 {
+    padding: 14px 16px;
+    border-bottom: 2px solid var(--fg);
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-2);
+  }
+
+  .gallery__item h2 a {
+    font-size: 0.7rem;
+    color: var(--bw-red);
+    text-decoration: none;
+    letter-spacing: 0.12em;
+  }
+
+  .gallery__item h2 a:hover { text-decoration: underline; }
+
+  .gallery__item iframe {
+    width: 100%;
+    height: 780px;
+    border: 0;
+    display: block;
+    background: var(--bg);
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .num {
+    display: inline-grid;
+    place-items: center;
+    width: 28px; height: 28px;
+    background: var(--bw-red);
+    color: var(--bw-white);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+  <div class="gallery">
+    <header class="gallery__head">
+      <div>
+        <div class="mark" aria-hidden="true">
+          <span class="mark__circle"></span>
+          <span class="mark__square"></span>
+          <span class="mark__tri"></span>
+        </div>
+        <h1>Episode</h1>
+        <p class="gallery__lead">Mockups · style Bauhaus · mobile-first. Cliquez sur « Ouvrir » pour tester un écran en plein format.</p>
+      </div>
+      <div class="controls">
+        <button class="btn btn--secondary" id="theme-toggle">Basculer thème</button>
+      </div>
+    </header>
+
+    <div class="gallery__grid">
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">1</span> Onboarding</span> <a href="onboarding.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="onboarding.html" title="Onboarding" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">2</span> À voir</span> <a href="home.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="home.html" title="Accueil" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">3</span> Recherche</span> <a href="search.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="search.html" title="Recherche" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">4</span> Fiche série</span> <a href="series.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="series.html" title="Fiche série" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">5</span> Profil</span> <a href="profile.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="profile.html" title="Profil" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">6</span> Paramètres</span> <a href="settings.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="settings.html" title="Paramètres" loading="lazy"></iframe>
+      </article>
+      <article class="gallery__item">
+        <h2><span class="row"><span class="num">7</span> Confirmation (swipe gauche)</span> <a href="home-confirm.html" target="_blank" rel="noopener">Ouvrir →</a></h2>
+        <iframe src="home-confirm.html" title="Confirmation retrait" loading="lazy"></iframe>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('theme-toggle');
+    btn.addEventListener('click', () => {
+      const root = document.documentElement;
+      const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      document.querySelectorAll('iframe').forEach(f => {
+        try { f.contentDocument.documentElement.dataset.theme = next; } catch (e) {}
+      });
+    });
+  </script>
+</body>
+</html>

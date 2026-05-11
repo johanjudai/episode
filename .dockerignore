@@ -1,0 +1,16 @@
+node_modules
+.svelte-kit
+build
+.git
+.github
+mockups
+coverage
+playwright-report
+test-results
+data
+*.sqlite
+.env
+.env.*
+!.env.example
+.idea
+.vscode

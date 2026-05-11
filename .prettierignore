@@ -1,0 +1,17 @@
+.DS_Store
+node_modules
+build
+.svelte-kit
+package
+.env
+.env.*
+!.env.example
+
+pnpm-lock.yaml
+package-lock.yaml
+yarn.lock
+package-lock.json
+
+mockups
+data
+src/lib/server/db/migrations

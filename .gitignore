@@ -1,0 +1,32 @@
+node_modules
+.DS_Store
+
+# Build output
+build
+.svelte-kit
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# DB
+data/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Test
+coverage
+.playwright/
+test-results/
+playwright-report/
+
+# Mobile (Capacitor — added later)
+android/app/build
+ios/App/build

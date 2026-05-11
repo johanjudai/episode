@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Severance — Episode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <a href="search.html" class="iconbtn" aria-label="Retour">←</a>
+    <div class="topbar__date">Fiche série</div>
+    <button class="iconbtn" aria-label="Options">⋯</button>
+  </header>
+
+  <section class="hero">
+    <div class="hero__poster" aria-hidden="true"></div>
+    <div>
+      <h1 class="hero__title">Severance</h1>
+      <div class="hero__meta">2022 · Apple TV+ · 2 saisons</div>
+    </div>
+  </section>
+
+  <section class="progress">
+    <div class="progress__label">
+      <span>Progression</span>
+      <span>53%</span>
+    </div>
+    <div class="progress__bar" role="progressbar" aria-valuenow="53" aria-valuemin="0" aria-valuemax="100" aria-label="Progression de visionnage">
+      <div class="progress__fill"></div>
+    </div>
+    <div class="progress__numbers">
+      10<small>/ 19 épisodes</small>
+    </div>
+  </section>
+
+  <section class="actions">
+    <button class="btn btn--accent">Tout cocher</button>
+    <button class="btn btn--secondary">Tout décocher</button>
+  </section>
+
+  <section class="synopsis">
+    Mark dirige une équipe d'employés dont les souvenirs ont été chirurgicalement divisés entre leur vie professionnelle et personnelle. Lorsqu'un mystérieux collègue refait surface, leur réalité commence à se fracturer.
+  </section>
+
+  <section class="season">
+    <div class="season__head">
+      <div class="season__num">01</div>
+      <div>
+        <div class="season__title">Saison 1</div>
+        <div class="season__progress">9 / 9</div>
+      </div>
+      <button class="season__checkall" aria-label="Tout cocher saison 1" aria-pressed="true">✓</button>
+      <button class="iconbtn" aria-label="Déplier">▾</button>
+    </div>
+  </section>
+
+  <section class="season">
+    <div class="season__head">
+      <div class="season__num">02</div>
+      <div>
+        <div class="season__title">Saison 2</div>
+        <div class="season__progress">1 / 10</div>
+      </div>
+      <button class="season__checkall" aria-label="Tout cocher saison 2" aria-pressed="false">○</button>
+      <button class="iconbtn" aria-label="Réduire">▴</button>
+    </div>
+    <ul class="season__list">
+      <li>
+        <input class="checkbox" type="checkbox" checked aria-label="Marquer S02E01 vu" />
+        <span class="ep-code">S02E01</span>
+        <span>Hello, Ms. Cobel</span>
+        <span class="ep-date">17 Jan</span>
+      </li>
+      <li>
+        <input class="checkbox" type="checkbox" aria-label="Marquer S02E02 vu" />
+        <span class="ep-code">S02E02</span>
+        <span>Goodbye, Mrs. Selvig</span>
+        <span class="ep-date">24 Jan</span>
+      </li>
+      <li>
+        <input class="checkbox" type="checkbox" aria-label="Marquer S02E03 vu" />
+        <span class="ep-code">S02E03</span>
+        <span>Who Is Alive?</span>
+        <span class="ep-date">31 Jan</span>
+      </li>
+      <li>
+        <input class="checkbox" type="checkbox" aria-label="Marquer S02E04 vu" />
+        <span class="ep-code">S02E04</span>
+        <span>Woe's Hollow</span>
+        <span class="ep-date">7 Fév</span>
+      </li>
+      <li>
+        <input class="checkbox" type="checkbox" aria-label="Marquer S02E05 vu" />
+        <span class="ep-code">S02E05</span>
+        <span>Trojan's Horse</span>
+        <span class="ep-date">14 Fév</span>
+      </li>
+    </ul>
+  </section>
+
+  <div class="spacer"></div>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <a href="home.html">À voir</a>
+    <a href="search.html">Recherche</a>
+    <a href="profile.html">Profil</a>
+  </nav>
+</main>
+</body>
+</html>

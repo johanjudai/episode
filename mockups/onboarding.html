@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bienvenue — Episode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="app">
+  <div class="onboarding">
+    <div class="mark" aria-hidden="true">
+      <span class="mark__circle"></span>
+      <span class="mark__square"></span>
+      <span class="mark__tri"></span>
+    </div>
+
+    <div class="onboarding__hero" aria-hidden="true">
+      <div class="shape shape--circle"></div>
+      <div class="shape shape--square"></div>
+      <div class="shape shape--tri"></div>
+    </div>
+
+    <div>
+      <h1>Bonjour.<br/><strong>Suivez vos séries.</strong></h1>
+      <p class="onboarding__lead">
+        Sans pub, sans tracking. Vos données restent chez vous.
+      </p>
+    </div>
+
+    <form>
+      <div class="field">
+        <label class="field__label" for="name">Votre prénom</label>
+        <input class="field__input" type="text" id="name" placeholder="Pierre" autocomplete="given-name" />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="avatar">Photo de profil</label>
+        <div class="avatar-upload">
+          <div class="avatar" aria-hidden="true">P</div>
+          <button type="button" class="btn btn--secondary">Choisir un fichier</button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top: var(--s-5)">
+        <label class="field__label">Migrer depuis TV Time</label>
+        <button type="button" class="btn btn--secondary btn--block">
+          ⬆ Importer mes données
+        </button>
+        <span class="field__help">Optionnel — possible aussi depuis les paramètres.</span>
+      </div>
+    </form>
+
+    <div class="spacer"></div>
+
+    <button type="submit" class="btn btn--accent btn--block btn--lg">Commencer →</button>
+  </div>
+</main>
+</body>
+</html>
