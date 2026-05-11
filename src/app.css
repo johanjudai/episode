@@ -331,6 +331,72 @@ a {
   padding: var(--s-3) var(--s-4) 0;
 }
 
+/* Swipeable row */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  touch-action: pan-y;
+}
+
+.swipe-row:last-of-type {
+  border-bottom: 1px solid var(--border);
+}
+
+.swipe-content {
+  position: relative;
+  background: var(--bg);
+  z-index: 1;
+  will-change: transform;
+}
+
+.swipe-content .episode {
+  border-top: none;
+  border-bottom: none;
+}
+
+.swipe-reveal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s-5);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.swipe-reveal--visible {
+  opacity: 0.55;
+}
+
+.swipe-reveal--active {
+  opacity: 1;
+}
+
+.swipe-reveal--left {
+  background: var(--bw-black);
+  color: var(--bw-white);
+  justify-content: flex-start;
+}
+
+[data-theme='dark'] .swipe-reveal--left {
+  background: var(--bw-white);
+  color: var(--bw-black);
+}
+
+.swipe-reveal--right {
+  background: var(--bw-red);
+  color: var(--bw-white);
+  justify-content: flex-end;
+}
+
 /* Upcoming */
 .upcoming {
   padding: 0 var(--s-4);
