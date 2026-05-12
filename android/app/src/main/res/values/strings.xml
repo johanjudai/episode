@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Episode</string>
+    <string name="title_activity_main">Episode</string>
+    <string name="package_name">fr.iagona.episode</string>
+    <string name="custom_url_scheme">fr.iagona.episode</string>
+</resources>

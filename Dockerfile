@@ -49,7 +49,7 @@ RUN groupadd -r episode \
 COPY --from=builder /app/build ./build
 COPY --from=deps    /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/src/lib/server/db/migrations ./migrations
+COPY --from=builder /app/drizzle ./migrations
 COPY scripts/migrate.mjs ./migrate.mjs
 COPY scripts/entrypoint.sh ./entrypoint.sh
 

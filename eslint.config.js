@@ -13,6 +13,17 @@ export default ts.config(
   {
     languageOptions: {
       globals: { ...globals.browser, ...globals.node }
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ]
     }
   },
   {
@@ -28,7 +39,8 @@ export default ts.config(
       'dist/',
       'node_modules/',
       'mockups/',
-      'src/lib/server/db/migrations/'
+      'drizzle/',
+      'android/'
     ]
   }
 );

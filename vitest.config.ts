@@ -9,17 +9,13 @@ export default defineConfig({
     }
   },
   test: {
-    include: [
-      'tests/unit/**/*.test.ts',
-      'tests/integration/**/*.test.ts',
-      'src/**/*.test.ts'
-    ],
+    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts', 'src/**/*.test.ts'],
     environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/lib/**/*.ts'],
-      exclude: ['src/lib/server/db/migrations/**', '**/*.test.ts']
+      exclude: ['src/lib/data/migrations.ts', 'drizzle/**', '**/*.test.ts']
     }
   }
 });

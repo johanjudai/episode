@@ -16,11 +16,7 @@ export function exceedsThreshold(deltaX: number, threshold: number): 'left' | 'r
 
 /** Returns 'h' or 'v' once the user has moved past `lockDistance` along
  *  the dominant axis. Returns null while still ambiguous. */
-export function resolveAxis(
-  deltaX: number,
-  deltaY: number,
-  lockDistance = 8
-): 'h' | 'v' | null {
+export function resolveAxis(deltaX: number, deltaY: number, lockDistance = 8): 'h' | 'v' | null {
   const ax = Math.abs(deltaX);
   const ay = Math.abs(deltaY);
   if (ax < lockDistance && ay < lockDistance) return null;

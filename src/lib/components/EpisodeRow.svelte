@@ -16,6 +16,9 @@
     onSwipeRight: () => void;
     onSwipeLeft: () => void;
   }
+  /* `episodeId` is part of the prop contract (callers pass it for clarity)
+   * but the component itself uses only the callbacks. Underscore-prefixed to
+   * silence the unused-vars lint rule. */
   let {
     episodeId: _episodeId,
     seriesTmdbId,
@@ -72,12 +75,7 @@
     }}
   >
     <div class="episode">
-      <a
-        class={coverClass}
-        href={`/series/${seriesTmdbId}`}
-        aria-hidden="true"
-        style={posterCss}
-      >
+      <a class={coverClass} href={`/series/${seriesTmdbId}`} aria-hidden="true" style={posterCss}>
         {#if !seriesPoster}{seriesInitials(seriesName)}{/if}
       </a>
       <div>
@@ -93,7 +91,8 @@
         type="button"
         onclick={onSwipeRight}
         aria-label={`Marquer vu : ${seriesName} ${formatEpisodeCode(seasonNumber, episodeNumber)}`}
-      >✓</button>
+        >✓</button
+      >
     </div>
   </div>
 </div>

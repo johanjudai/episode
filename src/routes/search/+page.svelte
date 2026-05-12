@@ -53,7 +53,9 @@
       {#each data.results as r, i (r.id)}
         <a class="series-card" href={`/series/${r.id}`}>
           <div
-            class={r.poster ? 'series-card__poster' : 'series-card__poster series-card__poster--placeholder'}
+            class={r.poster
+              ? 'series-card__poster'
+              : 'series-card__poster series-card__poster--placeholder'}
             style={r.poster ? `background-image:url('${r.poster}')` : ''}
             aria-hidden="true"
           >

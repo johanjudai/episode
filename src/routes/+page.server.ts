@@ -1,21 +1,21 @@
-import type { Actions, PageServerLoad } from './$types';
-import {
-  getEpisodesToWatch,
-  getRecentWatched,
-  getUpcomingEpisodes,
-  markEpisodeWatched,
-  unfollowSeries
-} from '$lib/server/db/queries';
-import { fail } from '@sveltejs/kit';
-import { z } from 'zod';
+import type { PageServerLoad } from './$types';
+import { IS_LOCAL } from '$lib/config';
 import { pickNextPerSeries } from '$lib/utils/episodes';
 
 export const load: PageServerLoad = async () => {
+  if (IS_LOCAL) {
+    /* Local target: SSR is disabled by the root layout. Return a placeholder
+     * so the universal +page.ts gets a typed shape to merge over. */
+    return { toWatch: [], upcoming: [], recent: [], now: new Date().toISOString() };
+  }
+  const { serverDb } = await import('$lib/server/db');
+  const { getEpisodesToWatch, getRecentWatched, getUpcomingEpisodes } =
+    await import('$lib/data/queries');
   const now = new Date();
   const [allUnwatched, upcoming, recent] = await Promise.all([
-    getEpisodesToWatch(now),
-    getUpcomingEpisodes(7, now),
-    getRecentWatched(3)
+    getEpisodesToWatch(serverDb, now),
+    getUpcomingEpisodes(serverDb, 7, now),
+    getRecentWatched(serverDb, 3)
   ]);
   return {
     toWatch: pickNextPerSeries(allUnwatched),
@@ -23,29 +23,4 @@ export const load: PageServerLoad = async () => {
     recent,
     now: now.toISOString()
   };
-};
-
-const MarkWatched = z.object({
-  episodeId: z.coerce.number().int().positive()
-});
-
-const UnfollowSeriesForm = z.object({
-  seriesTmdbId: z.coerce.number().int().positive()
-});
-
-export const actions: Actions = {
-  markWatched: async ({ request }) => {
-    const form = await request.formData();
-    const parsed = MarkWatched.safeParse(Object.fromEntries(form));
-    if (!parsed.success) return fail(400, { error: 'Invalid episode id' });
-    await markEpisodeWatched(parsed.data.episodeId);
-    return { success: true };
-  },
-  unfollowSeries: async ({ request }) => {
-    const form = await request.formData();
-    const parsed = UnfollowSeriesForm.safeParse(Object.fromEntries(form));
-    if (!parsed.success) return fail(400, { error: 'Invalid series id' });
-    await unfollowSeries(parsed.data.seriesTmdbId);
-    return { success: true };
-  }
 };

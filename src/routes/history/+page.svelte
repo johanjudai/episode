@@ -7,10 +7,7 @@
 
   /* Group entries by ISO date (YYYY-MM-DD) for sectioned rendering. */
   const groups = $derived.by(() => {
-    const map = new Map<
-      string,
-      Array<(typeof data.history)[number]>
-    >();
+    const map = new Map<string, Array<(typeof data.history)[number]>>();
     for (const row of data.history) {
       const day = new Date(row.watchedAt).toISOString().slice(0, 10);
       const arr = map.get(day) ?? [];
@@ -69,11 +66,11 @@
             <li>
               <span class="history__dot" aria-hidden="true"></span>
               <div>
-                <a
-                  href={`/series/${r.seriesTmdbId}`}
-                  style="text-decoration: none; color: inherit"
-                >
-                  <strong>{r.seriesName}</strong> · {formatEpisodeCode(r.seasonNumber, r.episodeNumber)}
+                <a href={`/series/${r.seriesTmdbId}`} style="text-decoration: none; color: inherit">
+                  <strong>{r.seriesName}</strong> · {formatEpisodeCode(
+                    r.seasonNumber,
+                    r.episodeNumber
+                  )}
                 </a>
                 <div class="ep-date">
                   {r.episodeName ?? `Épisode ${r.episodeNumber}`}

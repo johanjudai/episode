@@ -9,6 +9,8 @@
     "dev": "vite dev",
     "prebuild": "npm run test:unit -- --run",
     "build": "vite build",
+    "build:server": "cross-env EPISODE_TARGET=server vite build",
+    "build:local": "cross-env EPISODE_TARGET=local vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -19,17 +21,27 @@
     "test:e2e": "playwright test",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "EPISODE_MIGRATIONS_FOLDER=./src/lib/server/db/migrations node scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio"
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:studio": "drizzle-kit studio",
+    "cap:sync": "npm run build:local && cap sync",
+    "cap:open:android": "cap open android",
+    "cap:run:android": "npm run cap:sync && cap run android",
+    "cap:add:android": "npm run build:local && cap add android"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
     "@playwright/test": "^1.49.1",
     "@sveltejs/adapter-node": "^5.2.11",
+    "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.10.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
+    "@types/sql.js": "^1.4.11",
     "@vitest/coverage-v8": "^2.1.8",
+    "cross-env": "^7.0.3",
     "drizzle-kit": "^0.30.1",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
@@ -48,6 +60,8 @@
   "dependencies": {
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.38.2",
+    "idb": "^8.0.3",
+    "sql.js": "^1.14.1",
     "zod": "^3.24.1"
   }
 }

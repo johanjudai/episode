@@ -9,17 +9,14 @@
     size?: number;
     quality?: number;
   }
-  let {
-    initial = '?',
-    current = null,
-    onChange,
-    size = 256,
-    quality = 0.85
-  }: Props = $props();
+  let { initial = '?', current = null, onChange, size = 256, quality = 0.85 }: Props = $props();
 
   let inputEl: HTMLInputElement;
-  let preview = $state<string | null>(current);
+  let preview = $state<string | null>(null);
   let error = $state<string | null>(null);
+  $effect(() => {
+    preview = current ?? null;
+  });
 
   async function loadImage(file: File): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -31,7 +28,7 @@
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error("Image illisible"));
+        reject(new Error('Image illisible'));
       };
       img.src = url;
     });
@@ -102,8 +99,8 @@
         type="button"
         class="btn btn--secondary"
         style="font-size: 0.7rem; padding: var(--s-2) var(--s-3)"
-        onclick={remove}
-      >Supprimer</button>
+        onclick={remove}>Supprimer</button
+      >
     {/if}
     {#if error}
       <span class="field__help" style="color: var(--bw-red)">{error}</span>

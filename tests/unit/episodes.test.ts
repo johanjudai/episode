@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  countUnwatchedBefore,
-  findInProgressSeason,
-  pickNextPerSeries
-} from '$lib/utils/episodes';
+import { countUnwatchedBefore, findInProgressSeason, pickNextPerSeries } from '$lib/utils/episodes';
 import type { SeasonProgress } from '$lib/utils/episodes';
 
 const sample: SeasonProgress[] = [

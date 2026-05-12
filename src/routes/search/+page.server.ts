@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { createTmdbClient, posterUrl } from '$lib/server/tmdb';
-import { getSetting } from '$lib/server/db/queries';
+import { IS_LOCAL } from '$lib/config';
 
 export interface SearchResult {
   id: number;
@@ -12,11 +11,17 @@ export interface SearchResult {
 
 export const load: PageServerLoad = async ({ url }) => {
   const q = (url.searchParams.get('q') ?? '').trim();
-  const apiKey = (await getSetting('tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  if (IS_LOCAL) {
+    return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
+  }
+  const { serverDb } = await import('$lib/server/db');
+  const { getSetting } = await import('$lib/data/queries');
+  const { createTmdbClient, posterUrl } = await import('$lib/data/tmdb');
 
-  const empty: SearchResult[] = [];
+  const apiKey =
+    (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
   if (!apiKey) {
-    return { q, hasKey: false, results: empty, error: undefined as string | undefined };
+    return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
   }
 
   const tmdb = createTmdbClient({ apiKey });
@@ -29,12 +34,12 @@ export const load: PageServerLoad = async ({ url }) => {
       overview: r.overview ?? '',
       poster: posterUrl(r.poster_path, 'w342')
     }));
-    return { q, hasKey: true, results, error: undefined as string | undefined };
+    return { q, hasKey: true, results, error: undefined };
   } catch (err) {
     return {
       q,
       hasKey: true,
-      results: empty,
+      results: [] as SearchResult[],
       error: err instanceof Error ? err.message : 'TMDB error'
     };
   }

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createTmdbClient, TmdbError, posterUrl } from '$lib/server/tmdb';
+import { createTmdbClient, TmdbError, posterUrl } from '$lib/data/tmdb';
 
 function mockOk(body: unknown): typeof fetch {
-  return vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
+  return vi.fn(
+    async () => new Response(JSON.stringify(body), { status: 200 })
+  ) as unknown as typeof fetch;
 }
 
 function mockFail(status: number, statusText = 'Error'): typeof fetch {
@@ -105,7 +107,14 @@ describe('createTmdbClient', () => {
       id: 11,
       season_number: 1,
       episodes: [
-        { id: 100, episode_number: 1, season_number: 1, name: 'Pilot', air_date: '2022-02-17', runtime: 56 }
+        {
+          id: 100,
+          episode_number: 1,
+          season_number: 1,
+          name: 'Pilot',
+          air_date: '2022-02-17',
+          runtime: 56
+        }
       ]
     };
     const client = createTmdbClient({

@@ -27,7 +27,9 @@
         s.totalEpisodes > 0 ? Math.round((s.watchedCount / s.totalEpisodes) * 100) : 0}
       <a class="series-card" href={`/series/${s.tmdbId}`}>
         <div
-          class={s.posterPath ? 'series-card__poster' : 'series-card__poster series-card__poster--placeholder'}
+          class={s.posterPath
+            ? 'series-card__poster'
+            : 'series-card__poster series-card__poster--placeholder'}
           style={s.posterPath ? `background-image:url('${posterUrl(s.posterPath, 'w185')}')` : ''}
           aria-hidden="true"
         ></div>

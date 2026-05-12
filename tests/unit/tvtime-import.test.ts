@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parseTvTimeExport,
-  groupBySeries,
-  TvTimeImportError
-} from '$lib/server/tvtime-import';
+import { parseTvTimeExport, groupBySeries, TvTimeImportError } from '$lib/data/tvtime-import';
 
 describe('parseTvTimeExport', () => {
   it('parses a top-level array', () => {
@@ -44,9 +40,7 @@ describe('parseTvTimeExport', () => {
   });
 
   it('falls back across show_name / series_name', () => {
-    const raw = JSON.stringify([
-      { series_name: 'Silo', season_number: 1, episode_number: 1 }
-    ]);
+    const raw = JSON.stringify([{ series_name: 'Silo', season_number: 1, episode_number: 1 }]);
     const out = parseTvTimeExport(raw);
     expect(out[0].seriesName).toBe('Silo');
   });

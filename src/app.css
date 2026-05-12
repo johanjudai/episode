@@ -367,7 +367,9 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
   z-index: 0;
   pointer-events: none;
 }

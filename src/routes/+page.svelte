@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
   import { onMount, tick } from 'svelte';
-  import { deserialize, applyAction } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { fade, scale } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
@@ -10,6 +9,7 @@
   import EpisodeRow from '$lib/components/EpisodeRow.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
+  import * as api from '$lib/api';
 
   let { data }: PageProps = $props();
 
@@ -18,17 +18,9 @@
 
   let removeModal = $state<null | { seriesTmdbId: number; seriesName: string }>(null);
 
-  async function postAction(action: string, fd: FormData) {
-    const res = await fetch(`?/${action}`, { method: 'POST', body: fd });
-    const result = deserialize(await res.text()) as Parameters<typeof applyAction>[0];
-    await applyAction(result);
-    if (result.type !== 'failure') await invalidateAll();
-  }
-
   async function markEpisode(episodeId: number) {
-    const fd = new FormData();
-    fd.set('episodeId', String(episodeId));
-    await postAction('markWatched', fd);
+    await api.markEpisodeWatched(episodeId);
+    await invalidateAll();
   }
 
   function requestUnfollow(seriesTmdbId: number, seriesName: string) {
@@ -37,10 +29,10 @@
 
   async function confirmUnfollow() {
     if (!removeModal) return;
-    const fd = new FormData();
-    fd.set('seriesTmdbId', String(removeModal.seriesTmdbId));
+    const id = removeModal.seriesTmdbId;
     removeModal = null;
-    await postAction('unfollowSeries', fd);
+    await api.unfollowSeries(id);
+    await invalidateAll();
   }
 
   function cancelUnfollow() {
@@ -57,6 +49,7 @@
     if (!toWatchRef || data.recent.length === 0) return;
     const rect = toWatchRef.getBoundingClientRect();
     const target = window.scrollY + rect.top;
+    // eslint-disable-next-line no-undef
     window.scrollTo({ top: target, behavior: 'instant' as ScrollBehavior });
   });
 
@@ -101,14 +94,19 @@
             <span class="history__dot" aria-hidden="true"></span>
             <div>
               <a href={`/series/${r.seriesTmdbId}`} style="text-decoration: none; color: inherit">
-                <strong>{r.seriesName}</strong> · {formatEpisodeCode(r.seasonNumber, r.episodeNumber)}
+                <strong>{r.seriesName}</strong> · {formatEpisodeCode(
+                  r.seasonNumber,
+                  r.episodeNumber
+                )}
               </a>
               <div class="ep-date">
                 {r.episodeName ?? `Épisode ${r.episodeNumber}`}
                 {#if r.runtimeMinutes}· {r.runtimeMinutes} min{/if}
               </div>
             </div>
-            <span class="history__time">{relativeRecent(new Date(r.watchedAt).getTime(), today)}</span>
+            <span class="history__time"
+              >{relativeRecent(new Date(r.watchedAt).getTime(), today)}</span
+            >
           </li>
         {/each}
       </ul>
@@ -163,7 +161,9 @@
             <div>
               <div class="episode__series">{ep.seriesName}</div>
               <h3 class="episode__title">{ep.name ?? `Épisode ${ep.episodeNumber}`}</h3>
-              <div class="episode__meta">{formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}</div>
+              <div class="episode__meta">
+                {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
+              </div>
             </div>
             <span class="ep-date">{relativeFr(ep.airDate ?? '', today)}</span>
           </div>
@@ -186,9 +186,12 @@
   >
     <div class="modal" transition:scale={{ duration: 260, start: 0.92, easing: backOut }}>
       <div class="modal__kicker">Confirmation</div>
-      <h2 class="modal__title" id="remove-title">Retirer {removeModal.seriesName} de votre suivi ?</h2>
+      <h2 class="modal__title" id="remove-title">
+        Retirer {removeModal.seriesName} de votre suivi ?
+      </h2>
       <p class="modal__body">
-        Vos épisodes déjà vus restent dans l'historique. Vous pouvez réajouter la série à tout moment.
+        Vos épisodes déjà vus restent dans l'historique. Vous pouvez réajouter la série à tout
+        moment.
       </p>
       <div class="modal__actions">
         <button class="btn btn--secondary" type="button" onclick={cancelUnfollow}>Annuler</button>

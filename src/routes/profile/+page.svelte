@@ -42,11 +42,19 @@
       <div class="stat__num stat__accent">{t.value}<small>{t.unit}</small></div>
       <div class="stat__label">Temps total</div>
     </div>
-    <a class="stat stat--link" href="/series" aria-label={`Voir mes ${data.stats.seriesCount} séries suivies`}>
+    <a
+      class="stat stat--link"
+      href="/series"
+      aria-label={`Voir mes ${data.stats.seriesCount} séries suivies`}
+    >
       <div class="stat__num">{data.stats.seriesCount}</div>
       <div class="stat__label">Séries suivies →</div>
     </a>
-    <a class="stat stat--link" href="/history" aria-label={`Voir l'historique des ${data.stats.episodesWatched} épisodes`}>
+    <a
+      class="stat stat--link"
+      href="/history"
+      aria-label={`Voir l'historique des ${data.stats.episodesWatched} épisodes`}
+    >
       <div class="stat__num">{data.stats.episodesWatched}</div>
       <div class="stat__label">Épisodes vus →</div>
     </a>

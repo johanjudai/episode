@@ -11,8 +11,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const dbUrl = process.env.EPISODE_DB_URL ?? './data/episode.sqlite';
-const migrationsFolder =
-  process.env.EPISODE_MIGRATIONS_FOLDER ?? resolve(process.cwd(), 'migrations');
+const migrationsFolder = process.env.EPISODE_MIGRATIONS_FOLDER ?? resolve(process.cwd(), 'drizzle');
 
 if (dbUrl !== ':memory:') {
   mkdirSync(dirname(dbUrl), { recursive: true });
