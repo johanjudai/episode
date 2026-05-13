@@ -221,9 +221,55 @@
           {data.series.firstAirDate?.slice(0, 4) ?? '—'}
           {#if data.series.network}· {data.series.network}{/if}
           {#if data.series.numberOfSeasons}· {data.series.numberOfSeasons} saisons{/if}
+          {#if data.ratings?.tmdb}
+            <span class="rating-chip" title={`${data.ratings.tmdb.count} votes TMDB`}>
+              <strong>{data.ratings.tmdb.average.toFixed(1)}</strong>
+              <span>TMDB</span>
+            </span>
+          {/if}
         </div>
       </div>
     </section>
+
+    {#if data.ratings && (data.ratings.tmdb || data.ratings.external.length > 0)}
+      <section class="ratings">
+        <div class="ratings__title">Notations</div>
+        <div class="ratings__grid">
+          {#if data.ratings.tmdb}
+            <div class="rating-card rating-card--tmdb">
+              <div class="rating-card__source">TMDB</div>
+              <div class="rating-card__value">
+                {data.ratings.tmdb.average.toFixed(1)}<small>/10</small>
+              </div>
+              <div class="rating-card__meta">
+                {data.ratings.tmdb.count.toLocaleString('fr-FR')} votes
+              </div>
+            </div>
+          {/if}
+          {#each data.ratings.external as r (r.source)}
+            <div class={`rating-card rating-card--${r.source}`}>
+              <div class="rating-card__source">
+                {#if r.source === 'rottentomatoes'}Rotten Tomatoes
+                {:else if r.source === 'imdb'}IMDb
+                {:else if r.source === 'metacritic'}Metacritic
+                {/if}
+              </div>
+              <div class="rating-card__value">{r.value}</div>
+            </div>
+          {/each}
+        </div>
+        {#if data.ratings.external.length === 0}
+          <p class="ratings__hint">
+            Ajoutez votre clé <a
+              href="https://www.omdbapi.com/apikey.aspx"
+              target="_blank"
+              rel="noopener">OMDb</a
+            >
+            dans <a href="/settings">Paramètres</a> pour afficher Rotten Tomatoes et IMDb.
+          </p>
+        {/if}
+      </section>
+    {/if}
 
     <section class="progress">
       <div class="progress__label">
@@ -321,7 +367,6 @@
                   aria-label={`Marquer ${formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)} ${ep.watched ? 'non vu' : 'vu'}`}
                   aria-pressed={ep.watched}
                   disabled={busy}
-                  style={ep.watched ? 'background: var(--bw-black); color: var(--bw-white)' : ''}
                   onclick={() => onEpisodeToggle(ep.seasonNumber, ep.episodeNumber, ep.watched)}
                   >{ep.watched ? '✓' : ''}</button
                 >

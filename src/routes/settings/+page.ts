@@ -8,13 +8,15 @@ export const load: PageLoad = async ({ data }) => {
   const { getDb } = await import('$lib/db');
   const { getSetting } = await import('$lib/data/queries');
   const db = await getDb();
-  const [name, avatar, apiKey] = await Promise.all([
+  const [name, avatar, apiKey, omdbKey] = await Promise.all([
     getSetting(db, 'profile.name'),
     getSetting(db, 'profile.avatar'),
-    getSetting(db, 'tmdb.api_key')
+    getSetting(db, 'tmdb.api_key'),
+    getSetting(db, 'omdb.api_key')
   ]);
   return {
     profile: { name: name ?? '', avatar },
-    tmdb: { hasKey: !!apiKey }
+    tmdb: { hasKey: !!apiKey },
+    omdb: { hasKey: !!omdbKey }
   };
 };

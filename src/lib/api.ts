@@ -199,6 +199,23 @@ export async function updateTmdbKey(apiKey: string): Promise<void> {
   await postJson('/api/settings/tmdb-key', { apiKey });
 }
 
+export async function updateOmdbKey(apiKey: string): Promise<void> {
+  if (IS_LOCAL) {
+    const { createOmdbClient } = await import('./data/omdb');
+    const client = createOmdbClient({ apiKey });
+    const resp = await client.byImdbId('tt1190634');
+    if (resp.Response !== 'True') {
+      throw new Error('OMDb : clé rejetée');
+    }
+    await withLocalDb(async (db) => {
+      const m = await import('./data/mutations');
+      await m.setSetting(db, 'omdb.api_key', apiKey);
+    });
+    return;
+  }
+  await postJson('/api/settings/omdb-key', { apiKey });
+}
+
 export async function completeOnboarding(name: string, avatar: string): Promise<void> {
   if (IS_LOCAL) {
     await withLocalDb(async (db) => {

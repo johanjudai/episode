@@ -22,6 +22,9 @@
   let tmdbKey = $state('');
   let tmdbStatus = $state<'' | 'saved' | 'error'>('');
   let tmdbError = $state<string | null>(null);
+  let omdbKey = $state('');
+  let omdbStatus = $state<'' | 'saved' | 'error'>('');
+  let omdbError = $state<string | null>(null);
   let importStatus = $state<'' | 'success' | 'error'>('');
   let importMessage = $state<string | null>(null);
 
@@ -110,6 +113,20 @@
     } catch (err) {
       tmdbStatus = 'error';
       tmdbError = err instanceof Error ? err.message : 'Validation TMDB échouée';
+    }
+  }
+
+  async function saveOmdb(event: SubmitEvent) {
+    event.preventDefault();
+    omdbError = null;
+    try {
+      await api.updateOmdbKey(omdbKey.trim());
+      omdbStatus = 'saved';
+      omdbKey = '';
+      await invalidateAll();
+    } catch (err) {
+      omdbStatus = 'error';
+      omdbError = err instanceof Error ? err.message : 'Validation OMDb échouée';
     }
   }
 
@@ -266,6 +283,35 @@
       {/if}
       {#if tmdbError}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{tmdbError}</p>
+      {/if}
+    </form>
+
+    <form onsubmit={saveOmdb} style="margin-top: var(--s-5)">
+      <div class="field">
+        <label class="field__label" for="omdb">Clé API OMDb (optionnelle)</label>
+        <input
+          class="field__input"
+          type="password"
+          name="omdbApiKey"
+          id="omdb"
+          placeholder={data.omdb.hasKey ? '••••••••••••' : 'Coller votre clé OMDb'}
+          autocomplete="off"
+          bind:value={omdbKey}
+        />
+        <span class="field__help">
+          Active les notes Rotten Tomatoes et IMDb sur les fiches séries. Clé gratuite (1000
+          appels/jour) sur
+          <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener"
+            >omdbapi.com</a
+          >.
+        </span>
+      </div>
+      <button class="btn btn--secondary" type="submit">Valider et enregistrer</button>
+      {#if omdbStatus === 'saved'}
+        <span class="field__help" style="margin-left: var(--s-3)">Clé validée ✓</span>
+      {/if}
+      {#if omdbError}
+        <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{omdbError}</p>
       {/if}
     </form>
   </section>

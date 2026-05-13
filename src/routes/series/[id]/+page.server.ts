@@ -1,6 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { IS_LOCAL } from '$lib/config';
+import type { SeriesRatings } from '$lib/data/ratings';
+
+const emptyRatings: SeriesRatings = { tmdb: null, external: [] };
 
 export const load: PageServerLoad = async ({ params }) => {
   const id = Number(params.id);
@@ -36,17 +39,22 @@ export const load: PageServerLoad = async ({ params }) => {
         }>;
       }>,
       followed: false,
-      progress: { watched: 0, total: 0 }
+      progress: { watched: 0, total: 0 },
+      ratings: emptyRatings
     };
   }
 
   const { serverDb } = await import('$lib/server/db');
   const { getSeries, getSetting, getWatchedEpisodeKeys } = await import('$lib/data/queries');
   const { createTmdbClient } = await import('$lib/data/tmdb');
+  const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
   const apiKey =
     (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
   if (!apiKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
+
+  const omdbKey =
+    (await getSetting(serverDb, 'omdb.api_key')) ?? process.env.EPISODE_OMDB_API_KEY ?? null;
 
   const tmdb = createTmdbClient({ apiKey });
   const detail = await tmdb.tvDetail(id);
@@ -82,6 +90,17 @@ export const load: PageServerLoad = async ({ params }) => {
     0
   );
 
+  /* Ratings: feed the TMDB vote we already have so we don't re-call /tv/{id}. */
+  const ratings = await fetchSeriesRatings({
+    tmdbId: id,
+    tmdbApiKey: apiKey,
+    omdbApiKey: omdbKey,
+    tmdbVote:
+      typeof detail.vote_average === 'number' && detail.vote_average > 0
+        ? { average: detail.vote_average, count: detail.vote_count ?? 0 }
+        : null
+  });
+
   return {
     series: {
       tmdbId: detail.id,
@@ -97,6 +116,7 @@ export const load: PageServerLoad = async ({ params }) => {
     },
     seasons: seasonsOut,
     followed: !!followed && !followed.removedAt,
-    progress: { watched: watchedCount, total: totalEpisodes }
+    progress: { watched: watchedCount, total: totalEpisodes },
+    ratings
   };
 };

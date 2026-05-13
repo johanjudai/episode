@@ -18,10 +18,13 @@ export const load: PageLoad = async ({ data, params }) => {
   const { getDb } = await import('$lib/db');
   const { getSeries, getSetting, getWatchedEpisodeKeys } = await import('$lib/data/queries');
   const { createTmdbClient } = await import('$lib/data/tmdb');
+  const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
   const db = await getDb();
   const apiKey = await getSetting(db, 'tmdb.api_key');
   if (!apiKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
+
+  const omdbKey = await getSetting(db, 'omdb.api_key');
 
   const tmdb = createTmdbClient({ apiKey });
   const detail = await tmdb.tvDetail(id);
@@ -57,6 +60,16 @@ export const load: PageLoad = async ({ data, params }) => {
     0
   );
 
+  const ratings = await fetchSeriesRatings({
+    tmdbId: id,
+    tmdbApiKey: apiKey,
+    omdbApiKey: omdbKey,
+    tmdbVote:
+      typeof detail.vote_average === 'number' && detail.vote_average > 0
+        ? { average: detail.vote_average, count: detail.vote_count ?? 0 }
+        : null
+  });
+
   return {
     series: {
       tmdbId: detail.id,
@@ -72,6 +85,7 @@ export const load: PageLoad = async ({ data, params }) => {
     },
     seasons: seasonsOut,
     followed: !!followed && !followed.removedAt,
-    progress: { watched: watchedCount, total: totalEpisodes }
+    progress: { watched: watchedCount, total: totalEpisodes },
+    ratings
   };
 };
