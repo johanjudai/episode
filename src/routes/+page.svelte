@@ -214,10 +214,25 @@
     </div>
 
     {#if data.toWatch.length === 0}
-      <div class="empty">
-        <div class="empty__title">Tout est à jour</div>
-        Revenez demain pour de nouveaux épisodes.
-      </div>
+      {#if data.upcoming.length === 0 && recentRows.length === 0}
+        <!-- Fresh user — no series yet. Steer them to the search. -->
+        <div class="empty empty--cta">
+          <div class="empty__title">Aucune série pour l'instant</div>
+          <p class="empty__body">
+            Cherchez votre première série pour commencer à suivre vos épisodes.
+          </p>
+          <a class="btn btn--accent btn--lg empty__cta" href="/search">Découvrir des séries →</a>
+          <p class="empty__hint">
+            Astuce — vous pouvez aussi importer un export TV Time depuis
+            <a href="/settings">Paramètres</a>.
+          </p>
+        </div>
+      {:else}
+        <div class="empty">
+          <div class="empty__title">Tout est à jour</div>
+          Revenez demain pour de nouveaux épisodes.
+        </div>
+      {/if}
     {:else}
       <div class="swipe-hint">→ Droite : vu &nbsp;·&nbsp; ← Gauche : retirer la série</div>
       {#each data.toWatch as ep (ep.id)}

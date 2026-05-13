@@ -1546,6 +1546,109 @@ a {
   margin-top: var(--s-3);
 }
 
+/* Collapsible TV Time import block on the onboarding screen. */
+.onboarding__import {
+  border: var(--border-w) solid var(--border);
+  background: var(--surface-2);
+  margin-top: var(--s-3);
+}
+.onboarding__import > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.onboarding__import > summary::-webkit-details-marker {
+  display: none;
+}
+.onboarding__import > summary::after {
+  content: '▾';
+  margin-left: auto;
+  transition: transform var(--dur-fast) var(--ease-emphasized);
+  font-size: 0.9rem;
+}
+.onboarding__import[open] > summary::after {
+  transform: rotate(180deg);
+}
+.onboarding__import-title {
+  flex: 0 1 auto;
+}
+.onboarding__import-meta {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+}
+.onboarding__import-body {
+  padding: 0 var(--s-4) var(--s-4);
+  border-top: 1px solid var(--border);
+}
+.onboarding__import-body > *:first-child {
+  margin-top: var(--s-3);
+}
+.onboarding__howto {
+  margin: 0 0 var(--s-3);
+  padding-left: var(--s-5);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--fg);
+}
+.onboarding__howto li {
+  margin-bottom: var(--s-2);
+}
+.onboarding__howto code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+}
+.onboarding__file-row {
+  display: block;
+}
+.onboarding__file-row input[type='file'] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.onboarding__import-result {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  background: var(--bg);
+  border: 1.5px solid var(--bw-green);
+  font-size: 0.85rem;
+}
+.onboarding__import-result strong {
+  font-size: 1.1rem;
+  color: var(--bw-green);
+  font-weight: 900;
+}
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn:hover {
+  color: var(--fg);
+}
+
 .avatar-upload {
   display: flex;
   align-items: center;
@@ -1870,6 +1973,28 @@ a {
   font-size: 1.25rem;
   color: var(--fg);
   margin-bottom: var(--s-2);
+}
+
+/* Fresh-user variant: bigger, with a CTA inside, used when the
+ * onboarding has just finished and there are zero series yet. */
+.empty--cta {
+  padding: var(--s-6) var(--s-4) var(--s-7);
+}
+.empty__body {
+  margin: 0 0 var(--s-5);
+  color: var(--muted);
+}
+.empty__cta {
+  display: inline-block;
+  margin-bottom: var(--s-5);
+}
+.empty__hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0;
+}
+.empty__hint a {
+  color: var(--fg);
 }
 
 /* ============================================================

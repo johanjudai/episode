@@ -251,3 +251,31 @@ export async function completeOnboarding(name: string, avatar: string): Promise<
   }
   await postJson('/api/onboarding/complete', { name, avatar });
 }
+
+/**
+ * Upload a TV Time GDPR export. Server target multiparts the file to
+ * /api/import/tvtime; local target parses client-side and stages the
+ * count in IndexedDB. Both paths return the number of detected entries
+ * so the UI can confirm the import worked.
+ */
+export async function importTvTime(file: File): Promise<{ count: number }> {
+  if (IS_LOCAL) {
+    const { parseTvTimeExport } = await import('./data/tvtime-import');
+    const text = await file.text();
+    const entries = parseTvTimeExport(text);
+    await withLocalDb(async (db) => {
+      const m = await import('./data/mutations');
+      await m.setSetting(db, 'import.tvtime.staged_count', String(entries.length));
+      await m.setSetting(db, 'import.tvtime.staged_at', new Date().toISOString());
+    });
+    return { count: entries.length };
+  }
+  const fd = new FormData();
+  fd.set('file', file);
+  const res = await fetch('/api/import/tvtime', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `Import failed: ${res.status}`);
+  }
+  return (await res.json()) as { count: number };
+}
