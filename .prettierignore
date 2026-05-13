@@ -14,4 +14,8 @@ package-lock.json
 
 mockups
 data
-src/lib/server/db/migrations
+drizzle
+android
+ios
+coverage
+.idea
