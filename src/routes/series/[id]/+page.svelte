@@ -5,9 +5,10 @@
   import { backOut, quintOut } from 'svelte/easing';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
+  import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
-  import { posterUrl, stillUrl } from '$lib/utils/images';
+  import { posterUrl } from '$lib/utils/images';
   import { countUnwatchedBefore, findInProgressSeason } from '$lib/utils/episodes';
   import * as api from '$lib/api';
   import { t } from '$lib/i18n';
@@ -69,8 +70,6 @@
   function closeEpisodeDetail() {
     episodeModal = null;
   }
-
-  const modalStillUrl = $derived(stillUrl(episodeModal?.stillPath ?? null, 'w500'));
 
   const seriesId = $derived(data.series?.tmdbId ?? null);
   const percent = $derived(
@@ -487,62 +486,18 @@
 {/if}
 
 {#if episodeModal}
-  <div
-    class="modal-backdrop"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="ep-modal-title"
-    tabindex="-1"
-    transition:fade={{ duration: 140 }}
-    onclick={(e) => {
-      if (e.target === e.currentTarget) closeEpisodeDetail();
-    }}
-    onkeydown={(e) => {
-      if (e.key === 'Escape') closeEpisodeDetail();
-    }}
-  >
-    <div
-      class="modal modal--episode"
-      transition:scale={{ duration: 260, start: 0.92, easing: backOut }}
-    >
-      {#if modalStillUrl}
-        <div class="modal__still" style="background-image: url('{modalStillUrl}')"></div>
-      {:else}
-        <div class="modal__still modal__still--placeholder">
-          {formatEpisodeCode(episodeModal.seasonNumber, episodeModal.episodeNumber)}
-        </div>
-      {/if}
-      <div class="modal__inner">
-        <div class="modal__kicker">{data.series?.name ?? $t('series.detailTitle')}</div>
-        <h2 class="modal__title" id="ep-modal-title">
-          {episodeModal.name ?? `Episode ${episodeModal.episodeNumber}`}
-        </h2>
-        <div class="modal__meta">
-          <span class="ep-code"
-            >{formatEpisodeCode(episodeModal.seasonNumber, episodeModal.episodeNumber)}</span
-          >
-          {#if episodeModal.airDate}
-            <span>{formatDateShortFr(episodeModal.airDate)}</span>
-          {/if}
-          {#if episodeModal.runtime}
-            <span>· {episodeModal.runtime} min</span>
-          {/if}
-          {#if episodeModal.watched}
-            <span style="color: var(--bw-green); font-weight: 800">{$t('series.watchedBadge')}</span
-            >
-          {/if}
-        </div>
-        <p class="modal__body modal__body--prose">
-          {episodeModal.overview ?? $t('series.noSynopsis')}
-        </p>
-        <div class="modal__actions">
-          <button class="btn btn--secondary btn--block" type="button" onclick={closeEpisodeDetail}
-            >{$t('common.close')}</button
-          >
-        </div>
-      </div>
-    </div>
-  </div>
+  <EpisodeDetailModal
+    seriesName={data.series?.name ?? $t('series.detailTitle')}
+    seasonNumber={episodeModal.seasonNumber}
+    episodeNumber={episodeModal.episodeNumber}
+    name={episodeModal.name}
+    overview={episodeModal.overview}
+    airDate={episodeModal.airDate}
+    runtimeMinutes={episodeModal.runtime}
+    stillPath={episodeModal.stillPath}
+    watched={episodeModal.watched}
+    onClose={closeEpisodeDetail}
+  />
 {/if}
 
 {#if celebration}

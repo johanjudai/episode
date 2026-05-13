@@ -7,6 +7,7 @@
   import BottomNav from '$lib/components/BottomNav.svelte';
   import Mark from '$lib/components/Mark.svelte';
   import EpisodeRow from '$lib/components/EpisodeRow.svelte';
+  import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
   import * as api from '$lib/api';
@@ -19,6 +20,15 @@
   const todayLabel = $derived(formatDateShortFr(today));
 
   let removeModal = $state<null | { seriesTmdbId: number; seriesName: string }>(null);
+
+  type ToWatchEpisode = (typeof data.toWatch)[number];
+  let episodeModal = $state<ToWatchEpisode | null>(null);
+  function openEpisodeDetail(ep: ToWatchEpisode) {
+    episodeModal = ep;
+  }
+  function closeEpisodeDetail() {
+    episodeModal = null;
+  }
 
   async function markEpisode(episodeId: number) {
     await api.markEpisodeWatched(episodeId);
@@ -251,6 +261,7 @@
           runtimeMinutes={ep.runtimeMinutes}
           onSwipeRight={() => markEpisode(ep.id)}
           onSwipeLeft={() => requestUnfollow(ep.seriesTmdbId, ep.seriesName)}
+          onTitleClick={() => openEpisodeDetail(ep)}
         />
       {/each}
     {/if}
@@ -289,6 +300,20 @@
   <div class="spacer"></div>
   <BottomNav current="home" />
 </main>
+
+{#if episodeModal}
+  <EpisodeDetailModal
+    seriesName={episodeModal.seriesName}
+    seasonNumber={episodeModal.seasonNumber}
+    episodeNumber={episodeModal.episodeNumber}
+    name={episodeModal.name}
+    overview={episodeModal.overview}
+    airDate={episodeModal.airDate}
+    runtimeMinutes={episodeModal.runtimeMinutes}
+    stillPath={episodeModal.stillPath}
+    onClose={closeEpisodeDetail}
+  />
+{/if}
 
 {#if removeModal}
   <div

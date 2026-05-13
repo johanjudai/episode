@@ -15,6 +15,7 @@
     coverVariant?: '' | 'red' | 'blue';
     onSwipeRight: () => void;
     onSwipeLeft: () => void;
+    onTitleClick?: () => void;
   }
   /* `episodeId` is part of the prop contract (callers pass it for clarity)
    * but the component itself uses only the callbacks. Underscore-prefixed to
@@ -30,7 +31,8 @@
     runtimeMinutes,
     coverVariant = '',
     onSwipeRight,
-    onSwipeLeft
+    onSwipeLeft,
+    onTitleClick
   }: Props = $props();
 
   const posterCss = $derived(
@@ -78,14 +80,25 @@
       <a class={coverClass} href={`/series/${seriesTmdbId}`} aria-hidden="true" style={posterCss}>
         {#if !seriesPoster}{seriesInitials(seriesName)}{/if}
       </a>
-      <div>
-        <div class="episode__series">{seriesName}</div>
-        <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
-        <div class="episode__meta">
-          {formatEpisodeCode(seasonNumber, episodeNumber)}
-          {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+      {#if onTitleClick}
+        <button type="button" class="episode__body" onclick={onTitleClick}>
+          <div class="episode__series">{seriesName}</div>
+          <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
+          <div class="episode__meta">
+            {formatEpisodeCode(seasonNumber, episodeNumber)}
+            {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+          </div>
+        </button>
+      {:else}
+        <div>
+          <div class="episode__series">{seriesName}</div>
+          <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
+          <div class="episode__meta">
+            {formatEpisodeCode(seasonNumber, episodeNumber)}
+            {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+          </div>
         </div>
-      </div>
+      {/if}
       <button
         class="episode__action"
         type="button"
