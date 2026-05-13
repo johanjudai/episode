@@ -112,16 +112,26 @@ jobs:
 
       - name: Build release-signed APK
         if: steps.keystore.outputs.signed == 'true'
+        env:
+          # Pass secrets via environment, not as command-line args:
+          # gradle's process arg list (`ps`, `/proc/*/cmdline`) would
+          # otherwise contain the cleartext passwords briefly. GitHub
+          # also auto-masks the values in workflow logs regardless.
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon \
-            -PversionName=${{ steps.version.outputs.version_name }} \
-            -PversionCode=${{ steps.version.outputs.version_code }} \
+            -PversionName="$VERSION_NAME" \
+            -PversionCode="$VERSION_CODE" \
             -PRELEASE_STORE_FILE=release.keystore \
-            -PRELEASE_STORE_PASSWORD='${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
-            -PRELEASE_KEY_ALIAS='${{ secrets.ANDROID_KEY_ALIAS }}' \
-            -PRELEASE_KEY_PASSWORD='${{ secrets.ANDROID_KEY_PASSWORD }}'
+            -PRELEASE_STORE_PASSWORD="$STORE_PASSWORD" \
+            -PRELEASE_KEY_ALIAS="$KEY_ALIAS" \
+            -PRELEASE_KEY_PASSWORD="$KEY_PASSWORD"
 
       - name: Build debug APK (fallback)
         if: steps.keystore.outputs.signed != 'true'
