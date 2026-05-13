@@ -4,10 +4,19 @@
  * This module is server-only (its location under `$lib/server` enforces that
  * via SvelteKit's import boundary). The factory lives in `$lib/db.ts` and
  * dynamically picks this driver when running on the server.
+ *
+ * Auto-migration: on first connection the drizzle migrator runs against the
+ * embedded SQL files under `./drizzle/` (overridable via
+ * EPISODE_MIGRATIONS_FOLDER for the Docker image). The migrator is
+ * idempotent — it tracks applied migrations in `__drizzle_migrations`, so
+ * running it again on subsequent boots is a no-op. This makes the dev
+ * server, CI runner, and Docker container all self-bootstrap without
+ * remembering to call `npm run db:migrate` first.
  */
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { mkdirSync } from 'node:fs';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import * as schema from '$lib/data/schema';
 import type { Db } from '$lib/data/db-types';
@@ -21,6 +30,18 @@ if (dbUrl !== ':memory:') {
 const sqlite = new Database(dbUrl);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
+
+const migrationsFolder = process.env.EPISODE_MIGRATIONS_FOLDER ?? './drizzle';
+if (existsSync(migrationsFolder)) {
+  try {
+    migrate(drizzle(sqlite), { migrationsFolder });
+  } catch (err) {
+    /* Swallow migration failures in dev/test so a stale schema doesn't
+     * brick the whole server. Production / Docker still pre-runs migrations
+     * via scripts/migrate.mjs, where any failure is surfaced loudly. */
+    console.error('[episode] auto-migrate failed:', err);
+  }
+}
 
 export const serverDb: Db = drizzle(sqlite, { schema }) as unknown as Db;
 export { sqlite };

@@ -130,9 +130,15 @@ a {
   outline-offset: 2px;
 }
 
-/* App canvas */
+/* App canvas — mobile-first.
+ *  - Phones (< 600px): the app fills the viewport. Avoids the empty
+ *    gutters that appeared on devices wider than 430px CSS-pixels
+ *    (iPhone 14 Pro Max ≈ 430, Samsung S23 Ultra ≈ 480), where the
+ *    old `max-width: 430` left a visible margin band.
+ *  - Tablets / desktop (≥ 600px): bring back the mobile-frame look,
+ *    bumped to 480px so the artwork doesn't feel cramped. */
 .app {
-  max-width: 430px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
   background: var(--bg);
@@ -141,22 +147,26 @@ a {
   position: relative;
 }
 
-@media (min-width: 480px) {
+@media (min-width: 600px) {
   .app {
+    max-width: 480px;
     border-left: var(--border-w) solid var(--border);
     border-right: var(--border-w) solid var(--border);
   }
 }
 
-/* Topbar */
+/* Topbar — uniform height across every page (52px tall: 8px padding
+ * top/bottom + 36px content). The iconbtn is sized to fit inside
+ * (36×36) so the header never grows when one is present. */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
+  padding: var(--s-2) var(--s-4);
   border-bottom: var(--border-w) solid var(--border);
   background: var(--bg);
+  min-height: 52px;
 }
 
 /* Sticky variant used on the home page so the date stays as the
@@ -168,10 +178,23 @@ a {
 }
 
 .topbar__title {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Brand cluster on the home page: small mark + wordmark inline,
+ * keeping the topbar the same height as every other page. */
+.topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.topbar__brand .mark {
+  transform: scale(0.78);
+  transform-origin: left center;
 }
 
 .topbar__date {
@@ -183,8 +206,8 @@ a {
 }
 
 .iconbtn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -192,7 +215,7 @@ a {
   background: var(--bg);
   color: var(--fg);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.95rem;
   text-decoration: none;
 }
 
@@ -790,114 +813,58 @@ a {
   gap: var(--s-2);
 }
 
+/* Inline rating chips — sit under the hero meta line, one small
+ * filled badge per source. Each carries a per-source brand color
+ * so they read at a glance:
+ *   TMDB → yellow / IMDb → gold / Rotten Tomatoes → red /
+ *   Metacritic → blue. */
+.hero__ratings {
+  margin-top: var(--s-2);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
 .rating-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 7px;
   background: var(--bw-yellow);
   color: var(--bw-black);
   border: 1.5px solid var(--bw-black);
   font-weight: 800;
-  letter-spacing: 0.05em;
-  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  line-height: 1;
 }
 .rating-chip strong {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 900;
-}
-
-/* Ratings card (Notations) */
-.ratings {
-  padding: var(--s-4);
-  border-bottom: var(--border-w) solid var(--border);
-}
-.ratings__title {
-  font-size: 0.7rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-  margin-bottom: var(--s-3);
-}
-.ratings__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: var(--s-2);
-}
-.rating-card {
-  border: 2px solid var(--border);
-  padding: var(--s-3);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--bg);
-}
-.rating-card__source {
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-.rating-card__value {
-  font-size: 1.4rem;
-  font-weight: 900;
-  line-height: 1;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
-.rating-card__value small {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--muted);
-}
-.rating-card__meta {
-  font-size: 0.65rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.rating-card--tmdb {
+.rating-chip--tmdb {
   background: var(--bw-yellow);
-  border-color: var(--bw-black);
   color: var(--bw-black);
 }
-.rating-card--tmdb .rating-card__source,
-.rating-card--tmdb .rating-card__meta,
-.rating-card--tmdb .rating-card__value small {
-  color: rgba(0, 0, 0, 0.6);
+.rating-chip--imdb {
+  /* Official IMDb yellow — black-on-gold reads more cinematic than
+   * the generic Bauhaus yellow. */
+  background: #f5c518;
+  color: #0a0a0a;
+  border-color: #0a0a0a;
 }
-.rating-card--rottentomatoes {
+.rating-chip--rottentomatoes {
   background: var(--bw-red);
-  border-color: var(--bw-black);
   color: var(--bw-white);
-}
-.rating-card--rottentomatoes .rating-card__source {
-  color: rgba(255, 255, 255, 0.75);
-}
-.rating-card--imdb {
-  background: var(--bw-black);
   border-color: var(--bw-black);
-  color: var(--bw-white);
 }
-.rating-card--imdb .rating-card__source,
-.rating-card--imdb .rating-card__value small {
-  color: rgba(255, 255, 255, 0.65);
-}
-.rating-card--metacritic {
+.rating-chip--metacritic {
   background: var(--bw-blue);
-  border-color: var(--bw-black);
   color: var(--bw-white);
-}
-.rating-card--metacritic .rating-card__source {
-  color: rgba(255, 255, 255, 0.75);
-}
-.ratings__hint {
-  margin-top: var(--s-3);
-  font-size: 0.7rem;
-  color: var(--muted);
-}
-.ratings__hint a {
-  color: var(--fg);
+  border-color: var(--bw-black);
 }
 
 .progress {

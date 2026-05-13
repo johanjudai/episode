@@ -66,7 +66,7 @@ This is the `server` target. The Dockerfile already builds with the right config
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/yourself/episode.git
+git clone https://github.com/johanjudai/episode.git
 cd episode
 cp .env.example .env
 # edit .env — at minimum set EPISODE_ORIGIN to the URL you'll access from

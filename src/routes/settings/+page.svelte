@@ -182,7 +182,7 @@
   <header class="topbar">
     <a href="/profile" class="iconbtn" aria-label="Retour">←</a>
     <h1 class="topbar__title">Paramètres</h1>
-    <div style="width: 40px"></div>
+    <div style="width: 36px"></div>
   </header>
 
   <section class="settings-group">
@@ -394,8 +394,11 @@
         <div class="settings-row__label">Episode</div>
         <small class="settings-row__help">v0.1.0 — open-source · MIT</small>
       </div>
-      <a class="btn btn--secondary" href="https://github.com" target="_blank" rel="noopener"
-        >GitHub</a
+      <a
+        class="btn btn--secondary"
+        href="https://github.com/johanjudai/episode"
+        target="_blank"
+        rel="noopener">GitHub</a
       >
     </div>
   </section>

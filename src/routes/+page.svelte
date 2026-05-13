@@ -165,13 +165,11 @@
 
 <main class="app">
   <header class="topbar topbar--sticky">
-    <div>
+    <div class="topbar__brand">
       <Mark />
-      <h1 class="topbar__title" style="margin-top: 8px">Episode</h1>
+      <h1 class="topbar__title">Episode</h1>
     </div>
-    <div style="text-align: right">
-      <div class="topbar__date">{todayLabel}</div>
-    </div>
+    <div class="topbar__date">{todayLabel}</div>
   </header>
 
   {#if recentRows.length > 0}
