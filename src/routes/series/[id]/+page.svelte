@@ -4,6 +4,7 @@
   import { slide, scale, fade } from 'svelte/transition';
   import { backOut, quintOut } from 'svelte/easing';
   import BottomNav from '$lib/components/BottomNav.svelte';
+  import Celebration from '$lib/components/Celebration.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
   import { posterUrl } from '$lib/utils/images';
@@ -11,6 +12,51 @@
   import * as api from '$lib/api';
 
   let { data }: PageProps = $props();
+
+  /* Track season + series completeness so we can fire a confetti
+   * celebration the instant a mutation flips the boundary from
+   * "incomplete" to "complete". Snapshot is taken before each
+   * mutation; we recompute and compare after invalidateAll resolves. */
+  type CompletionSnapshot = {
+    seriesComplete: boolean;
+    seasonsComplete: Map<number, boolean>;
+  };
+  function snapshotCompletion(): CompletionSnapshot {
+    const seasonsComplete = new Map<number, boolean>();
+    let hasAnyEpisode = false;
+    let allWatched = true;
+    for (const s of data.seasons) {
+      if (s.episodes.length === 0) {
+        seasonsComplete.set(s.seasonNumber, false);
+        continue;
+      }
+      hasAnyEpisode = true;
+      const done = s.episodes.every((e) => e.watched);
+      seasonsComplete.set(s.seasonNumber, done);
+      if (!done) allWatched = false;
+    }
+    return { seriesComplete: hasAnyEpisode && allWatched, seasonsComplete };
+  }
+
+  let celebration = $state<'season' | 'series' | null>(null);
+
+  function detectCelebrations(before: CompletionSnapshot, after: CompletionSnapshot) {
+    /* Series-complete trumps season-complete — only fire one. */
+    if (!before.seriesComplete && after.seriesComplete) {
+      celebration = 'series';
+      return;
+    }
+    for (const [num, done] of after.seasonsComplete) {
+      if (done && !before.seasonsComplete.get(num)) {
+        celebration = 'season';
+        return;
+      }
+    }
+  }
+
+  function dismissCelebration() {
+    celebration = null;
+  }
 
   const seriesId = $derived(data.series?.tmdbId ?? null);
   const percent = $derived(
@@ -65,6 +111,7 @@
   }) {
     if (busy || seriesId === null) return;
     busy = true;
+    const before = snapshotCompletion();
     try {
       await api.markEpisodeForSeries({
         seriesTmdbId: seriesId,
@@ -74,6 +121,7 @@
         markPrevious: args.markPrevious
       });
       await invalidateAll();
+      if (args.watched) detectCelebrations(before, snapshotCompletion());
     } finally {
       busy = false;
     }
@@ -86,6 +134,7 @@
   }) {
     if (busy || seriesId === null) return;
     busy = true;
+    const before = snapshotCompletion();
     try {
       await api.markSeasonForSeries({
         seriesTmdbId: seriesId,
@@ -94,6 +143,7 @@
         markPrevious: args.markPrevious
       });
       await invalidateAll();
+      if (args.watched) detectCelebrations(before, snapshotCompletion());
     } finally {
       busy = false;
     }
@@ -188,9 +238,11 @@
   async function markAllCurrent() {
     if (busy || seriesId === null) return;
     busy = true;
+    const before = snapshotCompletion();
     try {
       await api.markAllForSeries(seriesId);
       await invalidateAll();
+      detectCelebrations(before, snapshotCompletion());
     } finally {
       busy = false;
     }
@@ -415,4 +467,8 @@
       </button>
     </div>
   </div>
+{/if}
+
+{#if celebration}
+  <Celebration kind={celebration} onDone={dismissCelebration} />
 {/if}
