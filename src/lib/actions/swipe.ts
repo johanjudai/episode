@@ -73,6 +73,15 @@ export const swipeable: Action<HTMLElement, SwipeParams> = (node, initial) => {
     const t = params.threshold ?? 80;
     const which = exceedsThreshold(currentX, t);
 
+    /* Suppress the synthesized click that browsers fire after a
+     * mouse-drag. Without this, dragging across a clickable child
+     * (e.g. the episode title button in EpisodeRow) opens the modal as
+     * soon as the user finishes a swipe. Touch doesn't trigger the
+     * synthesized click in the same way, but the guard is harmless
+     * there. 6px is below the swipe-axis threshold so an outright tap
+     * still goes through. */
+    if (Math.abs(currentX) > 6) suppressNextClick();
+
     if (which === 'right') {
       params.onSwipeRight?.();
       if (params.flyOutOnRight) {
@@ -88,6 +97,19 @@ export const swipeable: Action<HTMLElement, SwipeParams> = (node, initial) => {
       reset(true);
     }
     params.onProgress?.(0);
+  }
+
+  function suppressNextClick() {
+    const swallow = (e: Event) => {
+      e.stopPropagation();
+      e.preventDefault();
+      node.removeEventListener('click', swallow, true);
+    };
+    node.addEventListener('click', swallow, true);
+    /* Safety net — if no click event ever arrives (touch path, or the
+     * browser already deduped the click), drop the listener after a
+     * frame so it doesn't intercept a later, legitimate tap. */
+    setTimeout(() => node.removeEventListener('click', swallow, true), 350);
   }
 
   function cancellable(e: Event): boolean {
