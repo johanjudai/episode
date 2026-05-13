@@ -15,8 +15,9 @@ build
 !.vscode/extensions.json
 .idea
 
-# DB
-data/
+# DB — anchored to repo root so it doesn't accidentally match
+# src/lib/data/ (the portable data layer)
+/data/
 *.sqlite
 *.sqlite-journal
 *.db
