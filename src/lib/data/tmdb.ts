@@ -46,6 +46,12 @@ const TvDetail = z.object({
   episode_run_time: z.array(z.number()).optional(),
   vote_average: z.number().optional(),
   vote_count: z.number().optional(),
+  /* Genres / origin / language let us detect anime — Japanese
+   * Animation gets MAL/Jikan ratings added, everything else stays on
+   * the TMDB / OMDb / TVMaze sources. */
+  genres: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
+  original_language: z.string().optional(),
+  origin_country: z.array(z.string()).optional(),
   networks: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
   seasons: z
     .array(

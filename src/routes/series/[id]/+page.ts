@@ -48,8 +48,10 @@ export const load: PageLoad = async ({ data, params }) => {
       seasonNumber: ep.season_number,
       episodeNumber: ep.episode_number,
       name: ep.name ?? null,
+      overview: ep.overview ?? null,
       airDate: ep.air_date ?? null,
       runtime: ep.runtime ?? null,
+      stillPath: ep.still_path ?? null,
       watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
     }))
   }));
@@ -64,10 +66,7 @@ export const load: PageLoad = async ({ data, params }) => {
     tmdbId: id,
     tmdbApiKey: apiKey,
     omdbApiKey: omdbKey,
-    tmdbVote:
-      typeof detail.vote_average === 'number' && detail.vote_average > 0
-        ? { average: detail.vote_average, count: detail.vote_count ?? 0 }
-        : null
+    tmdbDetail: detail
   });
 
   return {

@@ -866,6 +866,18 @@ a {
   color: var(--bw-white);
   border-color: var(--bw-black);
 }
+.rating-chip--tvmaze {
+  /* TVMaze brand orange */
+  background: #f47922;
+  color: #0a0a0a;
+  border-color: #0a0a0a;
+}
+.rating-chip--mal {
+  /* MyAnimeList brand blue */
+  background: #2e51a2;
+  color: var(--bw-white);
+  border-color: var(--bw-black);
+}
 
 .progress {
   padding: var(--s-4);
@@ -1626,6 +1638,95 @@ a {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--s-3);
+}
+
+/* Episode-detail modal — bigger, posters/stills inline, scrollable
+ * synopsis when episodes have long ones. */
+.modal--episode {
+  max-width: 420px;
+  width: calc(100vw - var(--s-4) * 2);
+  padding: 0;
+  overflow: hidden;
+}
+.modal__still {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--bw-blue);
+  background-size: cover;
+  background-position: center;
+  border-bottom: var(--border-w) solid var(--border);
+}
+.modal__still--placeholder {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--bw-white);
+  letter-spacing: 0.06em;
+}
+.modal__inner {
+  padding: var(--s-4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.modal__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: var(--s-2);
+}
+.modal__meta .ep-code {
+  background: var(--bw-black);
+  color: var(--bw-white);
+  padding: 2px 7px;
+  letter-spacing: 0.06em;
+}
+.modal__body--prose {
+  margin-top: var(--s-3);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.modal__body--prose:empty::before {
+  content: 'Pas de synopsis disponible pour cet épisode.';
+  color: var(--muted);
+  font-style: italic;
+}
+.modal--episode .modal__actions {
+  margin-top: var(--s-4);
+  grid-template-columns: 1fr;
+}
+
+/* Make the episode title/code clickable hint — discreet underline
+ * on hover/focus, cursor pointer. */
+.ep-title-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+.ep-title-trigger:hover .ep-title-trigger__name,
+.ep-title-trigger:focus-visible .ep-title-trigger__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.ep-title-trigger:focus-visible {
+  outline: 2px solid var(--bw-yellow);
+  outline-offset: 2px;
 }
 
 /* Utilities */

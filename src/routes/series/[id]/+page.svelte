@@ -58,6 +58,21 @@
     celebration = null;
   }
 
+  /* Episode-detail popup. Opens with the synopsis, still frame, and
+   * runtime when the user clicks an episode title or its SxxEyy code. */
+  type EpisodeDetail = (typeof data.seasons)[number]['episodes'][number];
+  let episodeModal = $state<EpisodeDetail | null>(null);
+  function openEpisodeDetail(ep: EpisodeDetail) {
+    episodeModal = ep;
+  }
+  function closeEpisodeDetail() {
+    episodeModal = null;
+  }
+
+  const stillUrl = $derived(
+    episodeModal?.stillPath ? `https://image.tmdb.org/t/p/w500${episodeModal.stillPath}` : null
+  );
+
   const seriesId = $derived(data.series?.tmdbId ?? null);
   const percent = $derived(
     data.progress.total > 0 ? Math.round((data.progress.watched / data.progress.total) * 100) : 0
@@ -400,8 +415,19 @@
                   onclick={() => onEpisodeToggle(ep.seasonNumber, ep.episodeNumber, ep.watched)}
                   >{ep.watched ? '✓' : ''}</button
                 >
-                <span class="ep-code">{formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}</span>
-                <span>{ep.name ?? `Épisode ${ep.episodeNumber}`}</span>
+                <button
+                  type="button"
+                  class="ep-title-trigger"
+                  aria-label={`Voir le synopsis de ${formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}`}
+                  onclick={() => openEpisodeDetail(ep)}
+                >
+                  <span class="ep-code">
+                    {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
+                  </span>
+                  <span class="ep-title-trigger__name"
+                    >{ep.name ?? `Épisode ${ep.episodeNumber}`}</span
+                  >
+                </button>
                 <span class="ep-date">{ep.airDate ? formatDateShortFr(ep.airDate) : ''}</span>
               </li>
             {/each}
@@ -443,6 +469,62 @@
       >
         Annuler
       </button>
+    </div>
+  </div>
+{/if}
+
+{#if episodeModal}
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ep-modal-title"
+    tabindex="-1"
+    transition:fade={{ duration: 140 }}
+    onclick={(e) => {
+      if (e.target === e.currentTarget) closeEpisodeDetail();
+    }}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') closeEpisodeDetail();
+    }}
+  >
+    <div
+      class="modal modal--episode"
+      transition:scale={{ duration: 260, start: 0.92, easing: backOut }}
+    >
+      {#if stillUrl}
+        <div class="modal__still" style="background-image: url('{stillUrl}')"></div>
+      {:else}
+        <div class="modal__still modal__still--placeholder">
+          {formatEpisodeCode(episodeModal.seasonNumber, episodeModal.episodeNumber)}
+        </div>
+      {/if}
+      <div class="modal__inner">
+        <div class="modal__kicker">{data.series?.name ?? 'Série'}</div>
+        <h2 class="modal__title" id="ep-modal-title">
+          {episodeModal.name ?? `Épisode ${episodeModal.episodeNumber}`}
+        </h2>
+        <div class="modal__meta">
+          <span class="ep-code"
+            >{formatEpisodeCode(episodeModal.seasonNumber, episodeModal.episodeNumber)}</span
+          >
+          {#if episodeModal.airDate}
+            <span>{formatDateShortFr(episodeModal.airDate)}</span>
+          {/if}
+          {#if episodeModal.runtime}
+            <span>· {episodeModal.runtime} min</span>
+          {/if}
+          {#if episodeModal.watched}
+            <span style="color: var(--bw-green); font-weight: 800">· Vu ✓</span>
+          {/if}
+        </div>
+        <p class="modal__body modal__body--prose">{episodeModal.overview ?? ''}</p>
+        <div class="modal__actions">
+          <button class="btn btn--secondary btn--block" type="button" onclick={closeEpisodeDetail}
+            >Fermer</button
+          >
+        </div>
+      </div>
     </div>
   </div>
 {/if}

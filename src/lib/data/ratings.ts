@@ -1,60 +1,125 @@
 /**
- * Aggregates ratings for a series from TMDB (vote_average) + OMDb (Rotten
- * Tomatoes, IMDb, Metacritic). Same function on server and client — it
- * takes the keys + a TMDB ID, performs the lookups, and returns a normalized
- * shape consumed by the series page.
+ * Aggregates ratings for a series from every source we know about:
  *
- * Failures on the OMDb side are non-fatal — TMDB always works, and if the
- * OMDb key is missing or the IMDb ID isn't found, we just return the TMDB
- * score by itself.
+ *   - TMDB (vote_average)        — always, no extra call
+ *   - OMDb (RT / IMDb / Meta)    — when an OMDb key is configured
+ *   - TVMaze (community)         — free, no key, via the IMDb id
+ *   - MAL via Jikan              — free, no key, only when the series
+ *                                  is detected as anime (TMDB genre +
+ *                                  Japanese origin language)
+ *
+ * Same function on server and client — passes a fetch impl through to
+ * the per-source clients. Failures on any optional source are
+ * non-fatal; the chip simply doesn't render.
  */
+import type { TmdbTvDetail } from './tmdb';
 import { createTmdbClient } from './tmdb';
 import { createOmdbClient, extractExternalRatings, type ExternalRating } from './omdb';
+import { createTvmazeClient } from './tvmaze';
+import { createMalClient } from './mal';
+
+export type RatingSource = ExternalRating['source'] | 'tvmaze' | 'mal';
+
+export interface AggregatedRating {
+  source: RatingSource;
+  value: string;
+  raw: string;
+}
 
 export interface SeriesRatings {
   tmdb: { average: number; count: number } | null;
-  external: ExternalRating[];
+  external: AggregatedRating[];
 }
 
-export async function fetchSeriesRatings(args: {
+/**
+ * Anime heuristic: Japanese origin AND animation genre.
+ *
+ *  - genre id 16 = "Animation" in TMDB's TV genre list
+ *  - original_language 'ja' is the strongest signal; we also accept
+ *    `origin_country` containing 'JP' as a back-up because some TMDB
+ *    entries miss the language field.
+ */
+export function detectAnime(detail: TmdbTvDetail): boolean {
+  const isAnimation = (detail.genres ?? []).some((g) => g.id === 16);
+  if (!isAnimation) return false;
+  if (detail.original_language === 'ja') return true;
+  if ((detail.origin_country ?? []).includes('JP')) return true;
+  return false;
+}
+
+export interface FetchRatingsArgs {
   tmdbId: number;
   tmdbApiKey: string;
   omdbApiKey?: string | null;
-  /** Pre-fetched TMDB vote average / count, so the caller can avoid a second
-   *  TMDB detail call when it already has them. */
-  tmdbVote?: { average: number; count: number } | null;
+  /** Pre-fetched TMDB detail (saves a round-trip if the caller has it). */
+  tmdbDetail: TmdbTvDetail;
   fetchImpl?: typeof fetch;
-}): Promise<SeriesRatings> {
-  const tmdb = createTmdbClient({ apiKey: args.tmdbApiKey, fetch: args.fetchImpl });
+}
 
-  let tmdbVote = args.tmdbVote ?? null;
-  if (!tmdbVote) {
-    try {
-      const detail = await tmdb.tvDetail(args.tmdbId);
-      if (typeof detail.vote_average === 'number' && detail.vote_average > 0) {
-        tmdbVote = { average: detail.vote_average, count: detail.vote_count ?? 0 };
-      }
-    } catch {
-      tmdbVote = null;
+export async function fetchSeriesRatings(args: FetchRatingsArgs): Promise<SeriesRatings> {
+  const f = args.fetchImpl ?? globalThis.fetch;
+  const tmdb = createTmdbClient({ apiKey: args.tmdbApiKey, fetch: f });
+
+  const tmdbVote =
+    typeof args.tmdbDetail.vote_average === 'number' && args.tmdbDetail.vote_average > 0
+      ? {
+          average: args.tmdbDetail.vote_average,
+          count: args.tmdbDetail.vote_count ?? 0
+        }
+      : null;
+
+  /* External IDs are shared by OMDb and TVMaze lookups, so fetch once. */
+  let imdbId: string | null = null;
+  try {
+    const ext = await tmdb.externalIds(args.tmdbId);
+    imdbId = ext.imdb_id ?? null;
+  } catch {
+    imdbId = null;
+  }
+
+  const isAnime = detectAnime(args.tmdbDetail);
+  const year = args.tmdbDetail.first_air_date
+    ? Number(args.tmdbDetail.first_air_date.slice(0, 4))
+    : undefined;
+
+  const [omdbResp, tvmazeShow, malAnime] = await Promise.all([
+    args.omdbApiKey && imdbId
+      ? createOmdbClient({ apiKey: args.omdbApiKey, fetch: f })
+          .byImdbId(imdbId)
+          .catch(() => null)
+      : Promise.resolve(null),
+    imdbId
+      ? createTvmazeClient({ fetch: f })
+          .byImdbId(imdbId)
+          .catch(() => null)
+      : Promise.resolve(null),
+    isAnime
+      ? createMalClient({ fetch: f })
+          .searchByTitle(args.tmdbDetail.name, Number.isFinite(year) ? year : undefined)
+          .catch(() => null)
+      : Promise.resolve(null)
+  ]);
+
+  const external: AggregatedRating[] = [];
+
+  if (omdbResp) {
+    for (const r of extractExternalRatings(omdbResp)) {
+      external.push(r);
     }
   }
 
-  let external: ExternalRating[] = [];
-  if (args.omdbApiKey) {
-    try {
-      const ext = await tmdb.externalIds(args.tmdbId);
-      if (ext.imdb_id) {
-        const omdb = createOmdbClient({ apiKey: args.omdbApiKey, fetch: args.fetchImpl });
-        const resp = await omdb.byImdbId(ext.imdb_id);
-        external = extractExternalRatings(resp);
-      }
-    } catch {
-      /* swallow — OMDb is best-effort */
-    }
+  if (tvmazeShow && tvmazeShow.rating?.average != null) {
+    const avg = tvmazeShow.rating.average;
+    external.push({ source: 'tvmaze', value: `${avg.toFixed(1)}/10`, raw: String(avg) });
   }
 
-  return {
-    tmdb: tmdbVote,
-    external
-  };
+  if (malAnime && typeof malAnime.score === 'number' && malAnime.score > 0) {
+    external.push({
+      source: 'mal',
+      value: `${malAnime.score.toFixed(1)}/10`,
+      raw: String(malAnime.score)
+    });
+  }
+
+  return { tmdb: tmdbVote, external };
 }

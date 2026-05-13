@@ -33,8 +33,10 @@ export const load: PageServerLoad = async ({ params }) => {
           seasonNumber: number;
           episodeNumber: number;
           name: string | null;
+          overview: string | null;
           airDate: string | null;
           runtime: number | null;
+          stillPath: string | null;
           watched: boolean;
         }>;
       }>,
@@ -78,8 +80,10 @@ export const load: PageServerLoad = async ({ params }) => {
       seasonNumber: ep.season_number,
       episodeNumber: ep.episode_number,
       name: ep.name ?? null,
+      overview: ep.overview ?? null,
       airDate: ep.air_date ?? null,
       runtime: ep.runtime ?? null,
+      stillPath: ep.still_path ?? null,
       watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
     }))
   }));
@@ -90,15 +94,14 @@ export const load: PageServerLoad = async ({ params }) => {
     0
   );
 
-  /* Ratings: feed the TMDB vote we already have so we don't re-call /tv/{id}. */
+  /* Ratings: pass the TMDB detail we already fetched so the aggregator
+   * skips an extra /tv/{id} round-trip and has the genres / origin
+   * fields it needs for anime detection. */
   const ratings = await fetchSeriesRatings({
     tmdbId: id,
     tmdbApiKey: apiKey,
     omdbApiKey: omdbKey,
-    tmdbVote:
-      typeof detail.vote_average === 'number' && detail.vote_average > 0
-        ? { average: detail.vote_average, count: detail.vote_count ?? 0 }
-        : null
+    tmdbDetail: detail
   });
 
   return {
