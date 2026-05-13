@@ -496,6 +496,29 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
         for (const e of eps) await markEpisodeWatched(ctx.db, e.id);
         expect(await getRecentWatched(ctx.db, 3)).toHaveLength(3);
       });
+
+      it('paginates with offset (older items in subsequent pages)', async () => {
+        await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
+        seedSeason(1, 1, 7);
+        const eps = ctx.raw.prepareAll<{ id: number }>(
+          'SELECT id FROM episodes ORDER BY episode_number'
+        );
+        /* Mark each with a strictly increasing watchedAt so the DESC
+         * order matches episodeNumber DESC. */
+        for (let i = 0; i < eps.length; i++) {
+          await markEpisodeWatched(
+            ctx.db,
+            eps[i].id,
+            new Date(`2026-05-${String(10 + i).padStart(2, '0')}T20:00:00Z`)
+          );
+        }
+        const page1 = await getRecentWatched(ctx.db, 3, 0);
+        const page2 = await getRecentWatched(ctx.db, 3, 3);
+        const page3 = await getRecentWatched(ctx.db, 3, 6);
+        expect(page1.map((r) => r.episodeNumber)).toEqual([7, 6, 5]);
+        expect(page2.map((r) => r.episodeNumber)).toEqual([4, 3, 2]);
+        expect(page3.map((r) => r.episodeNumber)).toEqual([1]);
+      });
     });
 
     describe('getStats', () => {

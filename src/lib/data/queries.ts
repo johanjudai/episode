@@ -115,7 +115,11 @@ export interface WatchedRow {
   runtimeMinutes: number | null;
 }
 
-export async function getRecentWatched(db: Db, limit = 20): Promise<WatchedRow[]> {
+export async function getRecentWatched(
+  db: Db,
+  limit = 20,
+  offset = 0
+): Promise<WatchedRow[]> {
   return db
     .select({
       episodeId: watched.episodeId,
@@ -133,6 +137,7 @@ export async function getRecentWatched(db: Db, limit = 20): Promise<WatchedRow[]
     .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
     .orderBy(desc(watched.watchedAt))
     .limit(limit)
+    .offset(offset)
     .all();
 }
 

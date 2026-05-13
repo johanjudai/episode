@@ -21,7 +21,7 @@ export const load: PageLoad = async ({ data }) => {
   const [allUnwatched, upcoming, recent] = await Promise.all([
     getEpisodesToWatch(db, now),
     getUpcomingEpisodes(db, 7, now),
-    getRecentWatched(db, 3)
+    getRecentWatched(db, 5)
   ]);
   return {
     toWatch: pickNextPerSeries(allUnwatched),

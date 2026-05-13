@@ -138,6 +138,15 @@ a {
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   border-bottom: var(--border-w) solid var(--border);
+  background: var(--bg);
+}
+
+/* Sticky variant used on the home page so the date stays as the
+ * "now" anchor while the timeline scrolls past it. */
+.topbar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .topbar__title {
@@ -284,6 +293,101 @@ a {
   margin-left: auto;
   color: var(--muted);
   font-weight: 600;
+}
+
+/* Home — three sections, three visual treatments.
+ *  - "À voir maintenant" stays on the default page bg (active, current focus).
+ *  - "À venir" gets a thin top border + cream tint to read as a separate
+ *    forward-looking block.
+ *  - "Vu récemment" sits on a muted surface at the bottom so it's clearly
+ *    history / done.
+ * Each section's title bar color also changes to reinforce the role
+ * (red = action, yellow = upcoming, neutral = past). */
+.home-section {
+  border-top: var(--border-w) solid var(--border);
+}
+.home-section--now {
+  border-top: 0;
+}
+.home-section--upcoming {
+  background: var(--surface-2);
+}
+.home-section--upcoming .section__title::before {
+  background: var(--bw-yellow);
+}
+.home-section--recent {
+  background: color-mix(in srgb, var(--muted) 12%, var(--bg));
+  color: var(--muted);
+}
+.home-section--recent .section {
+  padding: var(--s-3) var(--s-4) var(--s-2);
+}
+.home-section--recent .section__title {
+  color: var(--fg);
+}
+.home-section--recent .section__title::before {
+  background: var(--muted);
+}
+.home-section--recent strong {
+  color: var(--fg);
+}
+.home-section--recent .ep-date,
+.home-section--recent .history__time {
+  color: var(--muted);
+}
+[data-theme='dark'] .home-section--upcoming {
+  background: color-mix(in srgb, var(--bw-yellow) 8%, var(--bg));
+}
+[data-theme='dark'] .home-section--recent {
+  background: color-mix(in srgb, var(--fg) 6%, var(--bg));
+}
+
+/* Timeline markers — the thin bands that announce the direction
+ * of scroll above/below "À voir maintenant" so the user understands
+ * the past lives upward and the future downward. */
+.timeline-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  background: transparent;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+.timeline-marker span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.timeline-marker--up {
+  border-bottom: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--muted) 8%, var(--bg));
+}
+.timeline-marker--down {
+  border-top: 1px dashed var(--border);
+}
+
+/* Sentinel used by the IntersectionObserver — needs to be in the
+ * flow with a tiny height so it can be observed. Invisible to the
+ * user. */
+.timeline-sentinel {
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.timeline-loader {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  padding: var(--s-2);
 }
 
 /* Episode row */
@@ -1037,6 +1141,39 @@ a {
 .history__time {
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Compact one-liner — used on the home page so "Vu récemment" doesn't
+ * dominate the viewport. Each row is a single horizontal line:
+ *   • Series   S01E04                                Hier
+ */
+.history--compact li {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.history--compact li:last-child {
+  border-bottom: 0;
+}
+.history__line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history__line strong {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history__code {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   color: var(--muted);
 }
 
