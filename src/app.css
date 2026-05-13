@@ -501,6 +501,27 @@ a {
   color: inherit;
 }
 
+.series-card--ranked {
+  grid-template-columns: 56px 64px 1fr;
+  gap: var(--s-3);
+}
+
+.series-card__rank {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--fg);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.series-card--ranked .series-card__poster {
+  width: 64px;
+  height: 92px;
+}
+
 .series-card__poster {
   width: 72px;
   height: 100px;

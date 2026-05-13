@@ -51,18 +51,22 @@
       </div>
     {:else}
       {#each data.results as r, i (r.id)}
-        <a class="series-card" href={`/series/${r.id}`}>
+        <a
+          class={isTrending ? 'series-card series-card--ranked' : 'series-card'}
+          href={`/series/${r.id}`}
+        >
+          {#if isTrending}
+            <span class="series-card__rank" aria-hidden="true"
+              >{String(i + 1).padStart(2, '0')}</span
+            >
+          {/if}
           <div
             class={r.poster
               ? 'series-card__poster'
               : 'series-card__poster series-card__poster--placeholder'}
             style={r.poster ? `background-image:url('${r.poster}')` : ''}
             aria-hidden="true"
-          >
-            {#if isTrending}
-              <span class="rank" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
-            {/if}
-          </div>
+          ></div>
           <div>
             <div class="series-card__name">{r.name}</div>
             <div class="series-card__meta">{r.year ?? '—'} · TMDB</div>
