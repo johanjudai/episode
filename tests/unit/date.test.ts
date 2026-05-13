@@ -50,6 +50,8 @@ describe('date utils', () => {
   describe('formatDayShortFr', () => {
     it('returns abbreviated weekday + day for a string', () => {
       const out = formatDayShortFr('2026-05-12');
+      /* Node's Intl FR returns "mar." for Tuesday — we strip the dot and
+       * capitalize, so the output is "Mar". */
       expect(out.weekday).toBe('Mar');
       expect(out.day).toBe(12);
     });
@@ -57,8 +59,10 @@ describe('date utils', () => {
 
   describe('formatDateShortFr', () => {
     it('returns "D MMM" in French', () => {
+      /* Intl FR abbreviations differ slightly from the old hard-coded
+       * array (e.g. "janv." → "Janv" rather than "Jan"). May stays "Mai". */
       expect(formatDateShortFr('2026-05-11')).toBe('11 Mai');
-      expect(formatDateShortFr('2026-01-01')).toBe('1 Jan');
+      expect(formatDateShortFr('2026-01-01')).toBe('1 Janv');
     });
   });
 

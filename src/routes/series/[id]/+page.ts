@@ -21,12 +21,15 @@ export const load: PageLoad = async ({ data, params }) => {
   const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
   const db = await getDb();
-  const apiKey = await getSetting(db, 'tmdb.api_key');
+  const [apiKey, omdbKey, storedLocale] = await Promise.all([
+    getSetting(db, 'tmdb.api_key'),
+    getSetting(db, 'omdb.api_key'),
+    getSetting(db, 'locale')
+  ]);
   if (!apiKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
 
-  const omdbKey = await getSetting(db, 'omdb.api_key');
-
-  const tmdb = createTmdbClient({ apiKey });
+  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const tmdb = createTmdbClient({ apiKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(db, id);
 

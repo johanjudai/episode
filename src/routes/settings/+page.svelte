@@ -7,6 +7,7 @@
   import { IS_LOCAL } from '$lib/config';
   import * as api from '$lib/api';
   import { parseTvTimeExport, TvTimeImportError } from '$lib/data/tvtime-import';
+  import { t, locale, type Locale } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
@@ -78,6 +79,17 @@
     document.documentElement.style.fontSize = textSize + 'px';
   }
 
+  async function chooseLocale(value: Locale) {
+    if ($locale === value) return;
+    locale.set(value);
+    try {
+      await api.updateLocale(value);
+      await invalidateAll();
+    } catch {
+      /* non-fatal, persistence will retry next time */
+    }
+  }
+
   async function saveName(event: SubmitEvent) {
     event.preventDefault();
     try {
@@ -98,7 +110,7 @@
       await invalidateAll();
     } catch (err) {
       avatarStatus = 'error';
-      avatarError = err instanceof Error ? err.message : 'Erreur';
+      avatarError = err instanceof Error ? err.message : $t('common.error');
     }
   }
 
@@ -112,7 +124,7 @@
       await invalidateAll();
     } catch (err) {
       tmdbStatus = 'error';
-      tmdbError = err instanceof Error ? err.message : 'Validation TMDB échouée';
+      tmdbError = err instanceof Error ? err.message : $t('settings.tmdbFailed');
     }
   }
 
@@ -126,25 +138,17 @@
       await invalidateAll();
     } catch (err) {
       omdbStatus = 'error';
-      omdbError = err instanceof Error ? err.message : 'Validation OMDb échouée';
+      omdbError = err instanceof Error ? err.message : $t('settings.omdbFailed');
     }
   }
 
-  /**
-   * Import flow:
-   *  - server target: POST the file as multipart to /api/import/tvtime
-   *    (only counts entries for now — synchronization with TMDB is a separate
-   *    background job, kept out of scope of this surface).
-   *  - local target: read the file in the browser, parse it client-side, and
-   *    expose the count back to the user.
-   */
   async function importTvTime(event: SubmitEvent) {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const file = (form.elements.namedItem('file') as HTMLInputElement | null)?.files?.[0];
     if (!file) {
       importStatus = 'error';
-      importMessage = 'Fichier requis';
+      importMessage = $t('settings.fileRequired');
       return;
     }
     try {
@@ -152,15 +156,15 @@
         const text = await file.text();
         const entries = parseTvTimeExport(text);
         importStatus = 'success';
-        importMessage = `${entries.length} entrées détectées.`;
+        importMessage = $t('settings.importResult', { count: entries.length });
       } else {
         const fd = new FormData();
         fd.set('file', file);
         const res = await fetch('/api/import/tvtime', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error(await res.text().catch(() => 'Erreur'));
+        if (!res.ok) throw new Error(await res.text().catch(() => $t('common.error')));
         const body = (await res.json()) as { count: number };
         importStatus = 'success';
-        importMessage = `${body.count} entrées détectées.`;
+        importMessage = $t('settings.importResult', { count: body.count });
       }
     } catch (err) {
       importStatus = 'error';
@@ -169,27 +173,27 @@
           ? err.message
           : err instanceof Error
             ? err.message
-            : 'Erreur';
+            : $t('common.error');
     }
   }
 
   $effect(loadPrefs);
 </script>
 
-<svelte:head><title>Paramètres — Episode</title></svelte:head>
+<svelte:head><title>{$t('settings.title')}</title></svelte:head>
 
 <main class="app">
   <header class="topbar">
-    <a href="/profile" class="iconbtn" aria-label="Retour">←</a>
-    <h1 class="topbar__title">Paramètres</h1>
+    <a href="/profile" class="iconbtn" aria-label={$t('common.back')}>←</a>
+    <h1 class="topbar__title">{$t('settings.header')}</h1>
     <div style="width: 36px"></div>
   </header>
 
   <section class="settings-group">
-    <div class="settings-group__title">Profil</div>
+    <div class="settings-group__title">{$t('settings.profile')}</div>
     <form onsubmit={saveName}>
       <div class="field">
-        <label class="field__label" for="name">Nom</label>
+        <label class="field__label" for="name">{$t('settings.name')}</label>
         <input
           class="field__input"
           type="text"
@@ -199,15 +203,15 @@
           required
         />
       </div>
-      <button class="btn btn--secondary" type="submit">Enregistrer</button>
+      <button class="btn btn--secondary" type="submit">{$t('common.save')}</button>
       {#if nameStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)">Enregistré ✓</span>
+        <span class="field__help" style="margin-left: var(--s-3)">{$t('common.saved')}</span>
       {/if}
     </form>
 
     <form onsubmit={saveAvatar} style="margin-top: var(--s-5)">
       <span class="field__label" style="display: block; margin-bottom: var(--s-3)"
-        >Photo de profil</span
+        >{$t('settings.photo')}</span
       >
       <AvatarPicker
         initial={initialOf(data.profile.name)}
@@ -216,11 +220,11 @@
       />
       {#if avatarValue !== (data.profile.avatar ?? '')}
         <button class="btn btn--accent" type="submit" style="margin-top: var(--s-3)"
-          >Enregistrer</button
+          >{$t('common.save')}</button
         >
       {/if}
       {#if avatarStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)">Photo mise à jour ✓</span>
+        <span class="field__help" style="margin-left: var(--s-3)">{$t('settings.photoSaved')}</span>
       {/if}
       {#if avatarError}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
@@ -231,22 +235,20 @@
   </section>
 
   <section class="settings-group">
-    <div class="settings-group__title">Données</div>
+    <div class="settings-group__title">{$t('settings.data')}</div>
     <form onsubmit={importTvTime}>
       <div class="settings-row">
         <div>
-          <div class="settings-row__label">Importer depuis TV Time</div>
-          <small class="settings-row__help">Fichier JSON d'export (tracking.json)</small>
+          <div class="settings-row__label">{$t('settings.importTitle')}</div>
+          <small class="settings-row__help">{$t('settings.importHelp')}</small>
         </div>
         <input type="file" name="file" accept=".json,application/json" required />
       </div>
       <button class="btn btn--accent btn--block" type="submit" style="margin-top: var(--s-3)"
-        >Importer</button
+        >{$t('settings.importBtn')}</button
       >
       {#if importStatus === 'success' && importMessage}
-        <p class="field__help" style="margin-top: var(--s-2)">
-          {importMessage} La synchronisation avec TMDB suivra.
-        </p>
+        <p class="field__help" style="margin-top: var(--s-2)">{importMessage}</p>
       {/if}
       {#if importStatus === 'error' && importMessage}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
@@ -257,29 +259,33 @@
   </section>
 
   <section class="settings-group">
-    <div class="settings-group__title">API TMDB</div>
+    <div class="settings-group__title">{$t('settings.tmdbApi')}</div>
     <form onsubmit={saveTmdb}>
       <div class="field">
-        <label class="field__label" for="tmdb">Clé API TMDB</label>
+        <label class="field__label" for="tmdb">{$t('settings.tmdbLabel')}</label>
         <input
           class="field__input"
           type="password"
           name="apiKey"
           id="tmdb"
-          placeholder={data.tmdb.hasKey ? '••••••••••••••••' : 'Coller votre clé TMDB v3'}
+          placeholder={data.tmdb.hasKey
+            ? $t('settings.tmdbPlaceholderSet')
+            : $t('settings.tmdbPlaceholderEmpty')}
           autocomplete="off"
           bind:value={tmdbKey}
         />
         <span class="field__help">
-          Obtenez une clé gratuite sur
+          {$t('settings.tmdbGetKey')}
           <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener"
             >themoviedb.org</a
           >
         </span>
       </div>
-      <button class="btn btn--secondary" type="submit">Valider et enregistrer</button>
+      <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
       {#if tmdbStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)">Clé validée ✓</span>
+        <span class="field__help" style="margin-left: var(--s-3)"
+          >{$t('settings.tmdbValidated')}</span
+        >
       {/if}
       {#if tmdbError}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{tmdbError}</p>
@@ -288,27 +294,30 @@
 
     <form onsubmit={saveOmdb} style="margin-top: var(--s-5)">
       <div class="field">
-        <label class="field__label" for="omdb">Clé API OMDb (optionnelle)</label>
+        <label class="field__label" for="omdb">{$t('settings.omdbLabel')}</label>
         <input
           class="field__input"
           type="password"
           name="omdbApiKey"
           id="omdb"
-          placeholder={data.omdb.hasKey ? '••••••••••••' : 'Coller votre clé OMDb'}
+          placeholder={data.omdb.hasKey
+            ? $t('settings.omdbPlaceholderSet')
+            : $t('settings.omdbPlaceholderEmpty')}
           autocomplete="off"
           bind:value={omdbKey}
         />
         <span class="field__help">
-          Active les notes Rotten Tomatoes et IMDb sur les fiches séries. Clé gratuite (1000
-          appels/jour) sur
+          {$t('settings.omdbHelp')}
           <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener"
             >omdbapi.com</a
           >.
         </span>
       </div>
-      <button class="btn btn--secondary" type="submit">Valider et enregistrer</button>
+      <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
       {#if omdbStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)">Clé validée ✓</span>
+        <span class="field__help" style="margin-left: var(--s-3)"
+          >{$t('settings.omdbValidated')}</span
+        >
       {/if}
       {#if omdbError}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{omdbError}</p>
@@ -317,88 +326,109 @@
   </section>
 
   <section class="settings-group">
-    <div class="settings-group__title">Apparence</div>
+    <div class="settings-group__title">{$t('settings.appearance')}</div>
     <div class="field">
-      <span class="field__label">Thème</span>
-      <div class="theme-picker" role="group" aria-label="Choix du thème">
+      <span class="field__label">{$t('settings.language')}</span>
+      <div class="theme-picker" role="group" aria-label={$t('locale.title')}>
+        <button
+          class="theme-picker__opt"
+          aria-pressed={$locale === 'fr'}
+          onclick={() => chooseLocale('fr')}
+          type="button">{$t('locale.fr')}</button
+        >
+        <button
+          class="theme-picker__opt"
+          aria-pressed={$locale === 'en'}
+          onclick={() => chooseLocale('en')}
+          type="button">{$t('locale.en')}</button
+        >
+      </div>
+    </div>
+    <div class="field">
+      <span class="field__label">{$t('settings.theme')}</span>
+      <div class="theme-picker" role="group" aria-label={$t('settings.themePickerAria')}>
         <button
           class="theme-picker__opt"
           aria-pressed={theme === 'auto'}
           onclick={() => setTheme('auto')}
-          type="button">Auto</button
+          type="button">{$t('settings.themeAuto')}</button
         >
         <button
           class="theme-picker__opt"
           aria-pressed={theme === 'light'}
           onclick={() => setTheme('light')}
-          type="button">Clair</button
+          type="button">{$t('settings.themeLight')}</button
         >
         <button
           class="theme-picker__opt"
           aria-pressed={theme === 'dark'}
           onclick={() => setTheme('dark')}
-          type="button">Sombre</button
+          type="button">{$t('settings.themeDark')}</button
         >
       </div>
     </div>
   </section>
 
   <section class="settings-group">
-    <div class="settings-group__title">Accessibilité</div>
+    <div class="settings-group__title">{$t('settings.a11y')}</div>
     <div class="settings-row">
       <div>
-        <div class="settings-row__label">Taille du texte</div>
+        <div class="settings-row__label">{$t('settings.textSize')}</div>
         <small class="settings-row__help">{textSize}px</small>
       </div>
       <div class="row">
-        <button class="iconbtn" onclick={() => adjustTextSize(-1)} aria-label="Réduire la taille"
-          >A−</button
+        <button
+          class="iconbtn"
+          onclick={() => adjustTextSize(-1)}
+          aria-label={$t('settings.textSizeSmaller')}>A−</button
         >
-        <button class="iconbtn" onclick={() => adjustTextSize(1)} aria-label="Augmenter la taille"
-          >A+</button
+        <button
+          class="iconbtn"
+          onclick={() => adjustTextSize(1)}
+          aria-label={$t('settings.textSizeBigger')}>A+</button
         >
       </div>
     </div>
     <div class="settings-row">
       <div>
-        <div class="settings-row__label">Réduire les animations</div>
-        <small class="settings-row__help">Transitions instantanées</small>
+        <div class="settings-row__label">{$t('settings.reduceMotion')}</div>
+        <small class="settings-row__help">{$t('settings.reduceMotionHelp')}</small>
       </div>
       <button
         class="toggle"
         role="switch"
         aria-checked={reduceMotion}
         onclick={toggleMotion}
-        aria-label="Réduire les animations"
+        aria-label={$t('settings.reduceMotionAria')}
       ></button>
     </div>
     <div class="settings-row">
       <div>
-        <div class="settings-row__label">Contraste élevé</div>
-        <small class="settings-row__help">Bordures plus marquées</small>
+        <div class="settings-row__label">{$t('settings.highContrast')}</div>
+        <small class="settings-row__help">{$t('settings.highContrastHelp')}</small>
       </div>
       <button
         class="toggle"
         role="switch"
         aria-checked={highContrast}
         onclick={toggleContrast}
-        aria-label="Contraste élevé"
+        aria-label={$t('settings.highContrastAria')}
       ></button>
     </div>
   </section>
 
   <section class="settings-group">
-    <div class="settings-group__title">À propos</div>
+    <div class="settings-group__title">{$t('settings.about')}</div>
     <div class="settings-row">
       <div>
         <div class="settings-row__label">Episode</div>
-        <small class="settings-row__help">v0.1.0 — open-source · MIT</small>
+        <small class="settings-row__help">{$t('settings.aboutHelp')}</small>
       </div>
       <a
         class="btn btn--secondary"
         href="https://github.com/johanjudai/episode"
         target="_blank"
-        rel="noopener">GitHub</a
+        rel="noopener">{$t('settings.github')}</a
       >
     </div>
   </section>

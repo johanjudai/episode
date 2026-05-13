@@ -51,14 +51,16 @@ export const load: PageServerLoad = async ({ params }) => {
   const { createTmdbClient } = await import('$lib/data/tmdb');
   const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
-  const apiKey =
-    (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
-  if (!apiKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
-
-  const omdbKey =
-    (await getSetting(serverDb, 'omdb.api_key')) ?? process.env.EPISODE_OMDB_API_KEY ?? null;
-
-  const tmdb = createTmdbClient({ apiKey });
+  const [apiKey, omdbKey, storedLocale] = await Promise.all([
+    getSetting(serverDb, 'tmdb.api_key'),
+    getSetting(serverDb, 'omdb.api_key'),
+    getSetting(serverDb, 'locale')
+  ]);
+  const effectiveKey = apiKey ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  if (!effectiveKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
+  const effectiveOmdbKey = omdbKey ?? process.env.EPISODE_OMDB_API_KEY ?? null;
+  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(serverDb, id);
 
@@ -99,8 +101,8 @@ export const load: PageServerLoad = async ({ params }) => {
    * fields it needs for anime detection. */
   const ratings = await fetchSeriesRatings({
     tmdbId: id,
-    tmdbApiKey: apiKey,
-    omdbApiKey: omdbKey,
+    tmdbApiKey: effectiveKey,
+    omdbApiKey: effectiveOmdbKey,
     tmdbDetail: detail
   });
 

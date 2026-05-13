@@ -18,13 +18,16 @@ export const load: PageServerLoad = async ({ url }) => {
   const { getSetting } = await import('$lib/data/queries');
   const { createTmdbClient, posterUrl } = await import('$lib/data/tmdb');
 
-  const apiKey =
-    (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
-  if (!apiKey) {
+  const [apiKey, storedLocale] = await Promise.all([
+    getSetting(serverDb, 'tmdb.api_key'),
+    getSetting(serverDb, 'locale')
+  ]);
+  const effectiveKey = apiKey ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  if (!effectiveKey) {
     return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
   }
-
-  const tmdb = createTmdbClient({ apiKey });
+  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   try {
     const data = q ? await tmdb.searchTv(q) : await tmdb.trendingTv('week');
     const results: SearchResult[] = data.results.slice(0, 20).map((r) => ({

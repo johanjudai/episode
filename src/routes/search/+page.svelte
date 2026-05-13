@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { onDestroy } from 'svelte';
   import BottomNav from '$lib/components/BottomNav.svelte';
+  import { t } from '$lib/i18n';
 
   let { data }: PageProps = $props();
   const isTrending = $derived(data.q === '');
@@ -59,25 +60,27 @@
   });
 </script>
 
-<svelte:head><title>Recherche — Episode</title></svelte:head>
+<svelte:head><title>{$t('search.title')}</title></svelte:head>
 
 <main class="app">
   <header class="topbar">
-    <h1 class="topbar__title">Recherche</h1>
+    <h1 class="topbar__title">{$t('search.header')}</h1>
     <div class="topbar__date">
-      {isTrending ? 'Découvrir' : `${data.results.length} résultats`}
+      {isTrending
+        ? $t('search.discoverChip')
+        : $t('search.resultsChip', { count: data.results.length })}
     </div>
   </header>
 
   <form class="search" onsubmit={onSubmit} data-sveltekit-keepfocus>
-    <label class="sr-only" for="q">Rechercher une série</label>
+    <label class="sr-only" for="q">{$t('search.placeholder')}</label>
     <input
       bind:this={inputEl}
       class="search__input"
       type="search"
       id="q"
       name="q"
-      placeholder="Rechercher une série..."
+      placeholder={$t('search.placeholder')}
       autocomplete="off"
       value={query}
       oninput={onInput}
@@ -86,24 +89,22 @@
 
   {#if !data.hasKey}
     <div class="empty">
-      <div class="empty__title">Clé TMDB manquante</div>
-      <p style="margin-bottom: var(--s-4)">
-        Ajoutez votre clé TMDB pour rechercher des séries et voir les tendances.
-      </p>
-      <a class="btn btn--accent" href="/settings">Ouvrir les paramètres</a>
+      <div class="empty__title">{$t('search.noKeyTitle')}</div>
+      <p style="margin-bottom: var(--s-4)">{$t('search.noKeyBody')}</p>
+      <a class="btn btn--accent" href="/settings">{$t('search.openSettings')}</a>
     </div>
   {:else}
     <div class="section">
       <div class="section__title">
-        {isTrending ? 'Tendances cette semaine' : 'Résultats'}
-        <span class="section__count">TMDB</span>
+        {isTrending ? $t('search.trendingHeading') : $t('search.resultsHeading')}
+        <span class="section__count">{$t('search.sourceChip')}</span>
       </div>
     </div>
 
     {#if data.results.length === 0}
       <div class="empty">
-        <div class="empty__title">Aucun résultat</div>
-        Essayez un autre titre.
+        <div class="empty__title">{$t('search.noResults')}</div>
+        {$t('search.noResultsBody')}
       </div>
     {:else}
       {#each data.results as r, i (r.id)}

@@ -239,6 +239,17 @@ export async function updateOmdbKey(apiKey: string): Promise<void> {
   await postJson('/api/settings/omdb-key', { apiKey });
 }
 
+export async function updateLocale(locale: 'fr' | 'en'): Promise<void> {
+  if (IS_LOCAL) {
+    await withLocalDb(async (db) => {
+      const m = await import('./data/mutations');
+      await m.setSetting(db, 'locale', locale);
+    });
+    return;
+  }
+  await postJson('/api/settings/locale', { locale });
+}
+
 export async function completeOnboarding(name: string, avatar: string): Promise<void> {
   if (IS_LOCAL) {
     await withLocalDb(async (db) => {

@@ -1,22 +1,23 @@
 /**
  * Date helpers — all assume ISO YYYY-MM-DD strings for "dates without time".
+ *
+ * `formatDayShortFr` / `formatDateShortFr` are kept under those names for
+ * backwards compat, but they now delegate to `Intl.DateTimeFormat` with a
+ * BCP-47 tag so weekday + month abbreviations follow the active locale.
+ * Callers pass the locale code explicitly; components read it via the
+ * i18n store and feed it in here.
  */
+import { get } from 'svelte/store';
+import { locale, localeCode, translate } from '$lib/i18n';
 
-const FR_WEEKDAY = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-const FR_MONTH = [
-  'Jan',
-  'Fév',
-  'Mar',
-  'Avr',
-  'Mai',
-  'Juin',
-  'Juil',
-  'Août',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Déc'
-];
+function activeLocaleCode(): string {
+  return localeCode(get(locale));
+}
+
+function capitalize(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export function todayIso(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
@@ -36,24 +37,29 @@ export function daysFromNow(airDate: string, now: Date = new Date()): number {
   return Math.round(ms / (1000 * 60 * 60 * 24));
 }
 
-export function formatDayShortFr(date: string | Date): { weekday: string; day: number } {
+export function formatDayShortFr(
+  date: string | Date,
+  loc: string = activeLocaleCode()
+): { weekday: string; day: number } {
   const d = typeof date === 'string' ? new Date(`${date}T00:00:00Z`) : date;
+  const weekday = new Intl.DateTimeFormat(loc, { weekday: 'short', timeZone: 'UTC' }).format(d);
   return {
-    weekday: FR_WEEKDAY[d.getUTCDay()],
+    weekday: capitalize(weekday.replace('.', '')),
     day: d.getUTCDate()
   };
 }
 
-export function formatDateShortFr(date: string | Date): string {
+export function formatDateShortFr(date: string | Date, loc: string = activeLocaleCode()): string {
   const d = typeof date === 'string' ? new Date(`${date}T00:00:00Z`) : date;
-  return `${d.getUTCDate()} ${FR_MONTH[d.getUTCMonth()]}`;
+  const month = new Intl.DateTimeFormat(loc, { month: 'short', timeZone: 'UTC' }).format(d);
+  return `${d.getUTCDate()} ${capitalize(month.replace('.', ''))}`;
 }
 
 export function relativeFr(airDate: string, now: Date = new Date()): string {
   const d = daysFromNow(airDate, now);
-  if (d === 0) return "Aujourd'hui";
-  if (d === 1) return 'Demain';
-  if (d === -1) return 'Hier';
-  if (d > 0) return `+${d}j`;
-  return `${d}j`;
+  if (d === 0) return translate('date.relativeToday');
+  if (d === 1) return translate('date.relativeTomorrow');
+  if (d === -1) return translate('date.relativeYesterday');
+  if (d > 0) return translate('date.inDays', { n: d });
+  return translate('date.daysAgo', { n: Math.abs(d) });
 }

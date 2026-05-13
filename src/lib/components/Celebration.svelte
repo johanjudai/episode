@@ -10,6 +10,7 @@
    * itself by calling `onDone` after 1.8s.
    */
   import { onMount } from 'svelte';
+  import { t } from '$lib/i18n';
 
   interface Props {
     kind: 'season' | 'series';
@@ -35,7 +36,9 @@
     };
   });
 
-  const message = $derived(kind === 'series' ? 'Série terminée !' : 'Saison terminée !');
+  const message = $derived(
+    kind === 'series' ? $t('celebration.seriesDone') : $t('celebration.seasonDone')
+  );
 
   onMount(() => {
     const timer = setTimeout(onDone, 1800);

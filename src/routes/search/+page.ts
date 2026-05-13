@@ -13,10 +13,14 @@ export const load: PageLoad = async ({ data, url }) => {
   const { createTmdbClient, posterUrl } = await import('$lib/data/tmdb');
 
   const db = await getDb();
-  const apiKey = await getSetting(db, 'tmdb.api_key');
+  const [apiKey, storedLocale] = await Promise.all([
+    getSetting(db, 'tmdb.api_key'),
+    getSetting(db, 'locale')
+  ]);
   if (!apiKey) return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
 
-  const tmdb = createTmdbClient({ apiKey });
+  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const tmdb = createTmdbClient({ apiKey, language });
   try {
     const resp = q ? await tmdb.searchTv(q) : await tmdb.trendingTv('week');
     const results: SearchResult[] = resp.results.slice(0, 20).map((r) => ({

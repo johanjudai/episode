@@ -4,7 +4,7 @@ import { IS_LOCAL } from '$lib/config';
 export const load: PageServerLoad = async () => {
   if (IS_LOCAL) {
     return {
-      profile: { name: 'Vous', avatar: null as string | null, createdAt: null as string | null },
+      profile: { name: '', avatar: null as string | null, createdAt: null as string | null },
       stats: { totalMinutes: 0, seriesCount: 0, episodesWatched: 0 },
       history: [] as Awaited<ReturnType<typeof import('$lib/data/queries').getRecentWatched>>
     };
@@ -19,7 +19,7 @@ export const load: PageServerLoad = async () => {
     getRecentWatched(serverDb, 20)
   ]);
   return {
-    profile: { name: name ?? 'Vous', avatar, createdAt },
+    profile: { name: name ?? '', avatar, createdAt },
     stats,
     history
   };

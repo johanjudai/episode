@@ -2,23 +2,24 @@
   import type { PageProps } from './$types';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import { formatEpisodeCode, formatTotalTime, initialOf } from '$lib/utils/format';
+  import { t, locale, localeCode } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
-  const t = $derived(formatTotalTime(data.stats.totalMinutes));
+  const total = $derived(formatTotalTime(data.stats.totalMinutes));
   const since = $derived(() => {
     if (!data.profile.createdAt) return '';
     const d = new Date(data.profile.createdAt);
-    return d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+    return d.toLocaleString(localeCode($locale), { month: 'long', year: 'numeric' });
   });
 </script>
 
-<svelte:head><title>Profil — Episode</title></svelte:head>
+<svelte:head><title>{$t('profile.titleFull')}</title></svelte:head>
 
 <main class="app">
   <header class="topbar">
-    <h1 class="topbar__title">Profil</h1>
-    <a href="/settings" class="iconbtn iconbtn--blue" aria-label="Paramètres">⚙</a>
+    <h1 class="topbar__title">{$t('profile.title')}</h1>
+    <a href="/settings" class="iconbtn iconbtn--blue" aria-label={$t('common.settings')}>⚙</a>
   </header>
 
   <section class="profile-head">
@@ -35,37 +36,37 @@
       {data.profile.avatar ? '' : initialOf(data.profile.name)}
     </div>
     <div class="profile-head__text">
-      <div class="profile-head__name">{data.profile.name}</div>
+      <div class="profile-head__name">{data.profile.name || $t('profile.defaultName')}</div>
       {#if data.profile.createdAt}
-        <div class="profile-head__since">Membre depuis {since()}</div>
+        <div class="profile-head__since">{$t('profile.memberSince', { date: since() })}</div>
       {/if}
     </div>
   </section>
 
   <section class="stats">
     <div class="stat">
-      <div class="stat__num stat__accent">{t.value}<small>{t.unit}</small></div>
-      <div class="stat__label">Temps total</div>
+      <div class="stat__num stat__accent">{total.value}<small>{total.unit}</small></div>
+      <div class="stat__label">{$t('profile.totalTime')}</div>
     </div>
     <a
       class="stat stat--link"
       href="/series"
-      aria-label={`Voir mes ${data.stats.seriesCount} séries suivies`}
+      aria-label={$t('profile.seriesFollowedAria', { count: data.stats.seriesCount })}
     >
       <div class="stat__num">{data.stats.seriesCount}</div>
-      <div class="stat__label">Séries suivies →</div>
+      <div class="stat__label">{$t('profile.seriesFollowed')}</div>
     </a>
     <a
       class="stat stat--link"
       href="/history"
-      aria-label={`Voir l'historique des ${data.stats.episodesWatched} épisodes`}
+      aria-label={$t('profile.episodesWatchedAria', { count: data.stats.episodesWatched })}
     >
       <div class="stat__num">{data.stats.episodesWatched}</div>
-      <div class="stat__label">Épisodes vus →</div>
+      <div class="stat__label">{$t('profile.episodesWatched')}</div>
     </a>
     <div class="stat">
       <div class="stat__num">—</div>
-      <div class="stat__label">Streak</div>
+      <div class="stat__label">{$t('profile.streak')}</div>
     </div>
   </section>
 
@@ -73,8 +74,10 @@
     <section>
       <div class="section">
         <div class="section__title">
-          Historique récent
-          <a class="section__count" href="/history" style="text-decoration: none">Voir tout →</a>
+          {$t('profile.recentHistory')}
+          <a class="section__count" href="/history" style="text-decoration: none"
+            >{$t('profile.seeAll')}</a
+          >
         </div>
       </div>
       <ul class="history">
@@ -85,7 +88,7 @@
             <div>
               <strong>{h.seriesName}</strong> · {formatEpisodeCode(h.seasonNumber, h.episodeNumber)}
               <div class="ep-date">
-                {new Date(h.watchedAt).toLocaleString('fr-FR', {
+                {new Date(h.watchedAt).toLocaleString(localeCode($locale), {
                   day: 'numeric',
                   month: 'short'
                 })}
@@ -93,7 +96,7 @@
               </div>
             </div>
             <span class="history__time">
-              {new Date(h.watchedAt).toLocaleTimeString('fr-FR', {
+              {new Date(h.watchedAt).toLocaleTimeString(localeCode($locale), {
                 hour: '2-digit',
                 minute: '2-digit'
               })}
@@ -104,8 +107,8 @@
     </section>
   {:else}
     <div class="empty">
-      <div class="empty__title">Pas encore d'historique</div>
-      Marquez votre premier épisode comme vu.
+      <div class="empty__title">{$t('profile.emptyTitle')}</div>
+      {$t('profile.emptyBody')}
     </div>
   {/if}
 

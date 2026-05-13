@@ -1546,6 +1546,40 @@ a {
   margin-top: var(--s-3);
 }
 
+/* Language toggle pinned at the top of the onboarding screen. */
+.onboarding__lang {
+  display: inline-flex;
+  align-self: flex-end;
+  border: var(--border-w) solid var(--border);
+  background: var(--bg);
+  margin-bottom: var(--s-2);
+}
+.onboarding__lang-opt {
+  appearance: none;
+  background: var(--bg);
+  color: var(--fg);
+  border: 0;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.onboarding__lang-opt + .onboarding__lang-opt {
+  border-left: 1.5px solid var(--border);
+}
+.onboarding__lang-opt[aria-pressed='true'] {
+  background: var(--bw-black);
+  color: var(--bw-white);
+}
+[data-theme='dark'] .onboarding__lang-opt[aria-pressed='true'] {
+  background: var(--bw-white);
+  color: var(--bw-black);
+}
+
 /* Collapsible TV Time import block on the onboarding screen. */
 .onboarding__import {
   border: var(--border-w) solid var(--border);

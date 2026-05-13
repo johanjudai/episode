@@ -10,6 +10,7 @@
   import { posterUrl, stillUrl } from '$lib/utils/images';
   import { countUnwatchedBefore, findInProgressSeason } from '$lib/utils/episodes';
   import * as api from '$lib/api';
+  import { t } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
@@ -178,10 +179,11 @@
       seasonNumber,
       episodeNumber,
       watched: true,
-      title: 'Marquer aussi les épisodes précédents ?',
-      body: `${count} épisode${count > 1 ? 's' : ''} avant ${formatEpisodeCode(seasonNumber, episodeNumber)} ${
-        count > 1 ? 'sont' : 'est'
-      } non vu${count > 1 ? 's' : ''}.`
+      title: $t('series.markPreviousEpisodesTitle'),
+      body: $t('series.unwatchedBeforeEpisode', {
+        count,
+        code: formatEpisodeCode(seasonNumber, episodeNumber)
+      })
     };
   }
 
@@ -199,10 +201,8 @@
       kind: 'season',
       seasonNumber,
       watched: true,
-      title: 'Marquer aussi les saisons précédentes ?',
-      body: `${count} épisode${count > 1 ? 's' : ''} dans les saisons antérieures ${
-        count > 1 ? 'sont' : 'est'
-      } non vu${count > 1 ? 's' : ''}.`
+      title: $t('series.markPreviousSeasonsTitle'),
+      body: $t('series.unwatchedBeforeSeason', { count })
     };
   }
 
@@ -262,19 +262,19 @@
   }
 </script>
 
-<svelte:head><title>{data.series?.name ?? 'Série'} — Episode</title></svelte:head>
+<svelte:head><title>{data.series?.name ?? $t('series.detailTitle')} — Episode</title></svelte:head>
 
 {#if !data.series}
   <main class="app">
     <div class="empty">
-      <div class="empty__title">Chargement…</div>
+      <div class="empty__title">{$t('common.loading')}</div>
     </div>
   </main>
 {:else}
   <main class="app">
     <header class="topbar">
-      <a class="iconbtn" href="/search" aria-label="Retour">←</a>
-      <div class="topbar__date">Fiche série</div>
+      <a class="iconbtn" href="/search" aria-label={$t('common.back')}>←</a>
+      <div class="topbar__date">{$t('series.detailTitle')}</div>
       <div style="width: 36px"></div>
     </header>
 
@@ -285,7 +285,9 @@
         <div class="hero__meta">
           {data.series.firstAirDate?.slice(0, 4) ?? '—'}
           {#if data.series.network}· {data.series.network}{/if}
-          {#if data.series.numberOfSeasons}· {data.series.numberOfSeasons} saisons{/if}
+          {#if data.series.numberOfSeasons}· {$t('series.yearSeasons', {
+              seasons: data.series.numberOfSeasons
+            })}{/if}
         </div>
         {#if data.ratings && (data.ratings.tmdb || data.ratings.external.length > 0)}
           <div class="hero__ratings" aria-label="Notes externes">
@@ -316,7 +318,7 @@
 
     <section class="progress">
       <div class="progress__label">
-        <span>Progression</span>
+        <span>{$t('series.progress')}</span>
         <span>{percent}%</span>
       </div>
       <div
@@ -329,7 +331,12 @@
         <div class="progress__fill" style="width: {percent}%"></div>
       </div>
       <div class="progress__numbers">
-        {data.progress.watched}<small>/ {data.progress.total} épisodes</small>
+        {data.progress.watched}<small
+          >/ {$t('series.progressNumbers', {
+            watched: data.progress.watched,
+            total: data.progress.total
+          }).split('/')[1]}</small
+        >
       </div>
     </section>
 
@@ -341,7 +348,7 @@
           onclick={markAllCurrent}
           disabled={busy}
         >
-          Tout cocher
+          {$t('series.markAll')}
         </button>
         <button
           class="btn btn--secondary btn--block"
@@ -349,7 +356,7 @@
           onclick={unfollowCurrent}
           disabled={busy}
         >
-          Retirer du suivi
+          {$t('series.unfollow')}
         </button>
       {:else}
         <button
@@ -359,7 +366,7 @@
           onclick={followCurrent}
           disabled={busy}
         >
-          Suivre cette série
+          {$t('series.follow')}
         </button>
       {/if}
     </section>
@@ -383,8 +390,8 @@
             class="season__checkall"
             type="button"
             aria-label={isComplete
-              ? `Décocher saison ${s.seasonNumber}`
-              : `Tout cocher saison ${s.seasonNumber}`}
+              ? $t('series.seasonCheckAriaOff', { n: s.seasonNumber })
+              : $t('series.seasonCheckAriaOn', { n: s.seasonNumber })}
             aria-pressed={isComplete}
             disabled={busy}
             onclick={() => onSeasonToggle(s.seasonNumber, isComplete)}
@@ -394,8 +401,8 @@
             class="iconbtn"
             type="button"
             aria-label={isExpanded
-              ? `Replier la saison ${s.seasonNumber}`
-              : `Déplier la saison ${s.seasonNumber}`}
+              ? $t('series.seasonCollapseAria', { n: s.seasonNumber })
+              : $t('series.seasonExpandAria', { n: s.seasonNumber })}
             aria-expanded={isExpanded}
             onclick={() => toggleSeason(s.seasonNumber)}>{isExpanded ? '▴' : '▾'}</button
           >
@@ -407,7 +414,13 @@
                 <button
                   type="button"
                   class="checkbox"
-                  aria-label={`Marquer ${formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)} ${ep.watched ? 'non vu' : 'vu'}`}
+                  aria-label={ep.watched
+                    ? $t('series.episodeMarkAriaOff', {
+                        code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
+                      })
+                    : $t('series.episodeMarkAriaOn', {
+                        code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
+                      })}
                   aria-pressed={ep.watched}
                   disabled={busy}
                   onclick={() => onEpisodeToggle(ep.seasonNumber, ep.episodeNumber, ep.watched)}
@@ -416,7 +429,9 @@
                 <button
                   type="button"
                   class="ep-title-trigger"
-                  aria-label={`Voir le synopsis de ${formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}`}
+                  aria-label={$t('series.episodeViewSynopsisAria', {
+                    code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
+                  })}
                   onclick={() => openEpisodeDetail(ep)}
                 >
                   <span class="ep-code">
@@ -448,15 +463,15 @@
     transition:fade={{ duration: 140 }}
   >
     <div class="modal" transition:scale={{ duration: 260, start: 0.92, easing: backOut }}>
-      <div class="modal__kicker">Confirmation</div>
+      <div class="modal__kicker">{$t('common.confirm')}</div>
       <h2 class="modal__title" id="confirm-title">{pending.title}</h2>
       <p class="modal__body">{pending.body}</p>
       <div class="modal__actions">
         <button class="btn btn--secondary" type="button" onclick={() => confirmPending(false)}
-          >Seulement celui-ci</button
+          >{$t('series.onlyThisOne')}</button
         >
         <button class="btn btn--accent" type="button" onclick={() => confirmPending(true)}
-          >Tout marquer</button
+          >{$t('series.markAllUpTo')}</button
         >
       </div>
       <button
@@ -465,7 +480,7 @@
         onclick={cancelPending}
         style="margin-top: var(--s-2)"
       >
-        Annuler
+        {$t('common.cancel')}
       </button>
     </div>
   </div>
@@ -498,9 +513,9 @@
         </div>
       {/if}
       <div class="modal__inner">
-        <div class="modal__kicker">{data.series?.name ?? 'Série'}</div>
+        <div class="modal__kicker">{data.series?.name ?? $t('series.detailTitle')}</div>
         <h2 class="modal__title" id="ep-modal-title">
-          {episodeModal.name ?? `Épisode ${episodeModal.episodeNumber}`}
+          {episodeModal.name ?? `Episode ${episodeModal.episodeNumber}`}
         </h2>
         <div class="modal__meta">
           <span class="ep-code"
@@ -513,13 +528,16 @@
             <span>· {episodeModal.runtime} min</span>
           {/if}
           {#if episodeModal.watched}
-            <span style="color: var(--bw-green); font-weight: 800">· Vu ✓</span>
+            <span style="color: var(--bw-green); font-weight: 800">{$t('series.watchedBadge')}</span
+            >
           {/if}
         </div>
-        <p class="modal__body modal__body--prose">{episodeModal.overview ?? ''}</p>
+        <p class="modal__body modal__body--prose">
+          {episodeModal.overview ?? $t('series.noSynopsis')}
+        </p>
         <div class="modal__actions">
           <button class="btn btn--secondary btn--block" type="button" onclick={closeEpisodeDetail}
-            >Fermer</button
+            >{$t('common.close')}</button
           >
         </div>
       </div>

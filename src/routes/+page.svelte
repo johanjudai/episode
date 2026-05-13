@@ -11,6 +11,7 @@
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
   import * as api from '$lib/api';
   import type { WatchedRow } from '$lib/data/queries';
+  import { t, locale, localeCode } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
@@ -43,14 +44,17 @@
   function relativeRecent(ms: number, now: Date): string {
     const diff = Math.max(0, now.getTime() - ms);
     const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return "À l'instant";
-    if (mins < 60) return `Il y a ${mins} min`;
+    if (mins < 1) return $t('date.relativeNow');
+    if (mins < 60) return $t('date.relativeMinutes', { n: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Il y a ${hours} h`;
+    if (hours < 24) return $t('date.relativeHours', { n: hours });
     const days = Math.floor(hours / 24);
-    if (days === 1) return 'Hier';
-    if (days < 7) return `Il y a ${days} j`;
-    return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    if (days === 1) return $t('date.relativeYesterday');
+    if (days < 7) return $t('date.relativeDays', { n: days });
+    return new Date(ms).toLocaleDateString(localeCode($locale), {
+      day: 'numeric',
+      month: 'short'
+    });
   }
 
   /* ──────────────────────────────────────────────────────────────
@@ -161,7 +165,7 @@
   });
 </script>
 
-<svelte:head><title>À voir — Episode</title></svelte:head>
+<svelte:head><title>{$t('home.title')}</title></svelte:head>
 
 <main class="app">
   <header class="topbar topbar--sticky">
@@ -176,7 +180,7 @@
     <section class="home-section home-section--recent">
       <div bind:this={recentTopSentinel} class="timeline-sentinel" aria-hidden="true"></div>
       {#if loadingMore}
-        <div class="timeline-loader" aria-live="polite">Chargement…</div>
+        <div class="timeline-loader" aria-live="polite">{$t('common.loading')}</div>
       {/if}
       <ul class="history history--compact">
         {#each recentRows as r (r.episodeId)}
@@ -203,12 +207,12 @@
   <section bind:this={toWatchRef} class="home-section home-section--now">
     {#if recentRows.length > 0}
       <div class="timeline-marker timeline-marker--up" aria-hidden="true">
-        <span>↑ Épisodes précédents</span>
+        <span>{$t('home.pastMarker')}</span>
       </div>
     {/if}
     <div class="section">
       <div class="section__title">
-        À voir maintenant
+        {$t('home.toWatchTitle')}
         <span class="section__count section__count--badge">{data.toWatch.length}</span>
       </div>
     </div>
@@ -217,24 +221,24 @@
       {#if data.upcoming.length === 0 && recentRows.length === 0}
         <!-- Fresh user — no series yet. Steer them to the search. -->
         <div class="empty empty--cta">
-          <div class="empty__title">Aucune série pour l'instant</div>
-          <p class="empty__body">
-            Cherchez votre première série pour commencer à suivre vos épisodes.
-          </p>
-          <a class="btn btn--accent btn--lg empty__cta" href="/search">Découvrir des séries →</a>
+          <div class="empty__title">{$t('home.noSeriesYet')}</div>
+          <p class="empty__body">{$t('home.noSeriesBody')}</p>
+          <a class="btn btn--accent btn--lg empty__cta" href="/search"
+            >{$t('home.discoverSeries')}</a
+          >
           <p class="empty__hint">
-            Astuce — vous pouvez aussi importer un export TV Time depuis
-            <a href="/settings">Paramètres</a>.
+            {$t('home.importTip')}
+            <a href="/settings">{$t('common.settings')}</a>.
           </p>
         </div>
       {:else}
         <div class="empty">
-          <div class="empty__title">Tout est à jour</div>
-          Revenez demain pour de nouveaux épisodes.
+          <div class="empty__title">{$t('home.allCaughtUp')}</div>
+          {$t('home.comeBackTomorrow')}
         </div>
       {/if}
     {:else}
-      <div class="swipe-hint">→ Droite : vu &nbsp;·&nbsp; ← Gauche : retirer la série</div>
+      <div class="swipe-hint">{$t('home.swipeHint')}</div>
       {#each data.toWatch as ep (ep.id)}
         <EpisodeRow
           episodeId={ep.id}
@@ -255,12 +259,12 @@
   {#if data.upcoming.length > 0}
     <section class="home-section home-section--upcoming">
       <div class="timeline-marker timeline-marker--down" aria-hidden="true">
-        <span>↓ À venir cette semaine</span>
+        <span>{$t('home.upcomingMarker')}</span>
       </div>
       <div class="section">
         <div class="section__title">
-          À venir
-          <span class="section__count">7 jours</span>
+          {$t('home.upcomingTitle')}
+          <span class="section__count">{$t('home.upcomingWindow')}</span>
         </div>
       </div>
       <div class="upcoming">
@@ -295,17 +299,18 @@
     transition:fade={{ duration: 140 }}
   >
     <div class="modal" transition:scale={{ duration: 260, start: 0.92, easing: backOut }}>
-      <div class="modal__kicker">Confirmation</div>
+      <div class="modal__kicker">{$t('common.confirm')}</div>
       <h2 class="modal__title" id="remove-title">
-        Retirer {removeModal.seriesName} de votre suivi ?
+        {$t('home.unfollowConfirmTitle', { name: removeModal.seriesName })}
       </h2>
-      <p class="modal__body">
-        Vos épisodes déjà vus restent dans l'historique. Vous pouvez réajouter la série à tout
-        moment.
-      </p>
+      <p class="modal__body">{$t('home.unfollowConfirmBody')}</p>
       <div class="modal__actions">
-        <button class="btn btn--secondary" type="button" onclick={cancelUnfollow}>Annuler</button>
-        <button class="btn btn--accent" type="button" onclick={confirmUnfollow}>Retirer</button>
+        <button class="btn btn--secondary" type="button" onclick={cancelUnfollow}
+          >{$t('common.cancel')}</button
+        >
+        <button class="btn btn--accent" type="button" onclick={confirmUnfollow}
+          >{$t('home.unfollowConfirmAction')}</button
+        >
       </div>
     </div>
   </div>

@@ -1,9 +1,17 @@
 <script lang="ts">
   import '../app.css';
+  import { setLocale } from '$lib/i18n';
   interface Props {
+    data?: { locale?: 'fr' | 'en' };
     children: import('svelte').Snippet;
   }
-  let { children }: Props = $props();
+  let { data, children }: Props = $props();
+
+  /* Keep the i18n store in sync with whatever the layout load resolved.
+   * Re-runs whenever invalidateAll() refreshes the data. */
+  $effect(() => {
+    if (data?.locale) setLocale(data.locale);
+  });
 </script>
 
 <svelte:head>

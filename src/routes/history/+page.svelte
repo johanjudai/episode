@@ -2,6 +2,7 @@
   import type { PageProps } from './$types';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
+  import { t, locale, localeCode } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
@@ -21,11 +22,11 @@
 
   function dayLabel(day: string): string {
     const todayIso = today.toISOString().slice(0, 10);
-    if (day === todayIso) return "Aujourd'hui";
+    if (day === todayIso) return $t('history.today');
     const y = new Date(today);
     y.setDate(y.getDate() - 1);
-    if (day === y.toISOString().slice(0, 10)) return 'Hier';
-    return new Date(`${day}T00:00:00Z`).toLocaleDateString('fr-FR', {
+    if (day === y.toISOString().slice(0, 10)) return $t('history.yesterday');
+    return new Date(`${day}T00:00:00Z`).toLocaleDateString(localeCode($locale), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -34,23 +35,26 @@
   }
 
   function hm(ms: number | string | Date): string {
-    return new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return new Date(ms).toLocaleTimeString(localeCode($locale), {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 </script>
 
-<svelte:head><title>Historique — Episode</title></svelte:head>
+<svelte:head><title>{$t('history.title')}</title></svelte:head>
 
 <main class="app">
   <header class="topbar">
-    <a class="iconbtn" href="/profile" aria-label="Retour">←</a>
-    <h1 class="topbar__title">Historique</h1>
+    <a class="iconbtn" href="/profile" aria-label={$t('common.back')}>←</a>
+    <h1 class="topbar__title">{$t('history.header')}</h1>
     <div class="topbar__date">{data.history.length}</div>
   </header>
 
   {#if data.history.length === 0}
     <div class="empty">
-      <div class="empty__title">Pas encore d'historique</div>
-      Marquez votre premier épisode comme vu depuis l'accueil.
+      <div class="empty__title">{$t('history.emptyTitle')}</div>
+      {$t('history.emptyBody')}
     </div>
   {:else}
     {#each groups as g (g.day)}
@@ -73,7 +77,7 @@
                   )}
                 </a>
                 <div class="ep-date">
-                  {r.episodeName ?? `Épisode ${r.episodeNumber}`}
+                  {r.episodeName ?? `Episode ${r.episodeNumber}`}
                   {#if r.runtimeMinutes}· {r.runtimeMinutes} min{/if}
                 </div>
               </div>

@@ -2,24 +2,25 @@
   import type { PageProps } from './$types';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import { posterUrl } from '$lib/utils/images';
+  import { t } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 </script>
 
-<svelte:head><title>Mes séries — Episode</title></svelte:head>
+<svelte:head><title>{$t('series.seriesListTitle')} — Episode</title></svelte:head>
 
 <main class="app">
   <header class="topbar">
-    <a class="iconbtn" href="/profile" aria-label="Retour">←</a>
-    <h1 class="topbar__title">Mes séries</h1>
+    <a class="iconbtn" href="/profile" aria-label={$t('common.back')}>←</a>
+    <h1 class="topbar__title">{$t('series.seriesListTitle')}</h1>
     <div class="topbar__date">{data.series.length}</div>
   </header>
 
   {#if data.series.length === 0}
     <div class="empty">
-      <div class="empty__title">Aucune série suivie</div>
-      <p style="margin-bottom: var(--s-4)">Ajoutez votre première série depuis la recherche.</p>
-      <a class="btn btn--accent" href="/search">Découvrir</a>
+      <div class="empty__title">{$t('series.seriesListEmpty')}</div>
+      <p style="margin-bottom: var(--s-4)">{$t('series.seriesListEmptyBody')}</p>
+      <a class="btn btn--accent" href="/search">{$t('series.seriesListDiscover')}</a>
     </div>
   {:else}
     {#each data.series as s (s.tmdbId)}
@@ -37,7 +38,7 @@
           <div class="series-card__name">{s.name}</div>
           <div class="series-card__meta">
             {s.firstAirDate?.slice(0, 4) ?? '—'}
-            {#if s.numberOfSeasons}· {s.numberOfSeasons} saisons{/if}
+            {#if s.numberOfSeasons}· {$t('series.yearSeasons', { seasons: s.numberOfSeasons })}{/if}
             · {s.watchedCount} / {s.totalEpisodes}
           </div>
           <div

@@ -16,7 +16,7 @@ export const load: PageLoad = async ({ data }) => {
     getRecentWatched(db, 20)
   ]);
   return {
-    profile: { name: name ?? 'Vous', avatar, createdAt },
+    profile: { name: name ?? '', avatar, createdAt },
     stats,
     history
   };
