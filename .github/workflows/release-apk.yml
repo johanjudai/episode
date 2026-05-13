@@ -1,0 +1,115 @@
+name: release-apk
+
+# Builds the Android APK and uploads it to a GitHub Release.
+#
+#  - Push a `v*` tag (e.g. `git tag v0.1.0 && git push --tags`) → the
+#    APK becomes a downloadable asset on the matching Release page,
+#    with auto-generated changelog from commit messages.
+#  - Trigger manually from the Actions tab → the APK is dropped as a
+#    workflow artifact (retained 30 days) instead of a release.
+#
+# The APK is currently a DEBUG build (signed with the public Android
+# debug keystore). It installs fine on any Android device with
+# "Install from unknown sources" enabled — perfect for personal use
+# and sideloading. To switch to a signed release build, add a
+# keystore + secrets and replace `assembleDebug` with `assembleRelease`.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & publish APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;34.0.0 platforms;android-34'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint + type-check
+        run: |
+          npm run lint
+          npm run check
+
+      - name: Unit tests (hard gate)
+        run: npm run test:unit -- --run
+
+      - name: Build static SPA (local target)
+        run: npm run build:local
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK with version
+        id: rename
+        run: |
+          # Tag pushes → use the tag name (v0.1.0). Manual runs → use
+          # short SHA so artifacts stay distinguishable across attempts.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          APK_NAME="episode-${VERSION}.apk"
+          mv android/app/build/outputs/apk/debug/app-debug.apk "$APK_NAME"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          ls -lh "$APK_NAME"
+
+      - name: Upload as workflow artifact (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.rename.outputs.apk_name }}
+          path: ${{ steps.rename.outputs.apk_name }}
+          retention-days: 30
+
+      - name: Create / update GitHub Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Episode ${{ steps.rename.outputs.version }}
+          files: ${{ steps.rename.outputs.apk_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+          body: |
+            **Android APK** — `${{ steps.rename.outputs.apk_name }}`
+
+            Sideload it on your Android phone:
+            1. Enable *Install from unknown sources* in Settings → Apps.
+            2. Open the APK from your file manager (or `adb install …`).
+
+            This is a debug-signed build. For self-hosting on a server,
+            use `docker compose up -d --build` — see the README.

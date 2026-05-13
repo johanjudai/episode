@@ -4,6 +4,36 @@ Open-source TV series tracker — focused, mobile-first, self-hostable.
 
 Episode is a lightweight alternative to TV Time, dedicated to **TV series only** — no movies, no social network, no recommendations. Your data stays with you, whether you self-host a Docker container or install a `.apk` on your phone.
 
+---
+
+## 🚀 Quick start
+
+Two ways to run Episode. Pick one — or both.
+
+### 🐳 Self-host (Docker)
+
+```bash
+git clone https://github.com/johanjudai/episode.git
+cd episode
+docker compose up -d --build
+```
+
+Episode is now live on **http://localhost:3000**. The container builds, runs the full test suite as a hard gate, then starts a Node server that persists everything to a named volume.
+
+Put it behind Caddy/Traefik for HTTPS + auth → [full guide below](#self-hosting-docker-homelab).
+
+### 📱 Android (APK)
+
+Grab the latest release from
+**[github.com/johanjudai/episode/releases/latest](https://github.com/johanjudai/episode/releases/latest)**
+and sideload the `.apk` on your phone (Settings → Apps → _Install unknown apps_ → allow your file manager / browser).
+
+The APK is fully offline — no server, no account, everything lives on the device. Built and signed automatically on every version tag.
+
+→ Build yourself: [Android APK guide](#android-apk-local-target).
+
+---
+
 ## Features
 
 - **À voir** — episodes that have already aired, ready to mark watched
@@ -306,8 +336,20 @@ If you find a security issue, please open a GitHub issue
 (<https://github.com/johanjudai/episode/issues>) — or, if it's
 sensitive, get in touch directly.
 
+## Releasing
+
+A push of a `v*` tag triggers `.github/workflows/release-apk.yml`, which builds the static SPA, syncs Capacitor, gradle-builds a debug APK, and uploads it as an asset on the matching GitHub Release with auto-generated notes.
+
+```bash
+git tag v0.2.0
+git push --tags
+```
+
+The Release page (e.g. `releases/tag/v0.2.0`) then exposes `episode-v0.2.0.apk` for download. The same workflow can be triggered manually from the **Actions** tab — that path drops the APK as a 30-day workflow artifact instead of creating a release.
+
 ## Roadmap
 
+- [ ] Signed release APK + Play Store / F-Droid listing (debug-signed today, sideload-only)
 - [ ] iOS Capacitor wrapping (currently Android-only)
 - [ ] Optional `@capacitor-community/sqlite` driver for native storage on Android (sql.js + IndexedDB works today, but native is faster)
 - [ ] Background TMDB sync (refresh series airing status)
