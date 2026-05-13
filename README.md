@@ -338,14 +338,53 @@ sensitive, get in touch directly.
 
 ## Releasing
 
-A push of a `v*` tag triggers `.github/workflows/release-apk.yml`, which builds the static SPA, syncs Capacitor, gradle-builds a debug APK, and uploads it as an asset on the matching GitHub Release with auto-generated notes.
+A push of a `v*` tag triggers `.github/workflows/release-apk.yml`, which builds the static SPA, syncs Capacitor, gradle-builds the APK, and uploads it as an asset on the matching GitHub Release with auto-generated notes.
 
 ```bash
 git tag v0.2.0
 git push --tags
 ```
 
-The Release page (e.g. `releases/tag/v0.2.0`) then exposes `episode-v0.2.0.apk` for download. The same workflow can be triggered manually from the **Actions** tab — that path drops the APK as a 30-day workflow artifact instead of creating a release.
+The Release page (e.g. `releases/tag/v0.2.0`) then exposes `episode-v0.2.0.apk` for download. The workflow can also be triggered manually from the **Actions** tab — that path drops the APK as a 30-day workflow artifact instead of creating a release.
+
+### Signing the APK (one-time setup)
+
+Without a keystore the workflow falls back to a **debug**-signed APK that still sideloads but shows the _"Install unknown apps"_ warning. To produce a proper **release**-signed APK that installs cleanly and can be published to Play Store / F-Droid, you generate a keystore once and add four secrets to the repo. **Keep the keystore file backed up forever** — losing it means you can no longer ship updates over the same signing identity.
+
+**1. Generate a 4096-bit RSA keystore locally** (Windows PowerShell — the `keytool` binary ships with the JDK installed earlier):
+
+```powershell
+keytool -genkey -v `
+  -keystore episode.keystore `
+  -alias episode `
+  -keyalg RSA `
+  -keysize 4096 `
+  -validity 10000
+```
+
+It will ask for a _keystore password_, an optional _key password_ (press Enter to reuse the keystore one), and a few identity fields (name, org, locality — fill anything that makes sense).
+
+**2. Encode the keystore as base64** so it can be stored as a GitHub secret:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("episode.keystore")) `
+  | Set-Clipboard
+```
+
+The base64 blob is now in your clipboard.
+
+**3. Add four secrets** at <https://github.com/johanjudai/episode/settings/secrets/actions> — _Repository secrets → New repository secret_:
+
+| Secret name                 | Value                                                    |
+| --------------------------- | -------------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | paste the clipboard from step 2                          |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore password from step 1                        |
+| `ANDROID_KEY_ALIAS`         | `episode` (matches `-alias` above)                       |
+| `ANDROID_KEY_PASSWORD`      | the key password (same as keystore if you pressed Enter) |
+
+**4. Push a tag.** The next `release-apk` run picks up the secrets, decodes the keystore, and produces `app-release.apk` instead of `app-debug.apk`. The Release notes now read _"Release-signed"_ instead of _"Debug-signed"_.
+
+**5. Move the keystore file off your machine** to a safe long-term spot (password manager, encrypted backup). Never commit it to the repo. Do not delete it — every future version of Episode must be signed with the same key, or Android refuses to install the update over the existing app.
 
 ## Roadmap
 

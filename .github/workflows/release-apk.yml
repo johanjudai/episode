@@ -8,11 +8,14 @@ name: release-apk
 #  - Trigger manually from the Actions tab → the APK is dropped as a
 #    workflow artifact (retained 30 days) instead of a release.
 #
-# The APK is currently a DEBUG build (signed with the public Android
-# debug keystore). It installs fine on any Android device with
-# "Install from unknown sources" enabled — perfect for personal use
-# and sideloading. To switch to a signed release build, add a
-# keystore + secrets and replace `assembleDebug` with `assembleRelease`.
+# Signing:
+#  - If the four ANDROID_KEYSTORE_* secrets are configured on the
+#    repository, the workflow decodes the keystore and produces a
+#    proper RELEASE-signed APK (sideloads without "unknown source"
+#    warnings on Android 8+, ready for Play Store / F-Droid).
+#  - If any secret is missing, the workflow falls back to a DEBUG
+#    APK so the pipeline still works on forks and during the initial
+#    bootstrap before a keystore is generated.
 
 on:
   push:
@@ -64,27 +67,87 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build APK
+      - name: Resolve version
+        id: version
+        run: |
+          # Tag pushes → use the tag name minus its leading `v`.
+          # Manual runs → derive a dev label from the short SHA.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+            TAG_LABEL="$GITHUB_REF_NAME"
+          else
+            VERSION_NAME="0.0.0-dev"
+            TAG_LABEL="dev-${GITHUB_SHA::7}"
+          fi
+
+          # Build a monotonically-increasing versionCode from semver:
+          #   MAJOR*10000 + MINOR*100 + PATCH  (so 1.2.3 → 10203).
+          # Handles `1.2.3-anything` by stripping the suffix.
+          CORE="${VERSION_NAME%%-*}"
+          IFS='.' read -r MAJOR MINOR PATCH <<<"$CORE"
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          [[ "$VERSION_CODE" -lt 1 ]] && VERSION_CODE=1
+
+          echo "version_name=$VERSION_NAME"  | tee -a "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE"  | tee -a "$GITHUB_OUTPUT"
+          echo "tag_label=$TAG_LABEL"        | tee -a "$GITHUB_OUTPUT"
+
+      - name: Decode release keystore (if configured)
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" \
+                && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Release keystore decoded (signing release build)."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "No release keystore configured — falling back to debug APK."
+          fi
+
+      - name: Build release-signed APK
+        if: steps.keystore.outputs.signed == 'true'
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon \
+            -PversionName=${{ steps.version.outputs.version_name }} \
+            -PversionCode=${{ steps.version.outputs.version_code }} \
+            -PRELEASE_STORE_FILE=release.keystore \
+            -PRELEASE_STORE_PASSWORD='${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
+            -PRELEASE_KEY_ALIAS='${{ secrets.ANDROID_KEY_ALIAS }}' \
+            -PRELEASE_KEY_PASSWORD='${{ secrets.ANDROID_KEY_PASSWORD }}'
 
-      - name: Rename APK with version
+      - name: Build debug APK (fallback)
+        if: steps.keystore.outputs.signed != 'true'
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon \
+            -PversionName=${{ steps.version.outputs.version_name }} \
+            -PversionCode=${{ steps.version.outputs.version_code }}
+
+      - name: Rename & locate APK
         id: rename
         run: |
-          # Tag pushes → use the tag name (v0.1.0). Manual runs → use
-          # short SHA so artifacts stay distinguishable across attempts.
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME}"
+          if [[ "${{ steps.keystore.outputs.signed }}" == "true" ]]; then
+            SRC="android/app/build/outputs/apk/release/app-release.apk"
           else
-            VERSION="dev-${GITHUB_SHA::7}"
+            SRC="android/app/build/outputs/apk/debug/app-debug.apk"
           fi
-          APK_NAME="episode-${VERSION}.apk"
-          mv android/app/build/outputs/apk/debug/app-debug.apk "$APK_NAME"
-          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          APK_NAME="episode-${{ steps.version.outputs.tag_label }}.apk"
+          mv "$SRC" "$APK_NAME"
           ls -lh "$APK_NAME"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Cleanup keystore from runner
+        if: always() && steps.keystore.outputs.signed == 'true'
+        run: rm -f android/app/release.keystore
 
       - name: Upload as workflow artifact (manual runs)
         if: github.event_name == 'workflow_dispatch'
@@ -98,7 +161,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Episode ${{ steps.rename.outputs.version }}
+          name: Episode ${{ steps.version.outputs.tag_label }}
           files: ${{ steps.rename.outputs.apk_name }}
           generate_release_notes: true
           fail_on_unmatched_files: true
@@ -107,9 +170,10 @@ jobs:
           body: |
             **Android APK** — `${{ steps.rename.outputs.apk_name }}`
 
-            Sideload it on your Android phone:
-            1. Enable *Install from unknown sources* in Settings → Apps.
-            2. Open the APK from your file manager (or `adb install …`).
+            ${{ steps.keystore.outputs.signed == 'true' && '✅ **Release-signed.** Installs cleanly via the Android package installer.' || '⚠️ **Debug-signed** (no production keystore configured on the repo yet). Sideload still works after enabling *Install unknown apps* in Android settings.' }}
 
-            This is a debug-signed build. For self-hosting on a server,
-            use `docker compose up -d --build` — see the README.
+            Install:
+            1. Download the `.apk` from the Assets section below.
+            2. Open it from your file manager, or `adb install <file.apk>`.
+
+            For self-hosting on a server, see the [Docker quick-start](https://github.com/${{ github.repository }}#-self-host-docker) in the README.

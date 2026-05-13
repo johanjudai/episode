@@ -1,5 +1,24 @@
 apply plugin: 'com.android.application'
 
+/* Version is driven from the CI workflow (gradle -PversionName=… -PversionCode=…).
+ * Defaults ship a sane local-dev value so `./gradlew assembleDebug` keeps
+ * working without flags. */
+def releaseVersionName = project.hasProperty('versionName') ? project.property('versionName') : '0.0.0-dev'
+def releaseVersionCode = project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : 1
+
+/* Release signing — only wired up when the four signing properties are
+ * present. The CI workflow decodes the keystore from a base64 secret and
+ * passes the four -P args. Locally, `assembleDebug` still works without
+ * any signing setup; `assembleRelease` without these properties will
+ * produce an unsigned APK that won't install (use the Android Studio
+ * "Generate Signed Bundle / APK" wizard for one-off local release
+ * builds). */
+def hasReleaseSigning =
+    project.hasProperty('RELEASE_STORE_FILE') &&
+    project.hasProperty('RELEASE_STORE_PASSWORD') &&
+    project.hasProperty('RELEASE_KEY_ALIAS') &&
+    project.hasProperty('RELEASE_KEY_PASSWORD')
+
 android {
     namespace "fr.iagona.episode"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +26,8 @@ android {
         applicationId "fr.iagona.episode"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode releaseVersionCode
+        versionName releaseVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +35,25 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile file(project.property('RELEASE_STORE_FILE'))
+                storePassword project.property('RELEASE_STORE_PASSWORD')
+                keyAlias project.property('RELEASE_KEY_ALIAS')
+                keyPassword project.property('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
