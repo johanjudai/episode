@@ -157,6 +157,194 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 14%, transparent);
 }
 
+/* ───── Palette: artnouveau ─────
+ * Parchment ivory canvas, antique gold + warm copper accents, peacock
+ * teal as the secondary, sepia text and bronze borders. Whiplash
+ * curves replace the bauhaus right-angles; Playfair Display takes over
+ * the display font; subtle SVG ornaments echo the period vocabulary.
+ *
+ * Color mapping:
+ *   --bw-red    → warm copper      (brand/CTAs/season-checked).
+ *   --bw-blue   → peacock teal     (secondary chips, season-num blocks).
+ *   --bw-yellow → antique gold     (focus rings, ornaments, triangles).
+ *   --bw-green  → olive            (watched-state success).
+ *   --bw-black  → deep sepia       (text, borders).
+ *   --bw-white  → ivory parchment  (lifted surfaces).
+ */
+[data-palette='artnouveau'] {
+  --bw-red: #a75d3a;
+  --bw-blue: #5c8a85;
+  --bw-yellow: #b8932e;
+  --bw-green: #7a8b4e;
+  --bw-black: #3a2c1f;
+  --bw-white: #fcf6e8;
+
+  --bg: #f4ecdd;
+  --fg: var(--bw-black);
+  --muted: #7a5c44;
+  --surface: #fcf6e8;
+  --surface-2: #e8dcc1;
+  --border: #7a5c3a;
+
+  --border-w: 1.5px;
+  --font-display: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+}
+
+[data-theme='dark'][data-palette='artnouveau'] {
+  --bg: #1f1812;
+  --fg: #e8dcc1;
+  --muted: #a88a6e;
+  --surface: #2c231a;
+  --surface-2: #3a2e22;
+  --border: #c9a87e;
+}
+
+/* Soft parchment grain — single low-frequency turbulence so it reads
+ * as aged paper without the concrete coarseness. Applied to
+ * `.app::before` for the same reason the ecobrutalism layer uses it. */
+[data-palette='artnouveau'] .app {
+  position: relative;
+  isolation: isolate;
+}
+[data-palette='artnouveau'] .app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='280'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  background-size: 280px;
+  mix-blend-mode: multiply;
+}
+[data-theme='dark'][data-palette='artnouveau'] .app::before {
+  mix-blend-mode: screen;
+  opacity: 0.45;
+}
+[data-palette='artnouveau'] .app > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ───── Curves: the Art Nouveau line ─────
+ * Every rectangle relaxes. Cards take a soft 14px radius; pressable
+ * targets become full pills; inputs and small chips take a smaller
+ * 8-10px corner so they stay readable. */
+[data-palette='artnouveau'] .swipe-content .episode,
+[data-palette='artnouveau'] .season,
+[data-palette='artnouveau'] .settings-group,
+[data-palette='artnouveau'] .empty,
+[data-palette='artnouveau'] .hero,
+[data-palette='artnouveau'] .progress,
+[data-palette='artnouveau'] .actions,
+[data-palette='artnouveau'] .home-section,
+[data-palette='artnouveau'] .upcoming__row,
+[data-palette='artnouveau'] .stat,
+[data-palette='artnouveau'] .series-card {
+  border-radius: 14px;
+}
+[data-palette='artnouveau'] .modal {
+  border-radius: 20px;
+}
+[data-palette='artnouveau'] .btn,
+[data-palette='artnouveau'] .iconbtn,
+[data-palette='artnouveau'] .episode__action,
+[data-palette='artnouveau'] .checkbox,
+[data-palette='artnouveau'] .season__checkall,
+[data-palette='artnouveau'] .toggle,
+[data-palette='artnouveau'] .onboarding__lang-opt,
+[data-palette='artnouveau'] .theme-picker__opt {
+  border-radius: 999px;
+}
+[data-palette='artnouveau'] .palette-card {
+  border-radius: 22px;
+}
+[data-palette='artnouveau'] .field__input,
+[data-palette='artnouveau'] .rating-chip,
+[data-palette='artnouveau'] .ep-code,
+[data-palette='artnouveau'] .section__count,
+[data-palette='artnouveau'] .history__code {
+  border-radius: 10px;
+}
+[data-palette='artnouveau'] .episode__cover,
+[data-palette='artnouveau'] .upcoming__day,
+[data-palette='artnouveau'] .season__num,
+[data-palette='artnouveau'] .modal__still {
+  border-radius: 8px;
+}
+
+/* Soft elevation in place of harsh borders. The 1.5px line stays for
+ * structure; a low-opacity warm shadow does the lifting. */
+[data-palette='artnouveau'] .settings-group,
+[data-palette='artnouveau'] .hero,
+[data-palette='artnouveau'] .season,
+[data-palette='artnouveau'] .empty,
+[data-palette='artnouveau'] .modal {
+  box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* Display type: replace the geometric Space Grotesk with Playfair
+ * Display, the closest available high-contrast serif for an Art
+ * Nouveau editorial feel. Italic variant in subtle accents. */
+[data-palette='artnouveau'] h1,
+[data-palette='artnouveau'] h2,
+[data-palette='artnouveau'] h3,
+[data-palette='artnouveau'] h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.005em;
+}
+[data-palette='artnouveau'] .topbar__title,
+[data-palette='artnouveau'] .topbar__date,
+[data-palette='artnouveau'] .empty__title,
+[data-palette='artnouveau'] .hero__title,
+[data-palette='artnouveau'] .modal__title {
+  font-family: var(--font-display);
+}
+[data-palette='artnouveau'] .modal__kicker,
+[data-palette='artnouveau'] .section__title,
+[data-palette='artnouveau'] .settings-group__title {
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+/* Double-rule under the topbar — a classic Art Nouveau editorial
+ * divider. Replaces the single hard border with two thin lines that
+ * suggest engraved binding. */
+[data-palette='artnouveau'] .topbar {
+  border-bottom: 0;
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(100% - 4px),
+    var(--border) calc(100% - 4px),
+    var(--border) calc(100% - 3px),
+    transparent calc(100% - 3px),
+    transparent calc(100% - 1px),
+    var(--border) calc(100% - 1px),
+    var(--border) 100%
+  );
+}
+
+/* Decorative fleur ornaments — a stylised three-petal flower repeated
+ * at a wide spacing so it reads as a subtle motif on parchment, never
+ * pattern noise. Applied to the body of long-form sections. */
+[data-palette='artnouveau'] .settings-group::after,
+[data-palette='artnouveau'] .hero::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 22px;
+  height: 22px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><g fill='%23b8932e' opacity='0.45'><path d='M20 4 C 17 12 17 16 20 20 C 23 16 23 12 20 4 Z'/><path d='M20 36 C 17 28 17 24 20 20 C 23 24 23 28 20 36 Z'/><path d='M4 20 C 12 17 16 17 20 20 C 16 23 12 23 4 20 Z'/><path d='M36 20 C 28 17 24 17 20 20 C 24 23 28 23 36 20 Z'/><circle cx='20' cy='20' r='2.2'/></g></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.85;
+}
+[data-palette='artnouveau'] .settings-group,
+[data-palette='artnouveau'] .hero {
+  position: relative;
+}
+
 [data-contrast='high'] {
   --muted: var(--fg);
   --border-w: 3px;
@@ -2495,7 +2683,7 @@ a {
 /* ===== Palette picker (settings + onboarding) ===== */
 .palette-picker {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--s-3);
 }
 
@@ -2567,4 +2755,15 @@ a {
 }
 .palette-card__chip--eb-3 {
   background: #d7cfc2;
+}
+
+/* Art Nouveau swatch — parchment ivory + copper + antique gold. */
+.palette-card__chip--an-1 {
+  background: #f4ecdd;
+}
+.palette-card__chip--an-2 {
+  background: #a75d3a;
+}
+.palette-card__chip--an-3 {
+  background: #b8932e;
 }

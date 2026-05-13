@@ -209,6 +209,8 @@ export const fr = {
     paletteBauhausHint: 'Aplats vifs, ligne dure',
     paletteEco: 'Éco-brutalisme',
     paletteEcoHint: 'Béton, mousses, ochre',
+    paletteArtNouveau: 'Art Nouveau',
+    paletteArtNouveauHint: 'Ivoire, cuivre, or antique',
     a11y: 'Accessibilité',
     textSize: 'Taille du texte',
     textSizeBigger: 'Augmenter la taille',

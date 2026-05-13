@@ -407,6 +407,20 @@
           <span class="palette-card__label">{$t('settings.paletteEco')}</span>
           <span class="palette-card__hint">{$t('settings.paletteEcoHint')}</span>
         </button>
+        <button
+          class="palette-card palette-card--artnouveau"
+          aria-pressed={palette === 'artnouveau'}
+          onclick={() => setPalette('artnouveau')}
+          type="button"
+        >
+          <span class="palette-card__swatch" aria-hidden="true">
+            <span class="palette-card__chip palette-card__chip--an-1"></span>
+            <span class="palette-card__chip palette-card__chip--an-2"></span>
+            <span class="palette-card__chip palette-card__chip--an-3"></span>
+          </span>
+          <span class="palette-card__label">{$t('settings.paletteArtNouveau')}</span>
+          <span class="palette-card__hint">{$t('settings.paletteArtNouveauHint')}</span>
+        </button>
       </div>
     </div>
   </section>

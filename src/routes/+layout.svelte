@@ -24,7 +24,7 @@
           (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         var palette = localStorage.getItem('episode.palette');
-        if (palette === 'ecobrutalism' || palette === 'bauhaus') {
+        if (palette === 'ecobrutalism' || palette === 'bauhaus' || palette === 'artnouveau') {
           document.documentElement.dataset.palette = palette;
         } else {
           document.documentElement.dataset.palette = 'bauhaus';

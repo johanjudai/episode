@@ -24,8 +24,8 @@ class MemoryStorage implements Storage {
 }
 
 describe('palette', () => {
-  it('lists exactly the two known palettes', () => {
-    expect(PALETTES).toEqual(['bauhaus', 'ecobrutalism']);
+  it('lists exactly the known palettes', () => {
+    expect(PALETTES).toEqual(['bauhaus', 'ecobrutalism', 'artnouveau']);
   });
 
   it('defaults to bauhaus', () => {
@@ -35,6 +35,7 @@ describe('palette', () => {
   it('isPalette accepts known values only', () => {
     expect(isPalette('bauhaus')).toBe(true);
     expect(isPalette('ecobrutalism')).toBe(true);
+    expect(isPalette('artnouveau')).toBe(true);
     expect(isPalette('nope')).toBe(false);
     expect(isPalette(null)).toBe(false);
     expect(isPalette(undefined)).toBe(false);
@@ -50,6 +51,8 @@ describe('palette', () => {
     const s = new MemoryStorage();
     s.setItem('episode.palette', 'ecobrutalism');
     expect(readStoredPalette(s)).toBe('ecobrutalism');
+    s.setItem('episode.palette', 'artnouveau');
+    expect(readStoredPalette(s)).toBe('artnouveau');
   });
 
   it('readStoredPalette falls back to default when stored value is garbage', () => {
