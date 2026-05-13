@@ -107,7 +107,17 @@ export interface SeriesMutationArgs {
 
 export async function markEpisodeForSeries(args: SeriesMutationArgs): Promise<void> {
   if (IS_LOCAL) {
-    const { syncEpisodeRow } = await import('./local-sync');
+    const { syncEpisodeRow, syncSeriesFull } = await import('./local-sync');
+    /* Mirror the server endpoint: auto-follow if the series row is missing or
+     * was previously unfollowed. Without this, the first mark on a brand-new
+     * series page produces orphan rows that the followed-series queries hide. */
+    await withLocalDb(async (db) => {
+      const q = await import('./data/queries');
+      const existing = await q.getSeries(db, args.seriesTmdbId);
+      if (!existing || existing.removedAt) {
+        await syncSeriesFull(args.seriesTmdbId, { follow: true });
+      }
+    });
     await syncEpisodeRow(args.seriesTmdbId, args.seasonNumber, args.episodeNumber);
     await withLocalDb(async (db) => {
       const m = await import('./data/mutations');
@@ -142,8 +152,17 @@ export interface SeasonMutationArgs {
 
 export async function markSeasonForSeries(args: SeasonMutationArgs): Promise<void> {
   if (IS_LOCAL) {
-    const { syncSeasonRow } = await import('./local-sync');
-    if (args.watched) await syncSeasonRow(args.seriesTmdbId, args.seasonNumber);
+    const { syncSeasonRow, syncSeriesFull } = await import('./local-sync');
+    if (args.watched) {
+      await withLocalDb(async (db) => {
+        const q = await import('./data/queries');
+        const existing = await q.getSeries(db, args.seriesTmdbId);
+        if (!existing || existing.removedAt) {
+          await syncSeriesFull(args.seriesTmdbId, { follow: true });
+        }
+      });
+      await syncSeasonRow(args.seriesTmdbId, args.seasonNumber);
+    }
     await withLocalDb(async (db) => {
       const m = await import('./data/mutations');
       if (!args.watched) {
