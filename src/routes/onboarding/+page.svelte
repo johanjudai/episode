@@ -5,15 +5,27 @@
   import { initialOf } from '$lib/utils/format';
   import * as api from '$lib/api';
   import { t, locale, type Locale } from '$lib/i18n';
+  import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
 
   let name = $state('');
   let avatar = $state('');
+  let palette = $state<PaletteChoice>('bauhaus');
   let importFile = $state<File | null>(null);
   let importPreview = $state<{ count: number } | null>(null);
   let importError = $state<string | null>(null);
   let submitting = $state(false);
   let errorMsg = $state<string | null>(null);
   const initial = $derived(name ? initialOf(name) : '?');
+
+  $effect(() => {
+    palette = readStoredPalette();
+  });
+
+  function choosePalette(value: PaletteChoice) {
+    palette = value;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('episode.palette', value);
+    applyPalette(value);
+  }
 
   async function chooseLocale(value: Locale) {
     if ($locale === value) return;
@@ -128,6 +140,40 @@
       <span class="field__label">{$t('onboarding.avatarLabel')}</span>
       <AvatarPicker {initial} onChange={(d) => (avatar = d)} />
       <span class="field__help">{$t('onboarding.avatarHelp')}</span>
+    </div>
+
+    <div class="field">
+      <span class="field__label">{$t('onboarding.paletteLabel')}</span>
+      <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
+        <button
+          type="button"
+          class="palette-card palette-card--bauhaus"
+          aria-pressed={palette === 'bauhaus'}
+          onclick={() => choosePalette('bauhaus')}
+        >
+          <span class="palette-card__swatch" aria-hidden="true">
+            <span class="palette-card__chip palette-card__chip--bh-1"></span>
+            <span class="palette-card__chip palette-card__chip--bh-2"></span>
+            <span class="palette-card__chip palette-card__chip--bh-3"></span>
+          </span>
+          <span class="palette-card__label">{$t('settings.paletteBauhaus')}</span>
+          <span class="palette-card__hint">{$t('settings.paletteBauhausHint')}</span>
+        </button>
+        <button
+          type="button"
+          class="palette-card palette-card--ecobrutalism"
+          aria-pressed={palette === 'ecobrutalism'}
+          onclick={() => choosePalette('ecobrutalism')}
+        >
+          <span class="palette-card__swatch" aria-hidden="true">
+            <span class="palette-card__chip palette-card__chip--eb-1"></span>
+            <span class="palette-card__chip palette-card__chip--eb-2"></span>
+            <span class="palette-card__chip palette-card__chip--eb-3"></span>
+          </span>
+          <span class="palette-card__label">{$t('settings.paletteEco')}</span>
+          <span class="palette-card__hint">{$t('settings.paletteEcoHint')}</span>
+        </button>
+      </div>
     </div>
 
     <details class="onboarding__import">

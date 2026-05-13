@@ -23,6 +23,12 @@
           t === 'dark' ||
           (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        var palette = localStorage.getItem('episode.palette');
+        if (palette === 'ecobrutalism' || palette === 'bauhaus') {
+          document.documentElement.dataset.palette = palette;
+        } else {
+          document.documentElement.dataset.palette = 'bauhaus';
+        }
         var motion = localStorage.getItem('episode.motion');
         if (motion === 'reduced') document.documentElement.dataset.motion = 'reduced';
         var contrast = localStorage.getItem('episode.contrast');
