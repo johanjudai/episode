@@ -100,16 +100,22 @@ export const swipeable: Action<HTMLElement, SwipeParams> = (node, initial) => {
   }
 
   function suppressNextClick() {
+    /* Document-level capture so we catch the synthesized click whatever
+     * element the cursor is over at mouseup time. The browser computes
+     * the click target from the *visual* mouseup position; the row's
+     * transform during the drag can move the cursor over a sibling
+     * (e.g. the now-visible swipe reveal) instead of the swiped child,
+     * which would dodge a node-scoped listener. */
     const swallow = (e: Event) => {
       e.stopPropagation();
       e.preventDefault();
-      node.removeEventListener('click', swallow, true);
+      document.removeEventListener('click', swallow, true);
     };
-    node.addEventListener('click', swallow, true);
+    document.addEventListener('click', swallow, true);
     /* Safety net — if no click event ever arrives (touch path, or the
-     * browser already deduped the click), drop the listener after a
+     * browser already deduped the click) drop the listener after a
      * frame so it doesn't intercept a later, legitimate tap. */
-    setTimeout(() => node.removeEventListener('click', swallow, true), 350);
+    setTimeout(() => document.removeEventListener('click', swallow, true), 350);
   }
 
   function cancellable(e: Event): boolean {
