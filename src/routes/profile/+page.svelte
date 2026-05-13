@@ -18,10 +18,15 @@
 <main class="app">
   <header class="topbar">
     <h1 class="topbar__title">Profil</h1>
-    <a href="/settings" class="iconbtn" aria-label="Paramètres">⚙</a>
+    <a href="/settings" class="iconbtn iconbtn--blue" aria-label="Paramètres">⚙</a>
   </header>
 
   <section class="profile-head">
+    <div class="profile-head__decor" aria-hidden="true">
+      <span class="decor decor--circle"></span>
+      <span class="decor decor--square"></span>
+      <span class="decor decor--triangle"></span>
+    </div>
     <div
       class="avatar"
       aria-hidden="true"
@@ -29,7 +34,7 @@
     >
       {data.profile.avatar ? '' : initialOf(data.profile.name)}
     </div>
-    <div>
+    <div class="profile-head__text">
       <div class="profile-head__name">{data.profile.name}</div>
       {#if data.profile.createdAt}
         <div class="profile-head__since">Membre depuis {since()}</div>

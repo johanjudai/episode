@@ -2,8 +2,9 @@
 
 :root {
   --bw-red: #d62828;
-  --bw-blue: #003049;
+  --bw-blue: #0050a0;
   --bw-yellow: #f4a300;
+  --bw-green: #2a9d3f;
   --bw-black: #0a0a0a;
   --bw-white: #fafaf8;
 
@@ -178,6 +179,17 @@ a {
   text-decoration: none;
 }
 
+/* Filled blue variant — for square action buttons that should read as
+ * the Bauhaus "blue square" (settings cog, etc.). */
+.iconbtn--blue {
+  background: var(--bw-blue);
+  color: var(--bw-white);
+  border-color: var(--bw-blue);
+}
+.iconbtn--blue:hover {
+  filter: brightness(1.08);
+}
+
 /* Bauhaus mark */
 .mark {
   display: inline-flex;
@@ -241,7 +253,7 @@ a {
   border-radius: 50%;
 }
 .bottom-nav__shape--square {
-  background: currentColor;
+  background: var(--bw-blue);
 }
 .bottom-nav__shape--triangle {
   width: 0;
@@ -293,6 +305,22 @@ a {
   margin-left: auto;
   color: var(--muted);
   font-weight: 600;
+}
+
+/* Numeric badge variant — used for the "À voir maintenant" count.
+ * A small filled blue square with the number inside, echoing the
+ * Bauhaus square in the navbar / brand mark. */
+.section__count--badge {
+  background: var(--bw-blue);
+  color: var(--bw-white);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 /* Home — three sections, three visual treatments.
@@ -393,7 +421,7 @@ a {
 /* Episode row */
 .episode {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: 56px 1fr auto;
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   border-top: 1px solid var(--border);
@@ -404,24 +432,33 @@ a {
   border-bottom: 1px solid var(--border);
 }
 
+/* 2:3 portrait — matches the TMDB poster aspect ratio, so the inline
+ * `background-image` set on this element from the row component
+ * displays the poster correctly center-cropped instead of showing
+ * only the original-size top-left corner. */
 .episode__cover {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 84px;
   border: var(--border-w) solid var(--border);
-  background: var(--bw-yellow);
+  background-color: var(--bw-yellow);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 0.85rem;
   color: var(--bw-black);
+  text-decoration: none;
+  flex-shrink: 0;
 }
 .episode__cover--blue {
-  background: var(--bw-blue);
+  background-color: var(--bw-blue);
   color: var(--bw-white);
 }
 .episode__cover--red {
-  background: var(--bw-red);
+  background-color: var(--bw-red);
   color: var(--bw-white);
 }
 
@@ -519,14 +556,31 @@ a {
 }
 
 .swipe-reveal--left {
-  background: var(--bw-black);
+  background: var(--bw-green);
   color: var(--bw-white);
   justify-content: flex-start;
 }
 
-[data-theme='dark'] .swipe-reveal--left {
-  background: var(--bw-white);
-  color: var(--bw-black);
+/* Quick pulse when the user crosses the commit threshold — telegraphs
+ * "yes, valid, you can let go". 240ms is short enough to feel snappy
+ * without overstaying its welcome before the row flies out. */
+.swipe-reveal--left.swipe-reveal--active {
+  animation: swipe-commit 0.24s ease-out;
+}
+@keyframes swipe-commit {
+  0% {
+    background: var(--bw-green);
+  }
+  50% {
+    background: #3fc657;
+    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.12);
+  }
+  100% {
+    background: var(--bw-green);
+  }
+}
+[data-motion='reduced'] .swipe-reveal--left.swipe-reveal--active {
+  animation: none;
 }
 
 .swipe-reveal--right {
@@ -1008,6 +1062,7 @@ a {
 
 /* Profile */
 .profile-head {
+  position: relative;
   padding: var(--s-7) var(--s-4) var(--s-5);
   display: flex;
   flex-direction: column;
@@ -1015,6 +1070,90 @@ a {
   gap: var(--s-3);
   border-bottom: var(--border-w) solid var(--border);
   text-align: center;
+  overflow: hidden;
+}
+
+.profile-head .avatar,
+.profile-head__text {
+  position: relative;
+  z-index: 1;
+}
+
+/* Bauhaus shapes floating in the background of the profile card.
+ * Decorative only (aria-hidden in the markup). Subtle opacity so they
+ * read as a texture, not a foreground element. */
+.profile-head__decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.decor {
+  position: absolute;
+  opacity: 0.18;
+  will-change: transform;
+}
+.decor--circle {
+  width: 96px;
+  height: 96px;
+  background: var(--bw-red);
+  border-radius: 50%;
+  top: -28px;
+  left: 14%;
+  animation: decor-float 9s ease-in-out infinite;
+}
+.decor--square {
+  width: 64px;
+  height: 64px;
+  background: var(--bw-blue);
+  bottom: -12px;
+  right: 16%;
+  animation: decor-drift 11s ease-in-out infinite;
+  animation-delay: -3s;
+}
+.decor--triangle {
+  width: 0;
+  height: 0;
+  border-left: 38px solid transparent;
+  border-right: 38px solid transparent;
+  border-bottom: 64px solid var(--bw-yellow);
+  top: 32%;
+  right: -22px;
+  animation: decor-spin 14s ease-in-out infinite;
+  animation-delay: -5s;
+}
+@keyframes decor-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(10px) rotate(-6deg);
+  }
+}
+@keyframes decor-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(-8px, -10px) rotate(8deg);
+  }
+}
+@keyframes decor-spin {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(12deg);
+  }
+}
+[data-motion='reduced'] .decor {
+  animation: none;
+}
+[data-theme='dark'] .decor {
+  opacity: 0.22;
 }
 
 .avatar {

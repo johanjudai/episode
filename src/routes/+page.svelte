@@ -211,7 +211,7 @@
     <div class="section">
       <div class="section__title">
         À voir maintenant
-        <span class="section__count">{data.toWatch.length}</span>
+        <span class="section__count section__count--badge">{data.toWatch.length}</span>
       </div>
     </div>
 
