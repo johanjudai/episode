@@ -7,7 +7,7 @@
   import Celebration from '$lib/components/Celebration.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
-  import { posterUrl } from '$lib/utils/images';
+  import { posterUrl, stillUrl } from '$lib/utils/images';
   import { countUnwatchedBefore, findInProgressSeason } from '$lib/utils/episodes';
   import * as api from '$lib/api';
 
@@ -69,9 +69,7 @@
     episodeModal = null;
   }
 
-  const stillUrl = $derived(
-    episodeModal?.stillPath ? `https://image.tmdb.org/t/p/w500${episodeModal.stillPath}` : null
-  );
+  const modalStillUrl = $derived(stillUrl(episodeModal?.stillPath ?? null, 'w500'));
 
   const seriesId = $derived(data.series?.tmdbId ?? null);
   const percent = $derived(
@@ -492,8 +490,8 @@
       class="modal modal--episode"
       transition:scale={{ duration: 260, start: 0.92, easing: backOut }}
     >
-      {#if stillUrl}
-        <div class="modal__still" style="background-image: url('{stillUrl}')"></div>
+      {#if modalStillUrl}
+        <div class="modal__still" style="background-image: url('{modalStillUrl}')"></div>
       {:else}
         <div class="modal__still modal__still--placeholder">
           {formatEpisodeCode(episodeModal.seasonNumber, episodeModal.episodeNumber)}

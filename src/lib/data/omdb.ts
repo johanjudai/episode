@@ -64,6 +64,13 @@ export function createOmdbClient(opts: OmdbClientOptions) {
 
   return {
     async byImdbId(imdbId: string): Promise<OmdbResponse> {
+      /* Whitelist the IMDb id (tt + 7-10 digits) before forwarding to
+       * OMDb. URLSearchParams already escapes the value, but the regex
+       * stops a malformed upstream value from triggering whatever
+       * OMDb-side parsing OMDb itself runs. */
+      if (!/^tt\d{7,10}$/.test(imdbId)) {
+        return { Response: 'False', Error: 'Invalid IMDb id' } as OmdbResponse;
+      }
       const url = new URL(BASE_URL);
       url.searchParams.set('apikey', opts.apiKey);
       url.searchParams.set('i', imdbId);

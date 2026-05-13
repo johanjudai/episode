@@ -59,8 +59,13 @@ export function createTvmazeClient(opts: TvmazeClientOptions = {}) {
   }
 
   return {
-    /** Look up a show by IMDb id (e.g. "tt1190634"). Returns null when no match. */
-    byImdbId: (imdbId: string) => call(`/lookup/shows?imdb=${imdbId}`, TvmazeShow),
+    /** Look up a show by IMDb id (e.g. "tt1190634"). Returns null when no match.
+     *  The id is whitelisted (tt + 7-10 digits) before being injected into the
+     *  query string, so a malformed upstream value can't mess with the URL. */
+    byImdbId: (imdbId: string) => {
+      if (!/^tt\d{7,10}$/.test(imdbId)) return Promise.resolve(null);
+      return call(`/lookup/shows?imdb=${encodeURIComponent(imdbId)}`, TvmazeShow);
+    },
     /** Fallback search by name — returns the first hit, or null. */
     async searchByName(name: string): Promise<TvmazeShow | null> {
       const res = await f(`${BASE_URL}/search/shows?q=${encodeURIComponent(name)}`);

@@ -242,6 +242,70 @@ android/                          (Created by `npx cap add android` — gitignor
 mockups/                          Static HTML/CSS wireframes (design source)
 ```
 
+## Security & trust model
+
+Episode is a **single-user, no-auth** app by design — there's no login, no
+account, no per-user data partitioning. The threat model assumes that anyone
+who can reach the running instance is _you_.
+
+**Server target (Docker / homelab)**
+
+- Do **not** expose port 3000 directly to the internet. The recommended
+  setup is to put Episode behind a reverse proxy (Caddy, Traefik, nginx)
+  that:
+  - terminates TLS,
+  - enforces some kind of access control (basic auth, OAuth proxy,
+    Tailscale-only, your VPN of choice).
+- The Node process runs as a non-root user inside the container and
+  the SQLite file lives on a named volume — nothing else is mounted.
+- The server sets defence-in-depth headers on every response:
+  `Content-Security-Policy`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+strict-origin-when-cross-origin`, and a `Permissions-Policy` that
+  disables every browser API Episode never uses (camera, mic,
+  geolocation, payment, USB, sensors).
+- A per-IP token-bucket rate limiter (60 burst, 1 req/s sustained)
+  protects every `/api/*` route from brute-force and from amplifying
+  abuse against TMDB / OMDb quotas.
+- All API endpoints validate inputs through Zod. The DB layer is
+  Drizzle ORM (parameterised queries everywhere — no SQL string
+  concatenation).
+- TMDB / OMDb keys are stored in the SQLite settings table; they are
+  **never** returned in load functions (only a `hasKey: boolean`).
+- The TV Time import is capped at 10 MB; the generic
+  `BODY_SIZE_LIMIT` env var caps every other request to 512 KB by default.
+
+**Local target (Capacitor APK)**
+
+- No server, no network listener. The only attack surface is the data
+  the app makes outbound to TMDB / OMDb / TVMaze / Jikan, all of which
+  are validated by Zod schemas before use.
+- IndexedDB is sandboxed to the app's private storage area
+  (`/data/data/fr.iagona.episode/`). Uninstalling the app wipes it.
+- The TMDB / OMDb keys live in that same IndexedDB. They are _not_
+  encrypted at rest — if an attacker has filesystem access (rooted
+  device + ADB), they can read them. Treat them as low-sensitivity
+  third-party API credentials, not user passwords.
+- Capacitor config has `allowMixedContent: false` and
+  `webContentsDebuggingEnabled: false`; the WebView only loads bundled
+  assets.
+
+**Both targets**
+
+- TMDB image paths flow through a regex whitelist in
+  `$lib/utils/images.ts` before being inlined into CSS
+  `background-image: url(...)` — guards against an upstream
+  compromise injecting CSS / script.
+- The avatar upload accepts only `data:image/(png|jpeg|webp);base64,…`
+  (no SVG, no remote URL).
+- All third-party HTTPS endpoints we hit (TMDB, OMDb, TVMaze, Jikan)
+  are wrapped with a Zod schema; any unexpected response shape is
+  rejected at parse-time.
+
+If you find a security issue, please open a GitHub issue
+(<https://github.com/johanjudai/episode/issues>) — or, if it's
+sensitive, get in touch directly.
+
 ## Roadmap
 
 - [ ] iOS Capacitor wrapping (currently Android-only)
