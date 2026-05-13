@@ -17,12 +17,18 @@ jobs:
   test:
     name: Lint, type-check, unit + e2e tests, build
     runs-on: ubuntu-latest
+    env:
+      # Opt-in to Node 24 for JavaScript-based actions (checkout,
+      # setup-node, upload-artifact). Silences the Sept 2026 Node-20
+      # deprecation annotation and ensures we're already running on
+      # the new default ahead of the forced switch.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

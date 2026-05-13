@@ -30,17 +30,25 @@ jobs:
   build:
     name: Build & publish APK
     runs-on: ubuntu-latest
+    env:
+      # Opt-in to the Node 24 runtime for JavaScript-based actions.
+      # GitHub deprecated Node 20 (used by the v4/v3 actions below) and
+      # will flip the default to Node 24 in June 2026; flipping it now
+      # silences the runner annotation and verifies nothing breaks
+      # ahead of the forced switch. Safe to drop once Node 24 is the
+      # default for everyone.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17

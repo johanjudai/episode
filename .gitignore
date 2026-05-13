@@ -31,3 +31,9 @@ playwright-report/
 # Mobile (Capacitor — added later)
 android/app/build
 ios/App/build
+
+# Android signing keys — NEVER commit these.
+# They are passed to CI via encrypted GitHub Actions secrets instead.
+*.keystore
+*.jks
+release.keystore
