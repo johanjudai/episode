@@ -6,6 +6,21 @@ Episode is a lightweight alternative to TV Time, dedicated to **TV series only**
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshots/Screenshot_20260514-173847.png" alt="Home — episodes to watch" width="22%" />
+  <img src="screenshots/Screenshot_20260514-173855.png" alt="Series detail" width="22%" />
+  <img src="screenshots/Screenshot_20260514-173914.png" alt="Profile + stats" width="22%" />
+  <img src="screenshots/Screenshot_20260514-173930.png" alt="Settings + theme picker" width="22%" />
+</p>
+
+<p align="center"><a href="screenshots/"><sub>📂 See all screenshots →</sub></a></p>
+
+> GitHub opens any thumbnail in a lightbox when you click it — tap each one to inspect at full resolution.
+
+---
+
 ## 🚀 Quick start
 
 Two ways to run Episode. Pick one — or both.
