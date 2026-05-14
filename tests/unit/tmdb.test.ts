@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createTmdbClient, TmdbError, posterUrl } from '$lib/data/tmdb';
+import { createTmdbClient, TmdbError, posterUrl, pickBestTrailer } from '$lib/data/tmdb';
+import type { TmdbVideo } from '$lib/data/tmdb';
 
 function mockOk(body: unknown): typeof fetch {
   return vi.fn(
@@ -155,5 +156,66 @@ describe('posterUrl', () => {
     expect(posterUrl(null)).toBeNull();
     expect(posterUrl(undefined)).toBeNull();
     expect(posterUrl('')).toBeNull();
+  });
+});
+
+describe('pickBestTrailer', () => {
+  function v(opts: Partial<TmdbVideo>): TmdbVideo {
+    return {
+      id: 'id-' + Math.random(),
+      key: 'abc1234',
+      name: null,
+      site: 'YouTube',
+      type: 'Trailer',
+      official: false,
+      published_at: null,
+      size: null,
+      ...opts
+    };
+  }
+
+  it('returns null on empty array', () => {
+    expect(pickBestTrailer([])).toBeNull();
+  });
+
+  it('returns null when no YouTube entries', () => {
+    expect(pickBestTrailer([v({ site: 'Vimeo' })])).toBeNull();
+  });
+
+  it('prefers Trailer over Teaser', () => {
+    const picked = pickBestTrailer([
+      v({ key: 'teaserKey', type: 'Teaser' }),
+      v({ key: 'trailerKey', type: 'Trailer' })
+    ]);
+    expect(picked?.youtubeKey).toBe('trailerKey');
+  });
+
+  it('prefers official within the same type', () => {
+    const picked = pickBestTrailer([
+      v({ key: 'unofficial', type: 'Trailer', official: false }),
+      v({ key: 'official', type: 'Trailer', official: true })
+    ]);
+    expect(picked?.youtubeKey).toBe('official');
+  });
+
+  it('prefers more recent published_at as last tiebreaker', () => {
+    const picked = pickBestTrailer([
+      v({ key: 'oldKey0', type: 'Trailer', official: true, published_at: '2020-01-01' }),
+      v({ key: 'newKey0', type: 'Trailer', official: true, published_at: '2024-06-01' })
+    ]);
+    expect(picked?.youtubeKey).toBe('newKey0');
+  });
+
+  it('skips entries with garbage keys', () => {
+    const picked = pickBestTrailer([
+      v({ key: 'invalid key with spaces', type: 'Trailer', official: true }),
+      v({ key: 'cleanKey', type: 'Teaser' })
+    ]);
+    expect(picked?.youtubeKey).toBe('cleanKey');
+  });
+
+  it('skips entries with no matching type', () => {
+    expect(pickBestTrailer([v({ type: 'Behind the Scenes' })])).toBeNull();
+    expect(pickBestTrailer([v({ type: 'Featurette' })])).toBeNull();
   });
 });

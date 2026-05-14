@@ -1161,6 +1161,27 @@ a {
   font-weight: 800;
 }
 
+/* Click-to-open-synopsis button wrapping the episode title block —
+ * same pattern as .episode__body in the swipeable rows: strip every
+ * default button affordance so it reads as text, but stay focusable
+ * and clickable. */
+.upcoming__body {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.upcoming__body:focus-visible {
+  outline: 2px solid var(--bw-blue);
+  outline-offset: 2px;
+}
+
 /* Search */
 .search {
   padding: var(--s-4);
@@ -1288,6 +1309,48 @@ a {
   overflow: hidden;
   background-size: cover;
   background-position: center;
+}
+
+/* Clickable variant — when a trailer is available, the hero poster
+ * becomes a button with a centered play glyph that fades to full
+ * opacity on hover/focus. Tapping anywhere on the poster opens the
+ * trailer modal. */
+.hero__poster--clickable {
+  appearance: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--bw-white);
+  font-family: inherit;
+  transition:
+    transform var(--dur-quick) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.hero__poster--clickable:hover,
+.hero__poster--clickable:focus-visible {
+  transform: scale(1.02);
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.4);
+}
+.hero__poster--clickable:active {
+  transform: scale(0.98);
+}
+.hero__poster--clickable:focus-visible {
+  outline: 3px solid var(--bw-yellow);
+  outline-offset: 2px;
+}
+.hero__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  color: var(--bw-white);
+  background: rgba(0, 0, 0, 0.32);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.hero__poster--clickable:hover .hero__play,
+.hero__poster--clickable:focus-visible .hero__play {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .hero__title {

@@ -131,6 +131,8 @@ export const en: Dict = {
     episodeMarkAriaOff: 'Unmark {code}',
     noSynopsis: 'No synopsis available for this episode.',
     watchedBadge: '· Watched ✓',
+    playTrailer: 'Play trailer',
+    trailerDefault: 'Trailer',
     tmdbKeyMissing: 'TMDB key missing. Configure it in settings.',
     seriesListTitle: 'My series',
     seriesListEmpty: 'No tracked series',
