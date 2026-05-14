@@ -17,7 +17,7 @@ export const load: PageLoad = async ({ data, params }) => {
 
   const { getDb } = await import('$lib/db');
   const { getSeries, getSetting, getWatchedEpisodeKeys } = await import('$lib/data/queries');
-  const { createTmdbClient } = await import('$lib/data/tmdb');
+  const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
   const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
   const db = await getDb();
@@ -72,6 +72,12 @@ export const load: PageLoad = async ({ data, params }) => {
     tmdbDetail: detail
   });
 
+  /* Optional trailer fetch — failure is silent. */
+  const trailer = await tmdb
+    .videos(id)
+    .then((v) => pickBestTrailer(v.results))
+    .catch(() => null);
+
   return {
     series: {
       tmdbId: detail.id,
@@ -88,6 +94,7 @@ export const load: PageLoad = async ({ data, params }) => {
     seasons: seasonsOut,
     followed: !!followed && !followed.removedAt,
     progress: { watched: watchedCount, total: totalEpisodes },
-    ratings
+    ratings,
+    trailer
   };
 };

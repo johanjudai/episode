@@ -8,6 +8,7 @@
   import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
   import OrnateFrame from '$lib/components/OrnateFrame.svelte';
   import FloralDivider from '$lib/components/FloralDivider.svelte';
+  import TrailerModal from '$lib/components/TrailerModal.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
   import { posterUrl } from '$lib/utils/images';
@@ -71,6 +72,16 @@
   }
   function closeEpisodeDetail() {
     episodeModal = null;
+  }
+
+  /* Trailer overlay — toggled by clicking the hero poster when a
+   * trailer was found via /tv/{id}/videos. */
+  let trailerOpen = $state(false);
+  function openTrailer() {
+    if (data.trailer) trailerOpen = true;
+  }
+  function closeTrailer() {
+    trailerOpen = false;
   }
 
   const seriesId = $derived(data.series?.tmdbId ?? null);
@@ -281,7 +292,19 @@
 
     <OrnateFrame>
       <section class="hero">
-        <div class="hero__poster" aria-hidden="true" style={heroStyle}></div>
+        {#if data.trailer}
+          <button
+            type="button"
+            class="hero__poster hero__poster--clickable"
+            style={heroStyle}
+            onclick={openTrailer}
+            aria-label={$t('series.playTrailer')}
+          >
+            <span class="hero__play" aria-hidden="true">▶</span>
+          </button>
+        {:else}
+          <div class="hero__poster" aria-hidden="true" style={heroStyle}></div>
+        {/if}
         <div>
           <h1 class="hero__title">{data.series.name}</h1>
           <div class="hero__meta">
@@ -505,6 +528,15 @@
     stillPath={episodeModal.stillPath}
     watched={episodeModal.watched}
     onClose={closeEpisodeDetail}
+  />
+{/if}
+
+{#if trailerOpen && data.trailer}
+  <TrailerModal
+    youtubeKey={data.trailer.youtubeKey}
+    seriesName={data.series?.name ?? $t('series.detailTitle')}
+    trailerName={data.trailer.name}
+    onClose={closeTrailer}
   />
 {/if}
 

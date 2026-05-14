@@ -43,13 +43,14 @@ export const load: PageServerLoad = async ({ params }) => {
       }>,
       followed: false,
       progress: { watched: 0, total: 0 },
-      ratings: emptyRatings
+      ratings: emptyRatings,
+      trailer: null as null | { youtubeKey: string; name: string | null }
     };
   }
 
   const { serverDb } = await import('$lib/server/db');
   const { getSeries, getSetting, getWatchedEpisodeKeys } = await import('$lib/data/queries');
-  const { createTmdbClient } = await import('$lib/data/tmdb');
+  const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
   const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
   const [apiKey, omdbKey, storedLocale] = await Promise.all([
@@ -107,6 +108,14 @@ export const load: PageServerLoad = async ({ params }) => {
     tmdbDetail: detail
   });
 
+  /* Trailer is optional — silently fall back to null if /videos errors
+   * out (TMDB sometimes throttles auxiliary endpoints first). The hero
+   * still renders, the cover just isn't clickable. */
+  const trailer = await tmdb
+    .videos(id)
+    .then((v) => pickBestTrailer(v.results))
+    .catch(() => null);
+
   return {
     series: {
       tmdbId: detail.id,
@@ -123,6 +132,7 @@ export const load: PageServerLoad = async ({ params }) => {
     seasons: seasonsOut,
     followed: !!followed && !followed.removedAt,
     progress: { watched: watchedCount, total: totalEpisodes },
-    ratings
+    ratings,
+    trailer
   };
 };

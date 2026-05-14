@@ -133,6 +133,8 @@ export const fr = {
     episodeMarkAriaOff: 'Marquer {code} non vu',
     noSynopsis: 'Pas de synopsis disponible pour cet épisode.',
     watchedBadge: '· Vu ✓',
+    playTrailer: 'Lire la bande-annonce',
+    trailerDefault: 'Bande-annonce',
     tmdbKeyMissing: 'Clé TMDB manquante. Configurez-la dans les paramètres.',
     seriesListTitle: 'Mes séries',
     seriesListEmpty: 'Aucune série suivie',

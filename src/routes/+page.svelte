@@ -23,9 +23,22 @@
 
   let removeModal = $state<null | { seriesTmdbId: number; seriesName: string }>(null);
 
-  type ToWatchEpisode = (typeof data.toWatch)[number];
-  let episodeModal = $state<ToWatchEpisode | null>(null);
-  function openEpisodeDetail(ep: ToWatchEpisode) {
+  /* Modal shape accepts either a toWatch row or an upcoming row — both
+   * carry the fields the popup needs. The structural type matches any
+   * episode-like with seriesName, sothat we can open the modal from
+   * either home section. */
+  type EpisodeModalData = {
+    seriesName: string;
+    seasonNumber: number;
+    episodeNumber: number;
+    name: string | null;
+    overview: string | null;
+    airDate: string | null;
+    runtimeMinutes: number | null;
+    stillPath: string | null;
+  };
+  let episodeModal = $state<EpisodeModalData | null>(null);
+  function openEpisodeDetail(ep: EpisodeModalData) {
     episodeModal = ep;
   }
   function closeEpisodeDetail() {
@@ -289,13 +302,20 @@
           {@const d = formatDayShortFr(ep.airDate ?? '')}
           <div class="upcoming__row">
             <div class="upcoming__day" aria-hidden="true">{d.weekday}<strong>{d.day}</strong></div>
-            <div>
+            <button
+              type="button"
+              class="upcoming__body"
+              onclick={() => openEpisodeDetail(ep)}
+              aria-label={$t('series.episodeViewSynopsisAria', {
+                code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
+              })}
+            >
               <div class="episode__series">{ep.seriesName}</div>
               <h3 class="episode__title">{ep.name ?? `Épisode ${ep.episodeNumber}`}</h3>
               <div class="episode__meta">
                 {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
               </div>
-            </div>
+            </button>
             <span class="ep-date">{relativeFr(ep.airDate ?? '', today)}</span>
           </div>
         {/each}

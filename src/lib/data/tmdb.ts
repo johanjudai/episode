@@ -99,10 +99,29 @@ const ExternalIds = z.object({
   tvdb_id: z.number().nullable().optional()
 });
 
+const Video = z.object({
+  /* Video metadata returned by /tv/{id}/videos. We only consume YouTube
+   * trailers/teasers; other sites (Vimeo) and types (Behind the Scenes,
+   * Featurette) are filtered out at the picker level. */
+  id: z.string(),
+  key: z.string(),
+  name: z.string().nullable().optional(),
+  site: z.string(),
+  type: z.string(),
+  official: z.boolean().nullable().optional(),
+  published_at: z.string().nullable().optional(),
+  size: z.number().nullable().optional()
+});
+const VideosResponse = z.object({
+  id: z.number(),
+  results: z.array(Video)
+});
+
 export type TmdbSearchResult = z.infer<typeof SearchTvResult>;
 export type TmdbTvDetail = z.infer<typeof TvDetail>;
 export type TmdbSeasonDetail = z.infer<typeof SeasonDetail>;
 export type TmdbExternalIds = z.infer<typeof ExternalIds>;
+export type TmdbVideo = z.infer<typeof Video>;
 
 export interface TmdbClientOptions {
   apiKey: string;
@@ -145,8 +164,48 @@ export function createTmdbClient(opts: TmdbClientOptions) {
     tvDetail: (id: number) => call(`/tv/${id}`, {}, TvDetail),
     seasonDetail: (id: number, seasonNumber: number) =>
       call(`/tv/${id}/season/${seasonNumber}`, {}, SeasonDetail),
-    externalIds: (id: number) => call(`/tv/${id}/external_ids`, {}, ExternalIds)
+    externalIds: (id: number) => call(`/tv/${id}/external_ids`, {}, ExternalIds),
+    videos: (id: number) =>
+      /* include_video_language widens the pool: prefer the user-locale
+       * track, fall back to English, then allow tracks with no
+       * declared language (TMDB stores some trailers untagged). */
+      call(
+        `/tv/${id}/videos`,
+        { include_video_language: `${lang.slice(0, 2)},en,null` },
+        VideosResponse
+      )
   };
 }
 
 export type TmdbClient = ReturnType<typeof createTmdbClient>;
+
+/**
+ * Pick the most relevant YouTube trailer from a TMDB /videos response.
+ *
+ *  - Restricted to YouTube (the only embeddable site we render).
+ *  - Trailers come first; Teasers are a fallback when no trailer exists.
+ *  - Within a type, "official" wins; then "most recent published_at".
+ *
+ * Returns `null` when no suitable video is available.
+ */
+export function pickBestTrailer(
+  videos: readonly TmdbVideo[]
+): { youtubeKey: string; name: string | null } | null {
+  const youtube = videos.filter((v) => v.site === 'YouTube' && /^[A-Za-z0-9_-]{6,32}$/.test(v.key));
+  if (youtube.length === 0) return null;
+
+  const typeRank: Record<string, number> = { Trailer: 0, Teaser: 1 };
+  const candidates = youtube
+    .filter((v) => v.type in typeRank)
+    .sort((a, b) => {
+      const t = (typeRank[a.type] ?? 9) - (typeRank[b.type] ?? 9);
+      if (t !== 0) return t;
+      const o = Number(b.official ?? false) - Number(a.official ?? false);
+      if (o !== 0) return o;
+      return (b.published_at ?? '').localeCompare(a.published_at ?? '');
+    });
+
+  const pick = candidates[0];
+  if (!pick) return null;
+  return { youtubeKey: pick.key, name: pick.name ?? null };
+}
