@@ -16,7 +16,10 @@ export const load: PageLoad = async ({ data }) => {
   ]);
   return {
     profile: { name: name ?? '', avatar },
-    tmdb: { hasKey: !!apiKey },
-    omdb: { hasKey: !!omdbKey }
+    /* Local target has no .env on the server — the key always comes
+     * from the IndexedDB-backed settings table, so `fromEnv` is
+     * unconditionally false here. */
+    tmdb: { hasKey: !!apiKey, fromEnv: false },
+    omdb: { hasKey: !!omdbKey, fromEnv: false }
   };
 };

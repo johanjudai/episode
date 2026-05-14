@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
 import { setSetting } from '$lib/data/mutations';
 import { createOmdbClient, OmdbError } from '$lib/data/omdb';
@@ -8,6 +9,11 @@ import type { RequestHandler } from './$types';
 const Body = z.object({ apiKey: z.string().trim().min(4).max(64) });
 
 export const POST: RequestHandler = async ({ request }) => {
+  /* Same env-priority guard as the TMDB endpoint: refuse to overwrite
+   * a key that's been configured at deployment level via .env. */
+  if (env.EPISODE_OMDB_API_KEY) {
+    throw error(409, 'OMDb key is managed via .env on the server — edits disabled.');
+  }
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Clé OMDb invalide');
   try {

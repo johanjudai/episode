@@ -305,72 +305,86 @@
     </form>
   </section>
 
-  <section class="settings-group">
-    <div class="settings-group__title">{$t('settings.tmdbApi')}</div>
-    <form onsubmit={saveTmdb}>
-      <div class="field">
-        <label class="field__label" for="tmdb">{$t('settings.tmdbLabel')}</label>
-        <input
-          class="field__input"
-          type="password"
-          name="apiKey"
-          id="tmdb"
-          placeholder={data.tmdb.hasKey
-            ? $t('settings.tmdbPlaceholderSet')
-            : $t('settings.tmdbPlaceholderEmpty')}
-          autocomplete="off"
-          bind:value={tmdbKey}
-        />
-        <span class="field__help">
-          {$t('settings.tmdbGetKey')}
-          <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener"
-            >themoviedb.org</a
-          >
-        </span>
-      </div>
-      <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
-      {#if tmdbStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)"
-          >{$t('settings.tmdbValidated')}</span
-        >
+  {#if !data.tmdb.fromEnv || !data.omdb.fromEnv}
+    <!-- Hide the whole API-keys section when BOTH TMDB and OMDb are
+         managed via .env on the server — there's nothing the user can
+         change here in that case. Individual forms are also hidden
+         when their respective key comes from .env. -->
+    <section class="settings-group">
+      <div class="settings-group__title">{$t('settings.tmdbApi')}</div>
+      {#if !data.tmdb.fromEnv}
+        <form onsubmit={saveTmdb}>
+          <div class="field">
+            <label class="field__label" for="tmdb">{$t('settings.tmdbLabel')}</label>
+            <input
+              class="field__input"
+              type="password"
+              name="apiKey"
+              id="tmdb"
+              placeholder={data.tmdb.hasKey
+                ? $t('settings.tmdbPlaceholderSet')
+                : $t('settings.tmdbPlaceholderEmpty')}
+              autocomplete="off"
+              bind:value={tmdbKey}
+            />
+            <span class="field__help">
+              {$t('settings.tmdbGetKey')}
+              <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener"
+                >themoviedb.org</a
+              >
+            </span>
+          </div>
+          <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
+          {#if tmdbStatus === 'saved'}
+            <span class="field__help" style="margin-left: var(--s-3)"
+              >{$t('settings.tmdbValidated')}</span
+            >
+          {/if}
+          {#if tmdbError}
+            <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
+              {tmdbError}
+            </p>
+          {/if}
+        </form>
       {/if}
-      {#if tmdbError}
-        <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{tmdbError}</p>
-      {/if}
-    </form>
 
-    <form onsubmit={saveOmdb} style="margin-top: var(--s-5)">
-      <div class="field">
-        <label class="field__label" for="omdb">{$t('settings.omdbLabel')}</label>
-        <input
-          class="field__input"
-          type="password"
-          name="omdbApiKey"
-          id="omdb"
-          placeholder={data.omdb.hasKey
-            ? $t('settings.omdbPlaceholderSet')
-            : $t('settings.omdbPlaceholderEmpty')}
-          autocomplete="off"
-          bind:value={omdbKey}
-        />
-        <span class="field__help">
-          {$t('settings.omdbHelp')}
-          <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener"
-            >omdbapi.com</a
-          >.
-        </span>
-      </div>
-      <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
-      {#if omdbStatus === 'saved'}
-        <span class="field__help" style="margin-left: var(--s-3)"
-          >{$t('settings.omdbValidated')}</span
-        >
+      {#if !data.omdb.fromEnv}
+        <form onsubmit={saveOmdb} style={!data.tmdb.fromEnv ? 'margin-top: var(--s-5)' : ''}>
+          <div class="field">
+            <label class="field__label" for="omdb">{$t('settings.omdbLabel')}</label>
+            <input
+              class="field__input"
+              type="password"
+              name="omdbApiKey"
+              id="omdb"
+              placeholder={data.omdb.hasKey
+                ? $t('settings.omdbPlaceholderSet')
+                : $t('settings.omdbPlaceholderEmpty')}
+              autocomplete="off"
+              bind:value={omdbKey}
+            />
+            <span class="field__help">
+              {$t('settings.omdbHelp')}
+              <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener"
+                >omdbapi.com</a
+              >.
+            </span>
+          </div>
+          <button class="btn btn--secondary" type="submit">{$t('settings.tmdbValidate')}</button>
+          {#if omdbStatus === 'saved'}
+            <span class="field__help" style="margin-left: var(--s-3)"
+              >{$t('settings.omdbValidated')}</span
+            >
+          {/if}
+          {#if omdbError}
+            <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
+              {omdbError}
+            </p>
+          {/if}
+        </form>
       {/if}
-      {#if omdbError}
-        <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">{omdbError}</p>
-      {/if}
-    </form>
-  </section>
+    </section>
+  {/if}
 
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.appearance')}</div>

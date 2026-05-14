@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { IS_LOCAL } from '$lib/config';
 import type { SeriesRatings } from '$lib/data/ratings';
 
@@ -56,9 +57,9 @@ export const load: PageServerLoad = async ({ params }) => {
     getSetting(serverDb, 'omdb.api_key'),
     getSetting(serverDb, 'locale')
   ]);
-  const effectiveKey = apiKey ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  const effectiveKey = apiKey ?? env.EPISODE_TMDB_API_KEY ?? '';
   if (!effectiveKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
-  const effectiveOmdbKey = omdbKey ?? process.env.EPISODE_OMDB_API_KEY ?? null;
+  const effectiveOmdbKey = omdbKey ?? env.EPISODE_OMDB_API_KEY ?? null;
   const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
   const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   const detail = await tmdb.tvDetail(id);
