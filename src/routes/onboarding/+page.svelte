@@ -5,15 +5,28 @@
   import { initialOf } from '$lib/utils/format';
   import * as api from '$lib/api';
   import { t, locale, type Locale } from '$lib/i18n';
+  import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
+  import OrnateFrame from '$lib/components/OrnateFrame.svelte';
 
   let name = $state('');
   let avatar = $state('');
+  let palette = $state<PaletteChoice>('bauhaus');
   let importFile = $state<File | null>(null);
   let importPreview = $state<{ count: number } | null>(null);
   let importError = $state<string | null>(null);
   let submitting = $state(false);
   let errorMsg = $state<string | null>(null);
   const initial = $derived(name ? initialOf(name) : '?');
+
+  $effect(() => {
+    palette = readStoredPalette();
+  });
+
+  function choosePalette(value: PaletteChoice) {
+    palette = value;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('episode.palette', value);
+    applyPalette(value);
+  }
 
   async function chooseLocale(value: Locale) {
     if ($locale === value) return;
@@ -104,10 +117,12 @@
       <div class="shape shape--tri"></div>
     </div>
 
-    <div>
-      <h1>{$t('onboarding.hello')}<br /><strong>{$t('onboarding.tagline')}</strong></h1>
-      <p class="onboarding__lead">{$t('onboarding.lead')}</p>
-    </div>
+    <OrnateFrame>
+      <div class="onboarding__intro">
+        <h1>{$t('onboarding.hello')}<br /><strong>{$t('onboarding.tagline')}</strong></h1>
+        <p class="onboarding__lead">{$t('onboarding.lead')}</p>
+      </div>
+    </OrnateFrame>
 
     <div class="field">
       <label class="field__label" for="name">{$t('onboarding.nameLabel')}</label>
@@ -128,6 +143,45 @@
       <span class="field__label">{$t('onboarding.avatarLabel')}</span>
       <AvatarPicker {initial} onChange={(d) => (avatar = d)} />
       <span class="field__help">{$t('onboarding.avatarHelp')}</span>
+    </div>
+
+    <div class="field">
+      <span class="field__label">{$t('onboarding.paletteLabel')}</span>
+      <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
+        <button
+          type="button"
+          class="palette-card palette-card--bauhaus"
+          aria-pressed={palette === 'bauhaus'}
+          onclick={() => choosePalette('bauhaus')}
+        >
+          <span class="palette-card__name">{$t('settings.paletteBauhaus')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteBauhausHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--bauhaus" aria-hidden="true"></span>
+        </button>
+        <button
+          type="button"
+          class="palette-card palette-card--ecobrutalism"
+          aria-pressed={palette === 'ecobrutalism'}
+          onclick={() => choosePalette('ecobrutalism')}
+        >
+          <span class="palette-card__name">{$t('settings.paletteEco')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteEcoHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--ecobrutalism" aria-hidden="true"
+            >01</span
+          >
+        </button>
+        <button
+          type="button"
+          class="palette-card palette-card--artnouveau"
+          aria-pressed={palette === 'artnouveau'}
+          onclick={() => choosePalette('artnouveau')}
+        >
+          <span class="palette-card__name">{$t('settings.paletteArtNouveau')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteArtNouveauHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--artnouveau" aria-hidden="true"
+          ></span>
+        </button>
+      </div>
     </div>
 
     <details class="onboarding__import">

@@ -1,4 +1,9 @@
-/* ========== Episode — Bauhaus design system ========== */
+/* ========== Episode — design system ========== */
+/* Palettes are layered on top of the base tokens via `[data-palette]`
+ * attributes on <html>. Default = bauhaus (no attribute needed). The
+ * ecobrutalism palette redefines the `--bw-*` color tokens and the
+ * semantic surface vars, so the rest of the stylesheet stays untouched.
+ */
 
 :root {
   --bw-red: #d62828;
@@ -57,6 +62,477 @@
   --surface: #1a1a1a;
   --surface-2: #232323;
   --border: #f5f1e8;
+}
+
+/* ───── Palette: ecobrutalism ─────
+ * Raw concrete canvas, vibrant moss + sage greens, warm beige surfaces.
+ * Built on the user-provided palette:
+ *   #4A7C2E  vibrant moss (primary "alive plant" pop)
+ *   #B0C89E  soft sage   (secondary green accent)
+ *   #2E2D29  charcoal    (text, borders, dark surfaces)
+ *   #E3E4E6  light grey concrete (canvas)
+ *   #D7CFC2  warm beige  (lifted card surfaces)
+ *
+ * Color mapping:
+ *   --bw-red    → vibrant moss (brand/CTAs/season-checked state).
+ *   --bw-green  → same vibrant moss for visual cohesion (watched).
+ *   --bw-blue   → deep moss, secondary accent for chips.
+ *   --bw-yellow → sage, used for focus rings and corner triangles.
+ *   --bw-black  → charcoal (slightly warm dark, not pure black).
+ *   --bw-white  → light grey concrete (replaces off-white surfaces).
+ */
+[data-palette='ecobrutalism'] {
+  --bw-red: #4a7c2e;
+  --bw-blue: #365a23;
+  --bw-yellow: #b0c89e;
+  --bw-green: #4a7c2e;
+  --bw-black: #2e2d29;
+  --bw-white: #e3e4e6;
+
+  --bg: #e3e4e6;
+  --fg: var(--bw-black);
+  --muted: #6e6d68;
+  --surface: #d7cfc2;
+  --surface-2: #c4bcae;
+  --border: var(--bw-black);
+
+  /* Tactical scale tweaks for the harder eco-brutalist edge. */
+  --border-w: 2.5px;
+
+  /* Industrial type: condensed bold display caps + a humanist sans for
+   * body. Anton is single-weight (400 only) but reads as if it were
+   * Bebas-bold thanks to its tall x-height + tight tracking. IBM Plex
+   * Sans handles the body with a slightly mechanical character that
+   * fits the eco-brutalist register without feeling cold. */
+  --font-display: 'Anton', 'Bebas Neue', 'Space Grotesk', Impact, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Anton is a poster-display condensed font — beautiful at hero
+ * sizes, illegible at UI-label sizes because the condensed letters
+ * blur together below ~26px. Apply it only to the LARGEST display
+ * contexts. Everything else stays in IBM Plex Sans Bold uppercase,
+ * which keeps the brutalist register (heavy weight + caps + letter-
+ * spacing) without sacrificing readability. */
+[data-palette='ecobrutalism'] h1,
+[data-palette='ecobrutalism'] .topbar__title,
+[data-palette='ecobrutalism'] .hero__title,
+[data-palette='ecobrutalism'] .empty__title,
+[data-palette='ecobrutalism'] .series-card__rank {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+[data-palette='ecobrutalism'] h2,
+[data-palette='ecobrutalism'] h3,
+[data-palette='ecobrutalism'] h4,
+[data-palette='ecobrutalism'] .topbar__date,
+[data-palette='ecobrutalism'] .section__title,
+[data-palette='ecobrutalism'] .settings-group__title,
+[data-palette='ecobrutalism'] .modal__title,
+[data-palette='ecobrutalism'] .series-card__name,
+[data-palette='ecobrutalism'] .episode__title,
+[data-palette='ecobrutalism'] .season__title {
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+[data-theme='dark'][data-palette='ecobrutalism'] {
+  --bg: #1f1e1b;
+  --fg: #e3e4e6;
+  --muted: #8a8884;
+  --surface: #2e2d29;
+  --surface-2: #3a3933;
+  --border: #e3e4e6;
+}
+
+/* Harder eco-brutalist edge: thicker bottom border on the topbar and a
+ * faint inset highlight on lifted cards to suggest an unfinished slab.
+ * No surface texture — the palette runs on a flat solid grey canvas
+ * by design.
+ */
+[data-palette='ecobrutalism'] .topbar {
+  border-bottom-width: 3px;
+}
+[data-palette='ecobrutalism'] .settings-group,
+[data-palette='ecobrutalism'] .season,
+[data-palette='ecobrutalism'] .hero {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 14%, transparent);
+}
+
+/* ───── Palette: artnouveau ─────
+ * Parchment ivory canvas, deep emerald forest as the secondary surface,
+ * antique copper-gold as the warm brand accent. Whiplash curves replace
+ * the bauhaus right-angles; Playfair Display + Cormorant Garamond
+ * carry the editorial vocabulary; SVG corner flourishes from the
+ * <OrnateFrame> component anchor the most important sections.
+ *
+ * Palette taken from the mockup:
+ *   #F3E9D2  parchment cream (canvas)
+ *   #1F3D2E  deep forest emerald (chips, season-num, dark surface)
+ *   #C4924A  antique copper-gold (brand/CTAs)
+ *   #3D2F1F  deep sepia (text)
+ *   #A8967A  warm tan (muted)
+ *
+ * Color mapping:
+ *   --bw-red    → copper-gold     (brand/CTAs/season-checked).
+ *   --bw-blue   → forest emerald  (secondary chips, season-num, accents).
+ *   --bw-yellow → softer gold     (focus rings, ornaments).
+ *   --bw-green  → forest emerald  (watched-state success — same family).
+ *   --bw-black  → deep sepia      (text, borders).
+ *   --bw-white  → parchment cream (lifted surfaces).
+ */
+[data-palette='artnouveau'] {
+  --bw-red: #c4924a;
+  --bw-blue: #1f3d2e;
+  --bw-yellow: #c4924a;
+  --bw-green: #1f3d2e;
+  --bw-black: #3d2f1f;
+  --bw-white: #f3e9d2;
+
+  --bg: #f3e9d2;
+  --fg: var(--bw-black);
+  --muted: #8a7257;
+  --surface: #f9efd8;
+  --surface-2: #e8dcc1;
+  --border: #7a5c3a;
+
+  --border-w: 1.5px;
+  --font-display: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+}
+
+[data-theme='dark'][data-palette='artnouveau'] {
+  /* Deep emerald canvas straight from the mockup's dark variant. Cards
+   * lift on top with a slightly warmer/lighter forest; chips and
+   * accents stay copper-gold against the green. */
+  --bg: #1f3d2e;
+  --fg: #f3e9d2;
+  --muted: #b09a72;
+  --surface: #2a4d3b;
+  --surface-2: #345d4b;
+  --border: #c4924a;
+}
+
+/* Cormorant Garamond is a body-text Garalde — slightly larger optical
+ * size + tighter line-height than the default body so it doesn't feel
+ * airy at 16px. */
+[data-palette='artnouveau'] body {
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
+/* Soft parchment grain — single low-frequency turbulence so it reads
+ * as aged paper. `.app` is its own stacking context via `isolation:
+ * isolate`, and the pseudo lives at z-index -1 inside that context so
+ * it sits BEHIND static UI without forcing every direct child to its
+ * own z-index. That preserves `.bottom-nav { position: sticky }` —
+ * a previous version of this rule promoted every `.app > *` to
+ * `position: relative`, which silently overrode the sticky bottom
+ * navigation. */
+[data-palette='artnouveau'] .app {
+  position: relative;
+  isolation: isolate;
+}
+[data-palette='artnouveau'] .app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='280'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  background-size: 280px;
+  mix-blend-mode: multiply;
+}
+[data-theme='dark'][data-palette='artnouveau'] .app::before {
+  mix-blend-mode: screen;
+  opacity: 0.45;
+}
+
+/* ───── Curves: the Art Nouveau line ─────
+ * Every rectangle relaxes. Cards take a soft 14px radius; pressable
+ * targets become full pills; inputs and small chips take a smaller
+ * 8-10px corner so they stay readable. */
+[data-palette='artnouveau'] .swipe-content .episode,
+[data-palette='artnouveau'] .season,
+[data-palette='artnouveau'] .settings-group,
+[data-palette='artnouveau'] .empty,
+[data-palette='artnouveau'] .hero,
+[data-palette='artnouveau'] .progress,
+[data-palette='artnouveau'] .actions,
+[data-palette='artnouveau'] .home-section,
+[data-palette='artnouveau'] .upcoming__row,
+[data-palette='artnouveau'] .stat,
+[data-palette='artnouveau'] .series-card {
+  border-radius: 14px;
+}
+[data-palette='artnouveau'] .modal {
+  border-radius: 20px;
+}
+[data-palette='artnouveau'] .btn,
+[data-palette='artnouveau'] .iconbtn,
+[data-palette='artnouveau'] .episode__action,
+[data-palette='artnouveau'] .checkbox,
+[data-palette='artnouveau'] .season__checkall,
+[data-palette='artnouveau'] .toggle,
+[data-palette='artnouveau'] .onboarding__lang-opt,
+[data-palette='artnouveau'] .theme-picker__opt {
+  border-radius: 999px;
+}
+/* The onboarding locale picker is a square wrapper containing pill-
+ * shaped buttons — without rounding the wrapper too, the active
+ * button's pill background floats inside a square frame and reads as
+ * two superimposed borders. Round the wrapper and clip the contents
+ * so the pill bg flushes against the wrapper edge. */
+[data-palette='artnouveau'] .onboarding__lang {
+  border-radius: 999px;
+  overflow: hidden;
+}
+/* Note: .palette-card variants now lock their own border-radius per
+ * theme (square for bauhaus + ecobrutalism, rounded for artnouveau)
+ * so the user sees the real shape of each theme regardless of the
+ * active palette. */
+[data-palette='artnouveau'] .field__input,
+[data-palette='artnouveau'] .rating-chip,
+[data-palette='artnouveau'] .ep-code,
+[data-palette='artnouveau'] .section__count,
+[data-palette='artnouveau'] .history__code {
+  border-radius: 10px;
+}
+[data-palette='artnouveau'] .episode__cover,
+[data-palette='artnouveau'] .upcoming__day,
+[data-palette='artnouveau'] .season__num,
+[data-palette='artnouveau'] .modal__still {
+  border-radius: 8px;
+}
+
+/* (Card elevation rule moved below — the gold double-stroke + warm
+ * shadow combination is defined alongside the headpiece styling.) */
+
+/* The onboarding intro block (h1 + lead paragraph) has no native
+ * padding — when wrapped by an OrnateFrame the 36-52px corner
+ * flourishes overlap the title text. Give it a generous inner band of
+ * empty space ONLY in art-nouveau so the corners breathe. The
+ * minimum is tuned to the maximum corner size (52px) plus a small
+ * extra margin (~4px). */
+[data-palette='artnouveau'] .onboarding__intro {
+  padding: 44px 36px;
+}
+
+/* Display type: replace the geometric Space Grotesk with Playfair
+ * Display, the closest available high-contrast serif for an Art
+ * Nouveau editorial feel. Italic variant in subtle accents. */
+[data-palette='artnouveau'] h1,
+[data-palette='artnouveau'] h2,
+[data-palette='artnouveau'] h3,
+[data-palette='artnouveau'] h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.005em;
+}
+[data-palette='artnouveau'] .topbar__title,
+[data-palette='artnouveau'] .topbar__date,
+[data-palette='artnouveau'] .empty__title,
+[data-palette='artnouveau'] .hero__title,
+[data-palette='artnouveau'] .modal__title {
+  font-family: var(--font-display);
+}
+[data-palette='artnouveau'] .modal__kicker,
+[data-palette='artnouveau'] .section__title,
+[data-palette='artnouveau'] .settings-group__title {
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+/* Editorial headpiece under the topbar AND above the bottom-nav.
+ *
+ * Both use the Wikimedia 1904 Art Nouveau headpiece as a stencil
+ * (mask-image) so the colour comes from CSS and follows the theme
+ * tint. The SVG is naturally ~11.5:1 ratio so we set a fixed band
+ * height and let the width stretch to 100% of the container — the
+ * floral shape is forgiving of slight horizontal distortion at this
+ * scale. The bottom-nav version is flipped vertically (scaleY(-1))
+ * so the curl points outward (toward the screen edge) rather than
+ * into the nav. */
+/* The topbar gets a relative positioning context only when it isn't
+ * the sticky variant (which already has `position: sticky`). For the
+ * sticky variant the original `position: sticky` is preserved so the
+ * bar still pins to the top during scroll. `position: sticky` itself
+ * creates a positioning context for our absolute pseudo. */
+[data-palette='artnouveau'] .topbar {
+  border-bottom: 0;
+  /* Reserve a band of vertical space at the bottom of the topbar for
+   * the floral headpiece so it doesn't overlap the content below. */
+  padding-bottom: calc(var(--s-2) + 18px);
+}
+[data-palette='artnouveau'] .topbar:not(.topbar--sticky) {
+  position: relative;
+}
+[data-palette='artnouveau'] .topbar::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 6px;
+  height: 14px;
+  background-color: var(--bw-yellow);
+  -webkit-mask-image: url('/ornaments/headpiece.svg');
+  mask-image: url('/ornaments/headpiece.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: center;
+  mask-position: center;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+/* The bottom-nav must stay `position: sticky` from the base CSS so it
+ * pins to the viewport bottom — don't reassign it. A thin gold border
+ * keeps the divider line the user expects; the ornamental headpiece
+ * sits above it within reserved top padding. */
+[data-palette='artnouveau'] .bottom-nav {
+  border-top: 1.5px solid var(--bw-yellow);
+  padding-top: calc(18px + 4px);
+  background: var(--bg);
+}
+[data-palette='artnouveau'] .bottom-nav::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 6px;
+  height: 14px;
+  background-color: var(--bw-yellow);
+  -webkit-mask-image: url('/ornaments/headpiece.svg');
+  mask-image: url('/ornaments/headpiece.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: scaleY(-1);
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+/* Bottom-nav shapes — restyle the bauhaus geometric primitives as
+ * Art Nouveau floral glyphs via mask-image. The original shape spans
+ * are kept (markup is shared across palettes); their bauhaus fills
+ * are wiped and replaced with palette-tinted SVG masks. */
+[data-palette='artnouveau'] .bottom-nav__shape {
+  width: 22px;
+  height: 22px;
+  background-color: var(--bw-yellow);
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+[data-palette='artnouveau'] .bottom-nav__shape--circle {
+  /* Home: small house with a curl over the roof. */
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11 L11 4 L19 11'/><path d='M5 11 L5 18 L17 18 L17 11'/><path d='M9 18 L9 13 L13 13 L13 18'/><path d='M14 4 C14 2.5 16 2.5 16 4'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11 L11 4 L19 11'/><path d='M5 11 L5 18 L17 18 L17 11'/><path d='M9 18 L9 13 L13 13 L13 18'/><path d='M14 4 C14 2.5 16 2.5 16 4'/></svg>");
+}
+[data-palette='artnouveau'] .bottom-nav__shape--square {
+  /* Search: magnifying glass with a curl on the handle terminal. */
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='9' r='5'/><path d='M13 13 L17 17'/><path d='M17 17 C18.5 18.5 18 19.5 17 19'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='9' r='5'/><path d='M13 13 L17 17'/><path d='M17 17 C18.5 18.5 18 19.5 17 19'/></svg>");
+}
+[data-palette='artnouveau'] .bottom-nav__shape--triangle {
+  /* Profile: head + shoulders silhouette framed by two side curls. */
+  width: 22px;
+  height: 22px;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='7' r='3'/><path d='M4 19 C4 15 7 12 11 12 C15 12 18 15 18 19'/><path d='M3 8 C2 7 3 5 4 6'/><path d='M19 8 C20 7 19 5 18 6'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='7' r='3'/><path d='M4 19 C4 15 7 12 11 12 C15 12 18 15 18 19'/><path d='M3 8 C2 7 3 5 4 6'/><path d='M19 8 C20 7 19 5 18 6'/></svg>");
+}
+
+/* The season-number chip switches from a coloured fill to an outlined
+ * cell with display-italic numerals — matches the mockup's editorial
+ * treatment of the season list. `display: grid; place-items: center`
+ * vertically centres the italic glyph in the fixed-size cell so it
+ * doesn't sit on the baseline against the bottom edge. The
+ * double-stroke (real border + faint gold halo) echoes the framed
+ * card treatment used elsewhere in the palette. */
+[data-palette='artnouveau'] .season__num {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bw-yellow) 55%, transparent);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 1.45rem;
+  line-height: 1;
+  letter-spacing: 0;
+  /* Italic glyphs lean right — nudge slightly left so the optical
+   * centre lines up with the geometric centre of the box. */
+  text-indent: -1px;
+}
+
+/* Cards in art-nouveau take a thin warm gold edge in addition to the
+ * existing border, suggesting an inlaid frame. The double-stroke is
+ * what reads as "framed" on the mockup without going all the way to
+ * heavy ornate borders. */
+[data-palette='artnouveau'] .hero,
+[data-palette='artnouveau'] .modal,
+[data-palette='artnouveau'] .empty,
+[data-palette='artnouveau'] .settings-group,
+[data-palette='artnouveau'] .season {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bw-yellow) 60%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--bw-yellow) 28%, transparent),
+    0 6px 22px -10px color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* Profile stats — the bauhaus grid uses inter-cell borders that look
+ * brittle with rounded corners, and the last cell loses its right
+ * border via `:nth-child(2n)`. Reframe each .stat as its own card with
+ * the same double-stroke treatment as the hero, and let the parent
+ * `.stats` be a transparent 2-column grid with breathing space. The
+ * 4th cell (streak) now gets the same framed treatment as the others.
+ */
+[data-palette='artnouveau'] .stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 0;
+}
+[data-palette='artnouveau'] .stat {
+  padding: var(--s-4);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bw-yellow) 55%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--bw-yellow) 25%, transparent);
+}
+/* Override the bauhaus inter-cell borders so they don't double up with
+ * the individual card borders above. */
+[data-palette='artnouveau'] .stat,
+[data-palette='artnouveau'] .stat:nth-child(2n) {
+  border-right: 1.5px solid var(--border);
+  border-bottom: 1.5px solid var(--border);
 }
 
 [data-contrast='high'] {
@@ -624,12 +1100,15 @@ a {
 .swipe-reveal--left.swipe-reveal--active {
   animation: swipe-commit 0.24s ease-out;
 }
+/* Mid-frame uses a palette-aware lift of --bw-green so the pulse keeps
+ * the same hue as the resting state — color-mix is supported on every
+ * target we ship for and degrades to the resting green if not. */
 @keyframes swipe-commit {
   0% {
     background: var(--bw-green);
   }
   50% {
-    background: #3fc657;
+    background: color-mix(in srgb, var(--bw-green) 60%, white);
     box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.12);
   }
   100% {
@@ -2392,4 +2871,171 @@ a {
 }
 [data-motion='reduced'] .confetti {
   display: none;
+}
+
+/* ===== Palette picker (settings + onboarding) =====
+ *
+ * Each card is locked to its target palette's actual typography,
+ * background, accent, border and a signature glyph — regardless of
+ * which palette the user is currently in. The user sees a real
+ * preview of each theme side-by-side, then picks. Compact 3-column
+ * row at every viewport: glyph on top, name + sub stacked below.
+ */
+.palette-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--s-2);
+}
+
+.palette-card {
+  appearance: none;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  justify-items: center;
+  row-gap: 4px;
+  padding: var(--s-2);
+  text-align: center;
+  cursor: pointer;
+  font: inherit;
+  min-height: 0;
+  transition:
+    transform var(--dur-quick) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.palette-card:active {
+  transform: scale(0.97);
+}
+
+.palette-card__glyph {
+  grid-row: 1;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+}
+.palette-card__name {
+  grid-row: 2;
+  line-height: 1.05;
+}
+.palette-card__sub {
+  grid-row: 3;
+  font-size: 0.62rem;
+  line-height: 1.2;
+  padding: 0 2px;
+}
+
+/* ───── Bauhaus preview ─────
+ * Locked to the original bauhaus tokens. The card looks exactly like
+ * a small slice of the bauhaus UI regardless of the active palette. */
+.palette-card--bauhaus {
+  background: #fafaf8;
+  color: #0a0a0a;
+  border: 2px solid #0a0a0a;
+  border-radius: 0;
+}
+.palette-card--bauhaus[aria-pressed='true'] {
+  outline: 3px solid #d62828;
+  outline-offset: -2px;
+}
+.palette-card--bauhaus .palette-card__name {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
+}
+.palette-card--bauhaus .palette-card__sub {
+  font-family: 'Inter', sans-serif;
+  color: #6b6b6b;
+}
+.palette-card--bauhaus .palette-card__glyph {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='14' cy='14' r='10' fill='%23d62828'/><rect x='34' y='4' width='22' height='22' fill='%230050a0'/><polygon points='14,36 50,36 32,60' fill='%23f4a300'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* ───── Eco-brutalism preview ─────
+ * Flat raw concrete + moss + Anton + IBM Plex Sans caps. The "01"
+ * glyph in Anton is the signature: condensed display digit, moss
+ * green, oversized — pure eco-brutalist register. */
+.palette-card--ecobrutalism {
+  background: #e3e4e6;
+  color: #2e2d29;
+  border: 2.5px solid #2e2d29;
+  border-radius: 0;
+}
+.palette-card--ecobrutalism[aria-pressed='true'] {
+  outline: 3px solid #4a7c2e;
+  outline-offset: -3px;
+}
+.palette-card--ecobrutalism .palette-card__name {
+  font-family: 'Anton', 'Impact', sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 1.05rem;
+  color: #2e2d29;
+}
+.palette-card--ecobrutalism .palette-card__sub {
+  font-family: 'IBM Plex Sans', 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.56rem;
+  font-weight: 600;
+  color: #6e6d68;
+}
+.palette-card--ecobrutalism .palette-card__glyph {
+  font-family: 'Anton', 'Impact', sans-serif;
+  font-weight: 400;
+  font-size: 1.85rem;
+  line-height: 1;
+  color: #4a7c2e;
+  letter-spacing: 0.02em;
+}
+
+/* ───── Art Nouveau preview ─────
+ * Parchment cream + Playfair Display italic + copper-gold + warm
+ * shadow + a tiny corner-flourish from the shared SVG file, mask-
+ * tinted in copper. */
+.palette-card--artnouveau {
+  background: #f3e9d2;
+  color: #3d2f1f;
+  border: 1.5px solid #7a5c3a;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px rgba(196, 146, 74, 0.55),
+    inset 0 0 0 1px rgba(196, 146, 74, 0.28),
+    0 6px 22px -10px rgba(122, 92, 58, 0.5);
+}
+.palette-card--artnouveau[aria-pressed='true'] {
+  outline: 3px solid #c4924a;
+  outline-offset: -3px;
+}
+.palette-card--artnouveau .palette-card__name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #c4924a;
+  letter-spacing: -0.005em;
+}
+.palette-card--artnouveau .palette-card__sub {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 0.7rem;
+  color: #8a7257;
+  line-height: 1.2;
+}
+.palette-card--artnouveau .palette-card__glyph {
+  background-color: #c4924a;
+  -webkit-mask-image: url('/ornaments/corner.svg');
+  mask-image: url('/ornaments/corner.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: scaleY(-1);
+  opacity: 0.72;
 }

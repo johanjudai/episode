@@ -8,6 +8,7 @@
   import * as api from '$lib/api';
   import { parseTvTimeExport, TvTimeImportError } from '$lib/data/tvtime-import';
   import { t, locale, type Locale } from '$lib/i18n';
+  import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
 
   let { data }: PageProps = $props();
 
@@ -30,6 +31,7 @@
   let importMessage = $state<string | null>(null);
 
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
+  let palette = $state<PaletteChoice>('bauhaus');
   let reduceMotion = $state(false);
   let highContrast = $state(false);
   let textSize = $state(16);
@@ -37,9 +39,16 @@
   function loadPrefs() {
     if (typeof localStorage === 'undefined') return;
     theme = (localStorage.getItem('episode.theme') as 'auto' | 'light' | 'dark') ?? 'auto';
+    palette = readStoredPalette();
     reduceMotion = localStorage.getItem('episode.motion') === 'reduced';
     highContrast = localStorage.getItem('episode.contrast') === 'high';
     textSize = Number(localStorage.getItem('episode.textSize') ?? '16');
+  }
+
+  function setPalette(value: PaletteChoice) {
+    palette = value;
+    localStorage.setItem('episode.palette', value);
+    applyPalette(value);
   }
 
   function setTheme(value: 'auto' | 'light' | 'dark') {
@@ -188,6 +197,44 @@
     <h1 class="topbar__title">{$t('settings.header')}</h1>
     <div style="width: 36px"></div>
   </header>
+
+  <section class="settings-group">
+    <div class="settings-group__title">{$t('settings.palette')}</div>
+    <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
+      <button
+        class="palette-card palette-card--bauhaus"
+        aria-pressed={palette === 'bauhaus'}
+        onclick={() => setPalette('bauhaus')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteBauhaus')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteBauhausHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--bauhaus" aria-hidden="true"></span>
+      </button>
+      <button
+        class="palette-card palette-card--ecobrutalism"
+        aria-pressed={palette === 'ecobrutalism'}
+        onclick={() => setPalette('ecobrutalism')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteEco')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteEcoHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--ecobrutalism" aria-hidden="true"
+          >01</span
+        >
+      </button>
+      <button
+        class="palette-card palette-card--artnouveau"
+        aria-pressed={palette === 'artnouveau'}
+        onclick={() => setPalette('artnouveau')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteArtNouveau')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteArtNouveauHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--artnouveau" aria-hidden="true"></span>
+      </button>
+    </div>
+  </section>
 
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.profile')}</div>

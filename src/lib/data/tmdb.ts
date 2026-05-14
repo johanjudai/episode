@@ -13,14 +13,19 @@ export class TmdbError extends Error {
   }
 }
 
+/* TMDB happily returns explicit `null` (not just missing) for string
+ * fields like dates, overviews, or names — particularly for unaired
+ * series, single-language records, or partially-curated entries.
+ * Every string field that isn't strictly required is .nullable() to
+ * stop Zod from blowing up on the load path. */
 const SearchTvResult = z.object({
   id: z.number(),
   name: z.string(),
-  original_name: z.string().optional(),
-  overview: z.string().optional(),
+  original_name: z.string().nullable().optional(),
+  overview: z.string().nullable().optional(),
   poster_path: z.string().nullable().optional(),
   backdrop_path: z.string().nullable().optional(),
-  first_air_date: z.string().optional(),
+  first_air_date: z.string().nullable().optional(),
   popularity: z.number().optional()
 });
 
@@ -34,23 +39,23 @@ const SearchTvResponse = z.object({
 const TvDetail = z.object({
   id: z.number(),
   name: z.string(),
-  original_name: z.string().optional(),
-  overview: z.string().optional(),
+  original_name: z.string().nullable().optional(),
+  overview: z.string().nullable().optional(),
   poster_path: z.string().nullable().optional(),
   backdrop_path: z.string().nullable().optional(),
-  first_air_date: z.string().optional(),
-  last_air_date: z.string().optional(),
-  status: z.string().optional(),
-  number_of_seasons: z.number().optional(),
-  number_of_episodes: z.number().optional(),
+  first_air_date: z.string().nullable().optional(),
+  last_air_date: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+  number_of_seasons: z.number().nullable().optional(),
+  number_of_episodes: z.number().nullable().optional(),
   episode_run_time: z.array(z.number()).optional(),
-  vote_average: z.number().optional(),
-  vote_count: z.number().optional(),
+  vote_average: z.number().nullable().optional(),
+  vote_count: z.number().nullable().optional(),
   /* Genres / origin / language let us detect anime — Japanese
    * Animation gets MAL/Jikan ratings added, everything else stays on
    * the TMDB / OMDb / TVMaze sources. */
   genres: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
-  original_language: z.string().optional(),
+  original_language: z.string().nullable().optional(),
   origin_country: z.array(z.string()).optional(),
   networks: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
   seasons: z
@@ -58,10 +63,10 @@ const TvDetail = z.object({
       z.object({
         id: z.number(),
         season_number: z.number(),
-        name: z.string().optional(),
-        overview: z.string().optional(),
+        name: z.string().nullable().optional(),
+        overview: z.string().nullable().optional(),
         air_date: z.string().nullable().optional(),
-        episode_count: z.number().optional(),
+        episode_count: z.number().nullable().optional(),
         poster_path: z.string().nullable().optional()
       })
     )
@@ -71,8 +76,8 @@ const TvDetail = z.object({
 const SeasonDetail = z.object({
   id: z.number(),
   season_number: z.number(),
-  name: z.string().optional(),
-  overview: z.string().optional(),
+  name: z.string().nullable().optional(),
+  overview: z.string().nullable().optional(),
   air_date: z.string().nullable().optional(),
   poster_path: z.string().nullable().optional(),
   episodes: z.array(
@@ -80,8 +85,8 @@ const SeasonDetail = z.object({
       id: z.number(),
       episode_number: z.number(),
       season_number: z.number(),
-      name: z.string().optional(),
-      overview: z.string().optional(),
+      name: z.string().nullable().optional(),
+      overview: z.string().nullable().optional(),
       air_date: z.string().nullable().optional(),
       runtime: z.number().nullable().optional(),
       still_path: z.string().nullable().optional()

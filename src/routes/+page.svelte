@@ -8,6 +8,8 @@
   import Mark from '$lib/components/Mark.svelte';
   import EpisodeRow from '$lib/components/EpisodeRow.svelte';
   import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
+  import OrnateFrame from '$lib/components/OrnateFrame.svelte';
+  import FloralDivider from '$lib/components/FloralDivider.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
   import * as api from '$lib/api';
@@ -212,6 +214,7 @@
         {/each}
       </ul>
     </section>
+    <FloralDivider />
   {/if}
 
   <section bind:this={toWatchRef} class="home-section home-section--now">
@@ -230,17 +233,19 @@
     {#if data.toWatch.length === 0}
       {#if data.upcoming.length === 0 && recentRows.length === 0}
         <!-- Fresh user — no series yet. Steer them to the search. -->
-        <div class="empty empty--cta">
-          <div class="empty__title">{$t('home.noSeriesYet')}</div>
-          <p class="empty__body">{$t('home.noSeriesBody')}</p>
-          <a class="btn btn--accent btn--lg empty__cta" href="/search"
-            >{$t('home.discoverSeries')}</a
-          >
-          <p class="empty__hint">
-            {$t('home.importTip')}
-            <a href="/settings">{$t('common.settings')}</a>.
-          </p>
-        </div>
+        <OrnateFrame>
+          <div class="empty empty--cta">
+            <div class="empty__title">{$t('home.noSeriesYet')}</div>
+            <p class="empty__body">{$t('home.noSeriesBody')}</p>
+            <a class="btn btn--accent btn--lg empty__cta" href="/search"
+              >{$t('home.discoverSeries')}</a
+            >
+            <p class="empty__hint">
+              {$t('home.importTip')}
+              <a href="/settings">{$t('common.settings')}</a>.
+            </p>
+          </div>
+        </OrnateFrame>
       {:else}
         <div class="empty">
           <div class="empty__title">{$t('home.allCaughtUp')}</div>
@@ -268,6 +273,7 @@
   </section>
 
   {#if data.upcoming.length > 0}
+    <FloralDivider />
     <section class="home-section home-section--upcoming">
       <div class="timeline-marker timeline-marker--down" aria-hidden="true">
         <span>{$t('home.upcomingMarker')}</span>

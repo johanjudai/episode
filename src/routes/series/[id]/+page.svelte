@@ -6,6 +6,8 @@
   import BottomNav from '$lib/components/BottomNav.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
   import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
+  import OrnateFrame from '$lib/components/OrnateFrame.svelte';
+  import FloralDivider from '$lib/components/FloralDivider.svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
   import { posterUrl } from '$lib/utils/images';
@@ -277,43 +279,47 @@
       <div style="width: 36px"></div>
     </header>
 
-    <section class="hero">
-      <div class="hero__poster" aria-hidden="true" style={heroStyle}></div>
-      <div>
-        <h1 class="hero__title">{data.series.name}</h1>
-        <div class="hero__meta">
-          {data.series.firstAirDate?.slice(0, 4) ?? '—'}
-          {#if data.series.network}· {data.series.network}{/if}
-          {#if data.series.numberOfSeasons}· {$t('series.yearSeasons', {
-              seasons: data.series.numberOfSeasons
-            })}{/if}
-        </div>
-        {#if data.ratings && (data.ratings.tmdb || data.ratings.external.length > 0)}
-          <div class="hero__ratings" aria-label="Notes externes">
-            {#if data.ratings.tmdb}
-              <span
-                class="rating-chip rating-chip--tmdb"
-                title={`${data.ratings.tmdb.count.toLocaleString('fr-FR')} votes TMDB`}
-              >
-                <strong>{data.ratings.tmdb.average.toFixed(1)}</strong>
-                <span>TMDB</span>
-              </span>
-            {/if}
-            {#each data.ratings.external as r (r.source)}
-              <span class={`rating-chip rating-chip--${r.source}`}>
-                <strong>{r.value}</strong>
-                <span>
-                  {#if r.source === 'rottentomatoes'}RT
-                  {:else if r.source === 'imdb'}IMDb
-                  {:else if r.source === 'metacritic'}Meta
-                  {/if}
-                </span>
-              </span>
-            {/each}
+    <OrnateFrame>
+      <section class="hero">
+        <div class="hero__poster" aria-hidden="true" style={heroStyle}></div>
+        <div>
+          <h1 class="hero__title">{data.series.name}</h1>
+          <div class="hero__meta">
+            {data.series.firstAirDate?.slice(0, 4) ?? '—'}
+            {#if data.series.network}· {data.series.network}{/if}
+            {#if data.series.numberOfSeasons}· {$t('series.yearSeasons', {
+                seasons: data.series.numberOfSeasons
+              })}{/if}
           </div>
-        {/if}
-      </div>
-    </section>
+          {#if data.ratings && (data.ratings.tmdb || data.ratings.external.length > 0)}
+            <div class="hero__ratings" aria-label="Notes externes">
+              {#if data.ratings.tmdb}
+                <span
+                  class="rating-chip rating-chip--tmdb"
+                  title={`${data.ratings.tmdb.count.toLocaleString('fr-FR')} votes TMDB`}
+                >
+                  <strong>{data.ratings.tmdb.average.toFixed(1)}</strong>
+                  <span>TMDB</span>
+                </span>
+              {/if}
+              {#each data.ratings.external as r (r.source)}
+                <span class={`rating-chip rating-chip--${r.source}`}>
+                  <strong>{r.value}</strong>
+                  <span>
+                    {#if r.source === 'rottentomatoes'}RT
+                    {:else if r.source === 'imdb'}IMDb
+                    {:else if r.source === 'metacritic'}Meta
+                    {/if}
+                  </span>
+                </span>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </section>
+    </OrnateFrame>
+
+    <FloralDivider />
 
     <section class="progress">
       <div class="progress__label">
@@ -373,6 +379,8 @@
     {#if data.series.overview}
       <section class="synopsis">{data.series.overview}</section>
     {/if}
+
+    <FloralDivider />
 
     {#each data.seasons as s (s.seasonNumber)}
       {@const seasonWatched = s.episodes.filter((e) => e.watched).length}
