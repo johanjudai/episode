@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
 import { getSetting } from '$lib/data/queries';
 import { markSeriesWatched } from '$lib/data/mutations';
@@ -11,8 +12,7 @@ const Body = z.object({ seriesTmdbId: z.number().int().positive() });
 export const POST: RequestHandler = async ({ request }) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid payload');
-  const apiKey =
-    (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  const apiKey = (await getSetting(serverDb, 'tmdb.api_key')) ?? env.EPISODE_TMDB_API_KEY ?? '';
   if (!apiKey) throw error(412, 'Clé TMDB manquante');
   await syncSeriesFull(serverDb, apiKey, parsed.data.seriesTmdbId, { follow: true });
   await markSeriesWatched(serverDb, parsed.data.seriesTmdbId);

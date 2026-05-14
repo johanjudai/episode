@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
 import { getSeries, getSetting } from '$lib/data/queries';
 import { syncSeason, syncSeriesFull } from '$lib/data/sync';
@@ -16,8 +17,7 @@ const Body = z.object({
 export const POST: RequestHandler = async ({ request }) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid payload');
-  const apiKey =
-    (await getSetting(serverDb, 'tmdb.api_key')) ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  const apiKey = (await getSetting(serverDb, 'tmdb.api_key')) ?? env.EPISODE_TMDB_API_KEY ?? '';
 
   if (!parsed.data.watched) {
     await unmarkSeasonWatched(serverDb, parsed.data.seriesTmdbId, parsed.data.seasonNumber);
