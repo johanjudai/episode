@@ -208,7 +208,7 @@ export const en: Dict = {
     paletteEco: 'Eco-brutalism',
     paletteEcoHint: 'Concrete, moss, ochre',
     paletteArtNouveau: 'Art Nouveau',
-    paletteArtNouveauHint: 'Ivory, copper, antique gold',
+    paletteArtNouveauHint: 'Cream, emerald, copper',
     a11y: 'Accessibility',
     textSize: 'Text size',
     textSizeBigger: 'Increase size',

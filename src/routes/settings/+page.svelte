@@ -199,6 +199,44 @@
   </header>
 
   <section class="settings-group">
+    <div class="settings-group__title">{$t('settings.palette')}</div>
+    <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
+      <button
+        class="palette-card palette-card--bauhaus"
+        aria-pressed={palette === 'bauhaus'}
+        onclick={() => setPalette('bauhaus')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteBauhaus')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteBauhausHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--bauhaus" aria-hidden="true"></span>
+      </button>
+      <button
+        class="palette-card palette-card--ecobrutalism"
+        aria-pressed={palette === 'ecobrutalism'}
+        onclick={() => setPalette('ecobrutalism')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteEco')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteEcoHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--ecobrutalism" aria-hidden="true"
+          >01</span
+        >
+      </button>
+      <button
+        class="palette-card palette-card--artnouveau"
+        aria-pressed={palette === 'artnouveau'}
+        onclick={() => setPalette('artnouveau')}
+        type="button"
+      >
+        <span class="palette-card__name">{$t('settings.paletteArtNouveau')}</span>
+        <span class="palette-card__sub">{$t('settings.paletteArtNouveauHint')}</span>
+        <span class="palette-card__glyph palette-card__glyph--artnouveau" aria-hidden="true"></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="settings-group">
     <div class="settings-group__title">{$t('settings.profile')}</div>
     <form onsubmit={saveName}>
       <div class="field">
@@ -374,53 +412,6 @@
           onclick={() => setTheme('dark')}
           type="button">{$t('settings.themeDark')}</button
         >
-      </div>
-    </div>
-    <div class="field">
-      <span class="field__label">{$t('settings.palette')}</span>
-      <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
-        <button
-          class="palette-card palette-card--bauhaus"
-          aria-pressed={palette === 'bauhaus'}
-          onclick={() => setPalette('bauhaus')}
-          type="button"
-        >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--bh-1"></span>
-            <span class="palette-card__chip palette-card__chip--bh-2"></span>
-            <span class="palette-card__chip palette-card__chip--bh-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteBauhaus')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteBauhausHint')}</span>
-        </button>
-        <button
-          class="palette-card palette-card--ecobrutalism"
-          aria-pressed={palette === 'ecobrutalism'}
-          onclick={() => setPalette('ecobrutalism')}
-          type="button"
-        >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--eb-1"></span>
-            <span class="palette-card__chip palette-card__chip--eb-2"></span>
-            <span class="palette-card__chip palette-card__chip--eb-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteEco')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteEcoHint')}</span>
-        </button>
-        <button
-          class="palette-card palette-card--artnouveau"
-          aria-pressed={palette === 'artnouveau'}
-          onclick={() => setPalette('artnouveau')}
-          type="button"
-        >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--an-1"></span>
-            <span class="palette-card__chip palette-card__chip--an-2"></span>
-            <span class="palette-card__chip palette-card__chip--an-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteArtNouveau')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteArtNouveauHint')}</span>
-        </button>
       </div>
     </div>
   </section>

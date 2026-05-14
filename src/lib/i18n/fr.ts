@@ -210,7 +210,7 @@ export const fr = {
     paletteEco: 'Éco-brutalisme',
     paletteEcoHint: 'Béton, mousses, ochre',
     paletteArtNouveau: 'Art Nouveau',
-    paletteArtNouveauHint: 'Ivoire, cuivre, or antique',
+    paletteArtNouveauHint: 'Crème, émeraude, cuivre',
     a11y: 'Accessibilité',
     textSize: 'Taille du texte',
     textSizeBigger: 'Augmenter la taille',

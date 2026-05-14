@@ -6,6 +6,7 @@
   import * as api from '$lib/api';
   import { t, locale, type Locale } from '$lib/i18n';
   import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
+  import OrnateFrame from '$lib/components/OrnateFrame.svelte';
 
   let name = $state('');
   let avatar = $state('');
@@ -116,10 +117,12 @@
       <div class="shape shape--tri"></div>
     </div>
 
-    <div>
-      <h1>{$t('onboarding.hello')}<br /><strong>{$t('onboarding.tagline')}</strong></h1>
-      <p class="onboarding__lead">{$t('onboarding.lead')}</p>
-    </div>
+    <OrnateFrame>
+      <div class="onboarding__intro">
+        <h1>{$t('onboarding.hello')}<br /><strong>{$t('onboarding.tagline')}</strong></h1>
+        <p class="onboarding__lead">{$t('onboarding.lead')}</p>
+      </div>
+    </OrnateFrame>
 
     <div class="field">
       <label class="field__label" for="name">{$t('onboarding.nameLabel')}</label>
@@ -151,13 +154,9 @@
           aria-pressed={palette === 'bauhaus'}
           onclick={() => choosePalette('bauhaus')}
         >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--bh-1"></span>
-            <span class="palette-card__chip palette-card__chip--bh-2"></span>
-            <span class="palette-card__chip palette-card__chip--bh-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteBauhaus')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteBauhausHint')}</span>
+          <span class="palette-card__name">{$t('settings.paletteBauhaus')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteBauhausHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--bauhaus" aria-hidden="true"></span>
         </button>
         <button
           type="button"
@@ -165,13 +164,11 @@
           aria-pressed={palette === 'ecobrutalism'}
           onclick={() => choosePalette('ecobrutalism')}
         >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--eb-1"></span>
-            <span class="palette-card__chip palette-card__chip--eb-2"></span>
-            <span class="palette-card__chip palette-card__chip--eb-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteEco')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteEcoHint')}</span>
+          <span class="palette-card__name">{$t('settings.paletteEco')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteEcoHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--ecobrutalism" aria-hidden="true"
+            >01</span
+          >
         </button>
         <button
           type="button"
@@ -179,13 +176,10 @@
           aria-pressed={palette === 'artnouveau'}
           onclick={() => choosePalette('artnouveau')}
         >
-          <span class="palette-card__swatch" aria-hidden="true">
-            <span class="palette-card__chip palette-card__chip--an-1"></span>
-            <span class="palette-card__chip palette-card__chip--an-2"></span>
-            <span class="palette-card__chip palette-card__chip--an-3"></span>
-          </span>
-          <span class="palette-card__label">{$t('settings.paletteArtNouveau')}</span>
-          <span class="palette-card__hint">{$t('settings.paletteArtNouveauHint')}</span>
+          <span class="palette-card__name">{$t('settings.paletteArtNouveau')}</span>
+          <span class="palette-card__sub">{$t('settings.paletteArtNouveauHint')}</span>
+          <span class="palette-card__glyph palette-card__glyph--artnouveau" aria-hidden="true"
+          ></span>
         </button>
       </div>
     </div>
