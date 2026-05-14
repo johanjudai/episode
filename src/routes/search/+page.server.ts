@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { env } from '$env/dynamic/private';
 import { IS_LOCAL } from '$lib/config';
 
 export interface SearchResult {
@@ -22,7 +23,7 @@ export const load: PageServerLoad = async ({ url }) => {
     getSetting(serverDb, 'tmdb.api_key'),
     getSetting(serverDb, 'locale')
   ]);
-  const effectiveKey = apiKey ?? process.env.EPISODE_TMDB_API_KEY ?? '';
+  const effectiveKey = apiKey ?? env.EPISODE_TMDB_API_KEY ?? '';
   if (!effectiveKey) {
     return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
   }
