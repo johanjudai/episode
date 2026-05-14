@@ -83,8 +83,12 @@ function setSecurityHeaders(headers: Headers) {
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: https://image.tmdb.org https://static.tvmaze.com https://cdn.myanimelist.net",
+      "img-src 'self' data: https://image.tmdb.org https://static.tvmaze.com https://cdn.myanimelist.net https://i.ytimg.com",
       "connect-src 'self' https://api.themoviedb.org https://www.omdbapi.com https://api.tvmaze.com https://api.jikan.moe",
+      /* The trailer modal embeds YouTube via the privacy-enhanced
+       * youtube-nocookie.com domain — the `default-src 'self'`
+       * fallback would block it otherwise. */
+      'frame-src https://www.youtube-nocookie.com',
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"

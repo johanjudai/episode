@@ -3,7 +3,7 @@
  * synchronous Drizzle SQLite driver (better-sqlite3 on the server, sql.js
  * in the browser, op-sqlite/Capacitor SQLite on mobile if we add them).
  */
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, lte, sql } from 'drizzle-orm';
 import type { Db } from './db-types';
 import type { Episode, Series } from './schema';
 import { episodes, series, settings, watched } from './schema';
@@ -92,7 +92,10 @@ export async function getUpcomingEpisodes(
     .from(episodes)
     .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
     .where(
-      and(isNull(series.removedAt), gte(episodes.airDate, today), lte(episodes.airDate, endIso))
+      /* Strict `gt today` — episodes airing today belong in "À voir
+       * maintenant" via getEpisodesToWatch (which uses lte today),
+       * so showing them in "À venir" was double-listing. */
+      and(isNull(series.removedAt), gt(episodes.airDate, today), lte(episodes.airDate, endIso))
     )
     .orderBy(asc(episodes.airDate))
     .all();

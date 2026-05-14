@@ -359,11 +359,15 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
     describe('getUpcomingEpisodes', () => {
       const now = new Date('2026-05-11T12:00:00Z');
 
-      it('returns episodes airing today through today+N days', async () => {
+      it('returns episodes strictly after today through today+N days', async () => {
         await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
         seedSeason(1, 1, 4, ['2026-05-10', '2026-05-11', '2026-05-15', '2026-05-25']);
         const rows = await getUpcomingEpisodes(ctx.db, 7, now);
-        expect(rows.map((r) => r.airDate)).toEqual(['2026-05-11', '2026-05-15']);
+        /* 2026-05-10 = past → excluded.
+         * 2026-05-11 = today → excluded (belongs to "À voir maintenant").
+         * 2026-05-15 = within 7-day window → kept.
+         * 2026-05-25 = past 7-day window → excluded. */
+        expect(rows.map((r) => r.airDate)).toEqual(['2026-05-15']);
       });
 
       it('excludes unfollowed series', async () => {

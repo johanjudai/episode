@@ -1,8 +1,12 @@
 name: ci
 
+# Triggered on PR only — branch protection (rulesets) now prevents
+# direct pushes to main and staging, so the `push` event would only
+# fire on merges, which already passed CI via the PR check. The
+# release-apk workflow re-runs lint + check + unit tests as part of
+# the APK build on push to main, providing the post-merge sanity
+# check separately.
 on:
-  push:
-    branches: [main, staging]
   pull_request:
     branches: [main, staging]
 
