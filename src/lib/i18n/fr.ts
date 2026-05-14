@@ -202,6 +202,7 @@ export const fr = {
     omdbFailed: 'Validation OMDb échouée',
     appearance: 'Apparence',
     language: 'Langue',
+    localeResyncing: 'Mise à jour des titres en cours…',
     theme: 'Thème',
     themeAuto: 'Auto',
     themeLight: 'Clair',

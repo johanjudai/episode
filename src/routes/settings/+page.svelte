@@ -88,14 +88,33 @@
     document.documentElement.style.fontSize = textSize + 'px';
   }
 
+  let localeResyncing = $state(false);
+
   async function chooseLocale(value: Locale) {
     if ($locale === value) return;
     locale.set(value);
     try {
       await api.updateLocale(value);
+      /* The TMDB-cached strings (series names, season titles, episode
+       * titles, overviews) were stored in the previous language. Kick
+       * off a full re-sync of every followed series in the new locale
+       * before invalidating, so the lists don't render half-French
+       * half-English. The spinner indicator below the picker tells
+       * the user the catalogue is updating. */
+      localeResyncing = true;
+      try {
+        await api.resyncAllForLocale();
+      } catch {
+        /* Per-series failures inside the helper are already swallowed.
+         * A top-level throw here would be a network/auth issue — fall
+         * through to invalidateAll so the locale flip still applies
+         * to UI strings even if TMDB couldn't be reached. */
+      }
       await invalidateAll();
     } catch {
       /* non-fatal, persistence will retry next time */
+    } finally {
+      localeResyncing = false;
     }
   }
 
@@ -395,15 +414,22 @@
           class="theme-picker__opt"
           aria-pressed={$locale === 'fr'}
           onclick={() => chooseLocale('fr')}
-          type="button">{$t('locale.fr')}</button
+          type="button"
+          disabled={localeResyncing}>{$t('locale.fr')}</button
         >
         <button
           class="theme-picker__opt"
           aria-pressed={$locale === 'en'}
           onclick={() => chooseLocale('en')}
-          type="button">{$t('locale.en')}</button
+          type="button"
+          disabled={localeResyncing}>{$t('locale.en')}</button
         >
       </div>
+      {#if localeResyncing}
+        <span class="field__help" aria-live="polite" style="margin-top: var(--s-2); display: block"
+          >{$t('settings.localeResyncing')}</span
+        >
+      {/if}
     </div>
     <div class="field">
       <span class="field__label">{$t('settings.theme')}</span>

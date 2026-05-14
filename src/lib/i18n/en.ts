@@ -200,6 +200,7 @@ export const en: Dict = {
     omdbFailed: 'OMDb validation failed',
     appearance: 'Appearance',
     language: 'Language',
+    localeResyncing: 'Refreshing series titles…',
     theme: 'Theme',
     themeAuto: 'Auto',
     themeLight: 'Light',
