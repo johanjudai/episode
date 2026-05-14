@@ -823,6 +823,34 @@ a {
   font-weight: 600;
 }
 
+/* Discreet inline link in a section title — used by the home page to
+ * point at the history page now that the recent block is gone from
+ * the timeline. Sits at the right end of the section title bar with
+ * a hairline underline that strengthens on hover. */
+.section__link {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  padding-bottom: 1px;
+  transition:
+    color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.section__link:hover,
+.section__link:focus-visible {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+  outline: none;
+}
+/* When the .section__count badge is also present we want the link to
+ * sit to the right of it, not push the badge away from the title. */
+.section__count + .section__link {
+  margin-left: var(--s-3);
+}
+
 /* Numeric badge variant — used for the "À voir maintenant" count.
  * A small filled blue square with the number inside, echoing the
  * Bauhaus square in the navbar / brand mark. */
@@ -859,36 +887,13 @@ a {
 .home-section--upcoming .section__title::before {
   background: var(--bw-yellow);
 }
-.home-section--recent {
-  background: color-mix(in srgb, var(--muted) 12%, var(--bg));
-  color: var(--muted);
-}
-.home-section--recent .section {
-  padding: var(--s-3) var(--s-4) var(--s-2);
-}
-.home-section--recent .section__title {
-  color: var(--fg);
-}
-.home-section--recent .section__title::before {
-  background: var(--muted);
-}
-.home-section--recent strong {
-  color: var(--fg);
-}
-.home-section--recent .ep-date,
-.home-section--recent .history__time {
-  color: var(--muted);
-}
 [data-theme='dark'] .home-section--upcoming {
   background: color-mix(in srgb, var(--bw-yellow) 8%, var(--bg));
 }
-[data-theme='dark'] .home-section--recent {
-  background: color-mix(in srgb, var(--fg) 6%, var(--bg));
-}
 
-/* Timeline markers — the thin bands that announce the direction
- * of scroll above/below "À voir maintenant" so the user understands
- * the past lives upward and the future downward. */
+/* Timeline marker — thin band announcing the downward direction of
+ * upcoming episodes, sandwiched between toWatch and upcoming. (The
+ * upward marker was removed alongside the home recent section.) */
 .timeline-marker {
   display: flex;
   align-items: center;
@@ -907,31 +912,8 @@ a {
   align-items: center;
   gap: 6px;
 }
-.timeline-marker--up {
-  border-bottom: 1px dashed var(--border);
-  background: color-mix(in srgb, var(--muted) 8%, var(--bg));
-}
 .timeline-marker--down {
   border-top: 1px dashed var(--border);
-}
-
-/* Sentinel used by the IntersectionObserver — needs to be in the
- * flow with a tiny height so it can be observed. Invisible to the
- * user. */
-.timeline-sentinel {
-  height: 1px;
-  width: 100%;
-  pointer-events: none;
-}
-
-.timeline-loader {
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-  padding: var(--s-2);
 }
 
 /* Episode row */
@@ -1128,6 +1110,41 @@ a {
 /* Upcoming */
 .upcoming {
   padding: 0 var(--s-4);
+}
+
+/* Toggle button at the bottom of the upcoming list — expands the
+ * window from 7 days (the default) to the full 90-day load, or
+ * collapses back. Discreet: text-only, full-width tap target, hair-
+ * line top border picks up where the last upcoming row's border
+ * leaves off. */
+.upcoming__expand {
+  appearance: none;
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-top: 1px dashed var(--border);
+  padding: var(--s-3) var(--s-4);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-align: center;
+  transition:
+    color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.upcoming__expand:hover,
+.upcoming__expand:focus-visible {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+  outline: none;
+}
+.upcoming__expand:active {
+  transform: scale(0.98);
 }
 
 .upcoming__row {
@@ -1838,33 +1855,6 @@ a {
   color: var(--muted);
 }
 
-/* Compact one-liner — used on the home page so "Vu récemment" doesn't
- * dominate the viewport. Each row is a single horizontal line:
- *   • Series   S01E04                                Hier
- */
-.history--compact li {
-  padding: var(--s-2) var(--s-4);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.8rem;
-}
-.history--compact li:last-child {
-  border-bottom: 0;
-}
-.history__line {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--s-2);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.history__line strong {
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .history__code {
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -2704,38 +2694,32 @@ a {
 }
 .swipe-row,
 .upcoming__row,
-.history--compact li,
 .season,
 .rating-card {
   animation: row-in var(--dur-base) var(--ease-decelerated) both;
 }
 .swipe-row:nth-child(1),
 .upcoming__row:nth-child(1),
-.history--compact li:nth-child(1),
 .rating-card:nth-child(1) {
   animation-delay: 0ms;
 }
 .swipe-row:nth-child(2),
 .upcoming__row:nth-child(2),
-.history--compact li:nth-child(2),
 .rating-card:nth-child(2) {
   animation-delay: 40ms;
 }
 .swipe-row:nth-child(3),
 .upcoming__row:nth-child(3),
-.history--compact li:nth-child(3),
 .rating-card:nth-child(3) {
   animation-delay: 80ms;
 }
 .swipe-row:nth-child(4),
 .upcoming__row:nth-child(4),
-.history--compact li:nth-child(4),
 .rating-card:nth-child(4) {
   animation-delay: 120ms;
 }
 .swipe-row:nth-child(n + 5),
-.upcoming__row:nth-child(n + 5),
-.history--compact li:nth-child(n + 5) {
+.upcoming__row:nth-child(n + 5) {
   animation-delay: 160ms;
 }
 
@@ -2793,7 +2777,6 @@ a {
 /* — Reduced motion respects --------------------------------- */
 [data-motion='reduced'] .swipe-row,
 [data-motion='reduced'] .upcoming__row,
-[data-motion='reduced'] .history--compact li,
 [data-motion='reduced'] .season,
 [data-motion='reduced'] .rating-card,
 [data-motion='reduced'] .stat,

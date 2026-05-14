@@ -34,29 +34,6 @@ async function withLocalDb<T>(fn: (db: import('./data/db-types').Db) => Promise<
   return fn(db);
 }
 
-/** Paginated "Vu récemment" fetch. Used by the home page's scroll-up
- *  infinite loader. Server target hits /api/recent; local target reads
- *  from sql.js directly. */
-export async function fetchRecent(
-  offset: number,
-  limit = 5
-): Promise<import('./data/queries').WatchedRow[]> {
-  if (IS_LOCAL) {
-    return withLocalDb(async (db) => {
-      const q = await import('./data/queries');
-      return q.getRecentWatched(db, limit, offset);
-    });
-  }
-  const res = await fetch(`/api/recent?offset=${offset}&limit=${limit}`);
-  if (!res.ok) throw new Error(`Recent fetch failed: ${res.status}`);
-  const body = (await res.json()) as { rows: import('./data/queries').WatchedRow[] };
-  /* Date fields cross JSON as ISO strings — rehydrate. */
-  return body.rows.map((r) => ({
-    ...r,
-    watchedAt: new Date(r.watchedAt)
-  }));
-}
-
 export interface FollowSeriesPayload {
   tmdbId: number;
   apiKey: string;

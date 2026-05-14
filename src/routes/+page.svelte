@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { onMount, tick } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import { fade, scale } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
@@ -13,19 +12,43 @@
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
   import * as api from '$lib/api';
-  import type { WatchedRow } from '$lib/data/queries';
-  import { t, locale, localeCode } from '$lib/i18n';
+  import { t } from '$lib/i18n';
 
   let { data }: PageProps = $props();
 
   const today = $derived(new Date(data.now));
   const todayLabel = $derived(formatDateShortFr(today));
 
+  /* Upcoming-window toggle. The server load fetches a 90-day window;
+   * the UI defaults to the next 7 days and lets the user expand to
+   * the full window with a single click. Slicing client-side avoids
+   * an extra round-trip on toggle. */
+  const DEFAULT_DAYS = 7;
+  const EXPANDED_DAYS = 90;
+  let upcomingExpanded = $state(false);
+  const upcomingCutoffIso = $derived.by(() => {
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() + (upcomingExpanded ? EXPANDED_DAYS : DEFAULT_DAYS));
+    return cutoff.toISOString().slice(0, 10);
+  });
+  const visibleUpcoming = $derived(
+    data.upcoming.filter((ep) => (ep.airDate ?? '') <= upcomingCutoffIso)
+  );
+  const hiddenUpcomingCount = $derived(data.upcoming.length - visibleUpcoming.length);
+
+  /* `data.recent` is still loaded server-side (and on the local target)
+   * so we can distinguish "fresh user with no series followed" from
+   * "user who has watched everything they follow" in the empty-state
+   * branch below. The full list itself is no longer rendered on the
+   * home page — it lives on /history and stays one tap away via the
+   * `home.viewHistory` link in the toWatch section header. */
+  const hasHistory = $derived(data.recent.length > 0);
+
   let removeModal = $state<null | { seriesTmdbId: number; seriesName: string }>(null);
 
   /* Modal shape accepts either a toWatch row or an upcoming row — both
    * carry the fields the popup needs. The structural type matches any
-   * episode-like with seriesName, sothat we can open the modal from
+   * episode-like with seriesName, so that we can open the modal from
    * either home section. */
   type EpisodeModalData = {
     seriesName: string;
@@ -65,129 +88,6 @@
   function cancelUnfollow() {
     removeModal = null;
   }
-
-  function relativeRecent(ms: number, now: Date): string {
-    const diff = Math.max(0, now.getTime() - ms);
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return $t('date.relativeNow');
-    if (mins < 60) return $t('date.relativeMinutes', { n: mins });
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return $t('date.relativeHours', { n: hours });
-    const days = Math.floor(hours / 24);
-    if (days === 1) return $t('date.relativeYesterday');
-    if (days < 7) return $t('date.relativeDays', { n: days });
-    return new Date(ms).toLocaleDateString(localeCode($locale), {
-      day: 'numeric',
-      month: 'short'
-    });
-  }
-
-  /* ──────────────────────────────────────────────────────────────
-   * Timeline: past flows up, future flows down
-   * ──────────────────────────────────────────────────────────────
-   * The page is a vertical timeline. "À voir maintenant" is the
-   * anchor — we scroll the user there on mount. Above it, the
-   * "Vu récemment" section sits with items in CHRONO-ASC order
-   * (oldest at top, most recently watched just before À voir).
-   * Below À voir, "À venir" lists future episodes. Scroll up =
-   * past, scroll down = future.
-   *
-   * Pagination: 5 items loaded initially. An IntersectionObserver
-   * on a sentinel at the top of the recent list fetches the next
-   * 5 older entries when the user scrolls up to that boundary.
-   * Scroll position is preserved by anchoring on `scrollHeight -
-   * scrollY` before/after prepending — otherwise the viewport
-   * jumps as new rows appear above. */
-
-  /* Display order: newest at the bottom (closest to À voir), oldest
-   * at the top. The query returns DESC by watchedAt; we reverse for
-   * the timeline metaphor.
-   *
-   *  - `baseRows` is derived from the server-fetched first page;
-   *    it auto-updates after `invalidateAll()`.
-   *  - `extraRows` holds older items loaded via the scroll-up
-   *    pagination. Reset to [] whenever `data.recent` changes,
-   *    so a freshly-marked episode doesn't create duplicates with
-   *    a stale paginated tail. */
-  let baseRows = $derived([...data.recent].reverse());
-  let extraRows = $state<WatchedRow[]>([]);
-  let loadingMore = $state(false);
-  /* `paginationExhausted` flips to true only after a fetch returns fewer
-   * than the requested batch. We OR it with "first page didn't fill",
-   * so `allLoaded` is the single source of truth in the template. */
-  let paginationExhausted = $state(false);
-  let allLoaded = $derived(data.recent.length < 5 || paginationExhausted);
-  let recentRows = $derived([...extraRows, ...baseRows]);
-
-  $effect(() => {
-    /* Track data.recent — reset pagination on every refetch. */
-    void data.recent;
-    extraRows = [];
-    paginationExhausted = false;
-  });
-
-  let toWatchRef: HTMLElement | undefined = $state();
-  let recentTopSentinel: HTMLElement | undefined = $state();
-
-  async function loadOlder() {
-    if (loadingMore || allLoaded) return;
-    loadingMore = true;
-    try {
-      const batch = await api.fetchRecent(recentRows.length, 5);
-      if (batch.length === 0) {
-        paginationExhausted = true;
-        return;
-      }
-      /* Preserve the scroll position: capture the distance from the
-       * top of the viewport to the BOTTOM of the document, then
-       * restore it after the new rows have been prepended. The
-       * visible content under the user's eye stays put. */
-      const root = document.documentElement;
-      const offsetFromBottom = root.scrollHeight - window.scrollY;
-      /* Newest first in batch (DESC). Reversed and prepended so the
-       * OLDER item ends up at the very top. */
-      extraRows = [...batch.slice().reverse(), ...extraRows];
-      if (batch.length < 5) paginationExhausted = true;
-      await tick();
-      window.scrollTo({ top: root.scrollHeight - offsetFromBottom });
-    } finally {
-      loadingMore = false;
-    }
-  }
-
-  onMount(() => {
-    let io: IntersectionObserver | undefined;
-    /* onMount cannot be async if we also need a cleanup return, so
-     * we kick off the setup work asynchronously and let the cleanup
-     * close over `io`. */
-    void (async () => {
-      await tick();
-      /* Initial scroll: position "À voir maintenant" at the top of the
-       * viewport (just under the sticky topbar). Done in two ticks
-       * because layout shifts after fonts load can change geometry. */
-      function settle() {
-        if (!toWatchRef) return;
-        const top = window.scrollY + toWatchRef.getBoundingClientRect().top;
-        // eslint-disable-next-line no-undef
-        window.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
-      }
-      settle();
-      requestAnimationFrame(settle);
-
-      if (recentTopSentinel && recentRows.length > 0 && !allLoaded) {
-        io = new IntersectionObserver(
-          (entries) => {
-            for (const e of entries) {
-              if (e.isIntersecting) void loadOlder();
-            }
-          },
-          { rootMargin: '200px 0px 0px 0px' }
-        );
-        io.observe(recentTopSentinel);
-      }
-    })();
-    return () => io?.disconnect();
-  });
 </script>
 
 <svelte:head><title>{$t('home.title')}</title></svelte:head>
@@ -201,50 +101,19 @@
     <div class="topbar__date">{todayLabel}</div>
   </header>
 
-  {#if recentRows.length > 0}
-    <section class="home-section home-section--recent">
-      <div bind:this={recentTopSentinel} class="timeline-sentinel" aria-hidden="true"></div>
-      {#if loadingMore}
-        <div class="timeline-loader" aria-live="polite">{$t('common.loading')}</div>
-      {/if}
-      <ul class="history history--compact">
-        {#each recentRows as r (r.episodeId)}
-          <li>
-            <span class="history__dot" aria-hidden="true"></span>
-            <a
-              class="history__line"
-              href={`/series/${r.seriesTmdbId}`}
-              style="text-decoration: none; color: inherit"
-            >
-              <strong>{r.seriesName}</strong>
-              <span class="history__code">{formatEpisodeCode(r.seasonNumber, r.episodeNumber)}</span
-              >
-            </a>
-            <span class="history__time"
-              >{relativeRecent(new Date(r.watchedAt).getTime(), today)}</span
-            >
-          </li>
-        {/each}
-      </ul>
-    </section>
-    <FloralDivider />
-  {/if}
-
-  <section bind:this={toWatchRef} class="home-section home-section--now">
-    {#if recentRows.length > 0}
-      <div class="timeline-marker timeline-marker--up" aria-hidden="true">
-        <span>{$t('home.pastMarker')}</span>
-      </div>
-    {/if}
+  <section class="home-section home-section--now">
     <div class="section">
       <div class="section__title">
         {$t('home.toWatchTitle')}
         <span class="section__count section__count--badge">{data.toWatch.length}</span>
+        {#if hasHistory}
+          <a class="section__link" href="/history">{$t('home.viewHistory')}</a>
+        {/if}
       </div>
     </div>
 
     {#if data.toWatch.length === 0}
-      {#if data.upcoming.length === 0 && recentRows.length === 0}
+      {#if data.upcoming.length === 0 && !hasHistory}
         <!-- Fresh user — no series yet. Steer them to the search. -->
         <OrnateFrame>
           <div class="empty empty--cta">
@@ -294,11 +163,15 @@
       <div class="section">
         <div class="section__title">
           {$t('home.upcomingTitle')}
-          <span class="section__count">{$t('home.upcomingWindow')}</span>
+          <span class="section__count"
+            >{upcomingExpanded
+              ? $t('home.upcomingWindowExpanded')
+              : $t('home.upcomingWindow')}</span
+          >
         </div>
       </div>
       <div class="upcoming">
-        {#each data.upcoming as ep (ep.id)}
+        {#each visibleUpcoming as ep (ep.id)}
           {@const d = formatDayShortFr(ep.airDate ?? '')}
           <div class="upcoming__row">
             <div class="upcoming__day" aria-hidden="true">{d.weekday}<strong>{d.day}</strong></div>
@@ -320,6 +193,15 @@
           </div>
         {/each}
       </div>
+      {#if !upcomingExpanded && hiddenUpcomingCount > 0}
+        <button class="upcoming__expand" type="button" onclick={() => (upcomingExpanded = true)}>
+          {$t('home.upcomingSeeMore', { n: hiddenUpcomingCount })}
+        </button>
+      {:else if upcomingExpanded}
+        <button class="upcoming__expand" type="button" onclick={() => (upcomingExpanded = false)}>
+          {$t('home.upcomingSeeLess')}
+        </button>
+      {/if}
     </section>
   {/if}
 
