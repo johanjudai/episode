@@ -179,19 +179,36 @@ export interface UpsertSeasonInput {
   posterPath?: string | null;
 }
 
-export async function upsertSeason(db: Db, input: UpsertSeasonInput): Promise<number> {
-  db.insert(seasons)
-    .values({
-      seriesTmdbId: input.seriesTmdbId,
-      tmdbId: input.tmdbId ?? null,
-      seasonNumber: input.seasonNumber,
-      name: input.name ?? null,
-      airDate: input.airDate ?? null,
-      episodeCount: input.episodeCount ?? null,
-      posterPath: input.posterPath ?? null
-    })
-    .onConflictDoNothing()
-    .run();
+export async function upsertSeason(
+  db: Db,
+  input: UpsertSeasonInput,
+  opts: { refresh?: boolean } = {}
+): Promise<number> {
+  const values = {
+    seriesTmdbId: input.seriesTmdbId,
+    tmdbId: input.tmdbId ?? null,
+    seasonNumber: input.seasonNumber,
+    name: input.name ?? null,
+    airDate: input.airDate ?? null,
+    episodeCount: input.episodeCount ?? null,
+    posterPath: input.posterPath ?? null
+  };
+  /* In refresh mode (locale change re-sync) update the row instead of
+   * skipping the conflict — that's the only way the localized name,
+   * air_date and poster swap when the user toggles fr ↔ en. The
+   * default path stays no-op-on-conflict so a routine ensure-row from
+   * markEpisode doesn't burn an extra WRITE per call. */
+  if (opts.refresh) {
+    db.insert(seasons)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [seasons.seriesTmdbId, seasons.seasonNumber],
+        set: values
+      })
+      .run();
+  } else {
+    db.insert(seasons).values(values).onConflictDoNothing().run();
+  }
 
   const row = db
     .select({ id: seasons.id })
@@ -220,21 +237,33 @@ export interface UpsertEpisodeInput {
   stillPath?: string | null;
 }
 
-export async function upsertEpisode(db: Db, input: UpsertEpisodeInput): Promise<void> {
-  db.insert(episodes)
-    .values({
-      seasonId: input.seasonId,
-      seriesTmdbId: input.seriesTmdbId,
-      tmdbId: input.tmdbId ?? null,
-      seasonNumber: input.seasonNumber,
-      episodeNumber: input.episodeNumber,
-      name: input.name ?? null,
-      airDate: input.airDate ?? null,
-      runtimeMinutes: input.runtimeMinutes ?? null,
-      stillPath: input.stillPath ?? null
-    })
-    .onConflictDoNothing()
-    .run();
+export async function upsertEpisode(
+  db: Db,
+  input: UpsertEpisodeInput,
+  opts: { refresh?: boolean } = {}
+): Promise<void> {
+  const values = {
+    seasonId: input.seasonId,
+    seriesTmdbId: input.seriesTmdbId,
+    tmdbId: input.tmdbId ?? null,
+    seasonNumber: input.seasonNumber,
+    episodeNumber: input.episodeNumber,
+    name: input.name ?? null,
+    airDate: input.airDate ?? null,
+    runtimeMinutes: input.runtimeMinutes ?? null,
+    stillPath: input.stillPath ?? null
+  };
+  if (opts.refresh) {
+    db.insert(episodes)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [episodes.seriesTmdbId, episodes.seasonNumber, episodes.episodeNumber],
+        set: values
+      })
+      .run();
+  } else {
+    db.insert(episodes).values(values).onConflictDoNothing().run();
+  }
 }
 
 export async function getEpisodeIdByCoords(

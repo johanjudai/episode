@@ -17,14 +17,23 @@ async function readApiKey(): Promise<string> {
   return key;
 }
 
+/* Map the stored locale ('fr' | 'en') to the BCP-47 language code TMDB
+ * accepts. Fallback to fr-FR matches the previous (locale-agnostic)
+ * behaviour for users who haven't picked a language yet. */
+async function readLanguage(): Promise<string> {
+  const db = await getDb();
+  const locale = await getSetting(db, 'locale');
+  return locale === 'en' ? 'en-US' : 'fr-FR';
+}
+
 export async function syncSeriesFull(tmdbId: number, opts: sync.SyncOptions = {}): Promise<void> {
-  const [db, apiKey] = await Promise.all([getDb(), readApiKey()]);
-  await sync.syncSeriesFull(db, apiKey, tmdbId, opts);
+  const [db, apiKey, language] = await Promise.all([getDb(), readApiKey(), readLanguage()]);
+  await sync.syncSeriesFull(db, apiKey, tmdbId, { language, ...opts });
 }
 
 export async function syncSeasonRow(seriesTmdbId: number, seasonNumber: number): Promise<void> {
-  const [db, apiKey] = await Promise.all([getDb(), readApiKey()]);
-  await sync.syncSeason(db, apiKey, seriesTmdbId, seasonNumber);
+  const [db, apiKey, language] = await Promise.all([getDb(), readApiKey(), readLanguage()]);
+  await sync.syncSeason(db, apiKey, seriesTmdbId, seasonNumber, { language });
 }
 
 export async function syncEpisodeRow(
@@ -32,6 +41,22 @@ export async function syncEpisodeRow(
   seasonNumber: number,
   episodeNumber: number
 ): Promise<void> {
-  const [db, apiKey] = await Promise.all([getDb(), readApiKey()]);
-  await sync.ensureEpisodeRow(db, apiKey, seriesTmdbId, seasonNumber, episodeNumber);
+  const [db, apiKey, language] = await Promise.all([getDb(), readApiKey(), readLanguage()]);
+  await sync.ensureEpisodeRow(db, apiKey, seriesTmdbId, seasonNumber, episodeNumber, { language });
+}
+
+/* Locale-switch re-sync — iterate every followed series and refresh
+ * its TMDB-localized fields. Sequential across series to stay polite
+ * with TMDB's rate limit; per-series the seasons are parallelized by
+ * syncSeriesFull. */
+export async function resyncAllForLocale(): Promise<{ count: number }> {
+  const [db, apiKey, language] = await Promise.all([getDb(), readApiKey(), readLanguage()]);
+  const { getFollowedSeries } = await import('./data/queries');
+  const followed = await getFollowedSeries(db);
+  for (const s of followed) {
+    await sync.syncSeriesFull(db, apiKey, s.tmdbId, { language, refresh: true }).catch(() => {
+      /* Per-series failures are silent — the next mark/visit will retry. */
+    });
+  }
+  return { count: followed.length };
 }

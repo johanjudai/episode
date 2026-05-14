@@ -246,6 +246,26 @@ export async function updateLocale(locale: 'fr' | 'en'): Promise<void> {
   await postJson('/api/settings/locale', { locale });
 }
 
+/**
+ * Refresh every followed series' TMDB-cached strings (titles, season
+ * names, episode names, overviews) with the current locale. Called by
+ * the settings page after a locale switch so series and episode names
+ * actually swap from FR to EN (or vice-versa) instead of staying in
+ * whatever language was active at sync time.
+ *
+ * Returns the count of series re-synced so the UI can confirm the
+ * operation. Failures per series are silent — the next visit on the
+ * affected series will retry transparently.
+ */
+export async function resyncAllForLocale(): Promise<{ count: number }> {
+  if (IS_LOCAL) {
+    const { resyncAllForLocale: localResync } = await import('./local-sync');
+    return localResync();
+  }
+  const body = (await postJson('/api/resync-all', {})) as { count: number };
+  return body;
+}
+
 export async function completeOnboarding(name: string, avatar: string): Promise<void> {
   if (IS_LOCAL) {
     await withLocalDb(async (db) => {
