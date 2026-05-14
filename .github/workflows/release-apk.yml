@@ -1,26 +1,28 @@
 name: release-apk
 
-# Builds the Android APK and uploads it to a GitHub Release.
+# Builds the Android APK.
 #
 #  - Push a `v*` tag (e.g. `git tag v0.1.0 && git push --tags`) → the
-#    APK becomes a downloadable asset on the matching Release page,
-#    with auto-generated changelog from commit messages.
-#  - Trigger manually from the Actions tab → the APK is dropped as a
-#    workflow artifact (retained 30 days) instead of a release.
+#    APK is RELEASE-signed (if the keystore secrets are configured)
+#    and uploaded as a downloadable asset on the matching GitHub
+#    Release, with auto-generated changelog.
+#  - Push to `main` (every merge from staging) → an unsigned DEBUG
+#    APK is uploaded as a workflow artifact (retention 30 days). Lets
+#    you sideload the latest tip without making a formal release.
+#  - Trigger manually from the Actions tab → same DEBUG-artifact
+#    behaviour as a push to main.
 #
 # Signing:
-#  - If the four ANDROID_KEYSTORE_* secrets are configured on the
-#    repository, the workflow decodes the keystore and produces a
-#    proper RELEASE-signed APK (sideloads without "unknown source"
-#    warnings on Android 8+, ready for Play Store / F-Droid).
-#  - If any secret is missing, the workflow falls back to a DEBUG
-#    APK so the pipeline still works on forks and during the initial
-#    bootstrap before a keystore is generated.
+#  - Only TAG pushes are eligible for the release-signed path. Other
+#    triggers always produce a debug APK, so day-to-day merges don't
+#    burn through release-signed builds.
 
 on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -100,8 +102,12 @@ jobs:
           echo "version_code=$VERSION_CODE"  | tee -a "$GITHUB_OUTPUT"
           echo "tag_label=$TAG_LABEL"        | tee -a "$GITHUB_OUTPUT"
 
-      - name: Decode release keystore (if configured)
+      - name: Decode release keystore (tag pushes only)
         id: keystore
+        # Only tag pushes get the signed-release treatment. Push-to-
+        # main and manual dispatch always produce a debug APK so daily
+        # merges from staging don't churn out signed builds.
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -167,8 +173,8 @@ jobs:
         if: always() && steps.keystore.outputs.signed == 'true'
         run: rm -f android/app/release.keystore
 
-      - name: Upload as workflow artifact (manual runs)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload as workflow artifact (push-to-main + manual)
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.rename.outputs.apk_name }}

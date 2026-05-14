@@ -1,0 +1,31 @@
+name: guard-main
+
+# Enforces the branch-flow discipline: only PRs originating from the
+# `staging` branch may target `main`. Feature/fix branches must first
+# be merged into staging via their own PR.
+#
+# This workflow is wired as a *required status check* on the main
+# branch protection rule, so a non-staging source PR cannot be merged
+# even though it can be opened.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-source-branch:
+    name: Verify PR source is staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "::error::PRs to main must come from the 'staging' branch."
+            echo "::error::This PR's source branch is '${{ github.head_ref }}'."
+            echo "::error::Merge your changes into staging first, then open a PR from staging to main."
+            exit 1
+          fi
+          echo "OK: source branch is staging."
