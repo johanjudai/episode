@@ -5,6 +5,7 @@
   import AvatarPicker from '$lib/components/AvatarPicker.svelte';
   import { initialOf } from '$lib/utils/format';
   import * as api from '$lib/api';
+  import { BackupImportError } from '$lib/data/backup';
   import ImportProgress from '$lib/components/ImportProgress.svelte';
   import { t, locale, type Locale } from '$lib/i18n';
   import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
@@ -33,6 +34,14 @@
   let importProgress = $state<api.TvTimeImportProgress | null>(null);
   let importSummary = $state<api.TvTimeImportSummary | null>(null);
   let importOverlayOpen = $state(false);
+
+  let backupExporting = $state(false);
+  let backupExportError = $state<string | null>(null);
+  let backupIncludeSecrets = $state(false);
+  let backupImportMode = $state<'merge' | 'replace'>('merge');
+  let backupStatus = $state<'' | 'success' | 'error'>('');
+  let backupMessage = $state<string | null>(null);
+  let backupConfirmFile = $state<File | null>(null);
 
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
   let palette = $state<PaletteChoice>('bauhaus');
@@ -219,6 +228,84 @@
     importOverlayOpen = false;
   }
 
+  async function doBackupExport() {
+    backupExporting = true;
+    backupExportError = null;
+    try {
+      const backup = await api.exportLocalData({ includeSecrets: backupIncludeSecrets });
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `episode-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      /* Defer revocation — Safari (and older WebKit-based browsers used
+       * by Capacitor) can cancel the download if the blob URL is
+       * revoked synchronously after click(). A setTimeout punt to the
+       * next tick is enough. */
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      backupExportError = err instanceof Error ? err.message : $t('common.error');
+    } finally {
+      backupExporting = false;
+    }
+  }
+
+  async function applyBackupImport(file: File) {
+    backupStatus = '';
+    backupMessage = null;
+    try {
+      const result = await api.importLocalData(file, {
+        mode: backupImportMode,
+        includeSecrets: backupIncludeSecrets
+      });
+      backupStatus = 'success';
+      backupMessage = $t('settings.backupResult', {
+        series: result.counts.series,
+        watched: result.counts.watched,
+        settings: result.counts.settings
+      });
+      await invalidateAll();
+    } catch (err) {
+      backupStatus = 'error';
+      backupMessage =
+        err instanceof BackupImportError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : $t('settings.backupBadFile');
+    }
+  }
+
+  async function onBackupImport(event: SubmitEvent) {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const file = (form.elements.namedItem('file') as HTMLInputElement | null)?.files?.[0];
+    if (!file) {
+      backupStatus = 'error';
+      backupMessage = $t('settings.fileRequired');
+      return;
+    }
+    if (backupImportMode === 'replace') {
+      /* Surface a confirmation modal-equivalent before destroying data.
+       * The user already opted in by picking the radio, but the act of
+       * uploading the file is the point of no return — make them
+       * acknowledge once more. */
+      backupConfirmFile = file;
+      return;
+    }
+    await applyBackupImport(file);
+  }
+
+  async function confirmReplaceImport() {
+    if (!backupConfirmFile) return;
+    const file = backupConfirmFile;
+    backupConfirmFile = null;
+    await applyBackupImport(file);
+  }
+
   $effect(loadPrefs);
 </script>
 
@@ -231,6 +318,7 @@
     <div style="width: 36px"></div>
   </header>
 
+  <!-- 1. THÈME — palette, clair/sombre, taille texte, accessibilité visuelle -->
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.palette')}</div>
     <div class="palette-picker" role="group" aria-label={$t('settings.palettePickerAria')}>
@@ -267,8 +355,80 @@
         <span class="palette-card__glyph palette-card__glyph--artnouveau" aria-hidden="true"></span>
       </button>
     </div>
+
+    <div class="field" style="margin-top: var(--s-5)">
+      <span class="field__label">{$t('settings.theme')}</span>
+      <div class="theme-picker" role="group" aria-label={$t('settings.themePickerAria')}>
+        <button
+          class="theme-picker__opt"
+          aria-pressed={theme === 'auto'}
+          onclick={() => setTheme('auto')}
+          type="button">{$t('settings.themeAuto')}</button
+        >
+        <button
+          class="theme-picker__opt"
+          aria-pressed={theme === 'light'}
+          onclick={() => setTheme('light')}
+          type="button">{$t('settings.themeLight')}</button
+        >
+        <button
+          class="theme-picker__opt"
+          aria-pressed={theme === 'dark'}
+          onclick={() => setTheme('dark')}
+          type="button">{$t('settings.themeDark')}</button
+        >
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-row__label">{$t('settings.textSize')}</div>
+        <small class="settings-row__help">{textSize}px</small>
+      </div>
+      <div class="row">
+        <button
+          class="iconbtn"
+          onclick={() => adjustTextSize(-1)}
+          aria-label={$t('settings.textSizeSmaller')}>A−</button
+        >
+        <button
+          class="iconbtn"
+          onclick={() => adjustTextSize(1)}
+          aria-label={$t('settings.textSizeBigger')}>A+</button
+        >
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-row__label">{$t('settings.reduceMotion')}</div>
+        <small class="settings-row__help">{$t('settings.reduceMotionHelp')}</small>
+      </div>
+      <button
+        class="toggle"
+        role="switch"
+        aria-checked={reduceMotion}
+        onclick={toggleMotion}
+        aria-label={$t('settings.reduceMotionAria')}
+      ></button>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-row__label">{$t('settings.highContrast')}</div>
+        <small class="settings-row__help">{$t('settings.highContrastHelp')}</small>
+      </div>
+      <button
+        class="toggle"
+        role="switch"
+        aria-checked={highContrast}
+        onclick={toggleContrast}
+        aria-label={$t('settings.highContrastAria')}
+      ></button>
+    </div>
   </section>
 
+  <!-- 2. PROFIL — nom, photo, langue -->
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.profile')}</div>
     <form onsubmit={saveName}>
@@ -312,10 +472,37 @@
         </p>
       {/if}
     </form>
+
+    <div class="field" style="margin-top: var(--s-5)">
+      <span class="field__label">{$t('settings.language')}</span>
+      <div class="theme-picker" role="group" aria-label={$t('locale.title')}>
+        <button
+          class="theme-picker__opt"
+          aria-pressed={$locale === 'fr'}
+          onclick={() => chooseLocale('fr')}
+          type="button"
+          disabled={localeResyncing}>{$t('locale.fr')}</button
+        >
+        <button
+          class="theme-picker__opt"
+          aria-pressed={$locale === 'en'}
+          onclick={() => chooseLocale('en')}
+          type="button"
+          disabled={localeResyncing}>{$t('locale.en')}</button
+        >
+      </div>
+      {#if localeResyncing}
+        <span class="field__help" aria-live="polite" style="margin-top: var(--s-2); display: block"
+          >{$t('settings.localeResyncing')}</span
+        >
+      {/if}
+    </div>
   </section>
 
+  <!-- 3. IMPORT/EXPORT — TV Time + sauvegarde locale JSON -->
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.data')}</div>
+
     <form onsubmit={importTvTime}>
       <div class="field">
         <label class="field__label" for="tvtime-file">{$t('settings.importTitle')}</label>
@@ -400,13 +587,84 @@
         </p>
       {/if}
     </form>
+
+    <div
+      style="margin-top: var(--s-5); border-top: 1px solid var(--bw-border); padding-top: var(--s-4)"
+    >
+      <div class="settings-row__label" style="margin-bottom: var(--s-2)">
+        {$t('settings.backupTitle')}
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row__label">{$t('settings.backupExport')}</div>
+          <small class="settings-row__help">{$t('settings.backupExportHelp')}</small>
+        </div>
+      </div>
+      <label class="settings-row" style="cursor: pointer">
+        <div>
+          <div class="settings-row__label">{$t('settings.backupIncludeSecrets')}</div>
+          <small class="settings-row__help">{$t('settings.backupIncludeSecretsHelp')}</small>
+        </div>
+        <input type="checkbox" bind:checked={backupIncludeSecrets} />
+      </label>
+      <button
+        class="btn btn--secondary btn--block"
+        type="button"
+        onclick={doBackupExport}
+        disabled={backupExporting}
+        style="margin-top: var(--s-3)"
+      >
+        {backupExporting ? $t('settings.backupExporting') : $t('settings.backupExport')}
+      </button>
+      {#if backupExportError}
+        <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
+          {backupExportError}
+        </p>
+      {/if}
+
+      <form onsubmit={onBackupImport} style="margin-top: var(--s-5)">
+        <div class="settings-row">
+          <div>
+            <div class="settings-row__label">{$t('settings.backupImport')}</div>
+            <small class="settings-row__help">{$t('settings.backupImportHelp')}</small>
+          </div>
+          <input type="file" name="file" accept=".json,application/json" required />
+        </div>
+        <div class="field" style="margin-top: var(--s-3)">
+          <label class="settings-row" style="cursor: pointer">
+            <div>
+              <div class="settings-row__label">{$t('settings.backupModeMerge')}</div>
+              <small class="settings-row__help">{$t('settings.backupModeMergeHelp')}</small>
+            </div>
+            <input type="radio" name="backupMode" value="merge" bind:group={backupImportMode} />
+          </label>
+          <label class="settings-row" style="cursor: pointer">
+            <div>
+              <div class="settings-row__label">{$t('settings.backupModeReplace')}</div>
+              <small class="settings-row__help">{$t('settings.backupModeReplaceHelp')}</small>
+            </div>
+            <input type="radio" name="backupMode" value="replace" bind:group={backupImportMode} />
+          </label>
+        </div>
+        <button class="btn btn--accent btn--block" type="submit" style="margin-top: var(--s-3)"
+          >{$t('settings.backupImport')}</button
+        >
+        {#if backupStatus === 'success' && backupMessage}
+          <p class="field__help" style="margin-top: var(--s-2)">{backupMessage}</p>
+        {/if}
+        {#if backupStatus === 'error' && backupMessage}
+          <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
+            {backupMessage}
+          </p>
+        {/if}
+      </form>
+    </div>
   </section>
 
   {#if !data.tmdb.fromEnv || !data.omdb.fromEnv}
-    <!-- Hide the whole API-keys section when BOTH TMDB and OMDb are
-         managed via .env on the server — there's nothing the user can
-         change here in that case. Individual forms are also hidden
-         when their respective key comes from .env. -->
+    <!-- Clés API — masquées entièrement si les deux clés viennent du .env du serveur,
+         sinon affichées sous import/export et avant À propos. -->
     <section class="settings-group">
       <div class="settings-group__title">{$t('settings.tmdbApi')}</div>
       {#if !data.tmdb.fromEnv}
@@ -483,105 +741,7 @@
     </section>
   {/if}
 
-  <section class="settings-group">
-    <div class="settings-group__title">{$t('settings.appearance')}</div>
-    <div class="field">
-      <span class="field__label">{$t('settings.language')}</span>
-      <div class="theme-picker" role="group" aria-label={$t('locale.title')}>
-        <button
-          class="theme-picker__opt"
-          aria-pressed={$locale === 'fr'}
-          onclick={() => chooseLocale('fr')}
-          type="button"
-          disabled={localeResyncing}>{$t('locale.fr')}</button
-        >
-        <button
-          class="theme-picker__opt"
-          aria-pressed={$locale === 'en'}
-          onclick={() => chooseLocale('en')}
-          type="button"
-          disabled={localeResyncing}>{$t('locale.en')}</button
-        >
-      </div>
-      {#if localeResyncing}
-        <span class="field__help" aria-live="polite" style="margin-top: var(--s-2); display: block"
-          >{$t('settings.localeResyncing')}</span
-        >
-      {/if}
-    </div>
-    <div class="field">
-      <span class="field__label">{$t('settings.theme')}</span>
-      <div class="theme-picker" role="group" aria-label={$t('settings.themePickerAria')}>
-        <button
-          class="theme-picker__opt"
-          aria-pressed={theme === 'auto'}
-          onclick={() => setTheme('auto')}
-          type="button">{$t('settings.themeAuto')}</button
-        >
-        <button
-          class="theme-picker__opt"
-          aria-pressed={theme === 'light'}
-          onclick={() => setTheme('light')}
-          type="button">{$t('settings.themeLight')}</button
-        >
-        <button
-          class="theme-picker__opt"
-          aria-pressed={theme === 'dark'}
-          onclick={() => setTheme('dark')}
-          type="button">{$t('settings.themeDark')}</button
-        >
-      </div>
-    </div>
-  </section>
-
-  <section class="settings-group">
-    <div class="settings-group__title">{$t('settings.a11y')}</div>
-    <div class="settings-row">
-      <div>
-        <div class="settings-row__label">{$t('settings.textSize')}</div>
-        <small class="settings-row__help">{textSize}px</small>
-      </div>
-      <div class="row">
-        <button
-          class="iconbtn"
-          onclick={() => adjustTextSize(-1)}
-          aria-label={$t('settings.textSizeSmaller')}>A−</button
-        >
-        <button
-          class="iconbtn"
-          onclick={() => adjustTextSize(1)}
-          aria-label={$t('settings.textSizeBigger')}>A+</button
-        >
-      </div>
-    </div>
-    <div class="settings-row">
-      <div>
-        <div class="settings-row__label">{$t('settings.reduceMotion')}</div>
-        <small class="settings-row__help">{$t('settings.reduceMotionHelp')}</small>
-      </div>
-      <button
-        class="toggle"
-        role="switch"
-        aria-checked={reduceMotion}
-        onclick={toggleMotion}
-        aria-label={$t('settings.reduceMotionAria')}
-      ></button>
-    </div>
-    <div class="settings-row">
-      <div>
-        <div class="settings-row__label">{$t('settings.highContrast')}</div>
-        <small class="settings-row__help">{$t('settings.highContrastHelp')}</small>
-      </div>
-      <button
-        class="toggle"
-        role="switch"
-        aria-checked={highContrast}
-        onclick={toggleContrast}
-        aria-label={$t('settings.highContrastAria')}
-      ></button>
-    </div>
-  </section>
-
+  <!-- 4. À PROPOS -->
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.about')}</div>
     <div class="settings-row">
@@ -597,6 +757,35 @@
       >
     </div>
   </section>
+
+  {#if backupConfirmFile}
+    <div
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="backup-replace-title"
+    >
+      <div class="modal">
+        <div class="modal__kicker">{$t('common.confirm')}</div>
+        <h2 class="modal__title" id="backup-replace-title">
+          {$t('settings.backupReplaceConfirmTitle')}
+        </h2>
+        <p class="modal__body">{$t('settings.backupReplaceConfirmBody')}</p>
+        <div class="modal__actions">
+          <button
+            class="btn btn--secondary"
+            type="button"
+            onclick={() => (backupConfirmFile = null)}
+          >
+            {$t('common.cancel')}
+          </button>
+          <button class="btn btn--accent" type="button" onclick={confirmReplaceImport}>
+            {$t('settings.backupReplaceConfirmAction')}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <div class="spacer"></div>
   <BottomNav current="profile" />
