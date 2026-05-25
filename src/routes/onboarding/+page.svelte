@@ -1,22 +1,46 @@
 <script lang="ts">
+  import type { PageProps } from './$types';
+  import { untrack } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import Mark from '$lib/components/Mark.svelte';
   import AvatarPicker from '$lib/components/AvatarPicker.svelte';
   import { initialOf } from '$lib/utils/format';
   import * as api from '$lib/api';
+  import ImportProgress from '$lib/components/ImportProgress.svelte';
   import { t, locale, type Locale } from '$lib/i18n';
   import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
+  import { importErrorKey } from '$lib/utils/import-progress';
   import OrnateFrame from '$lib/components/OrnateFrame.svelte';
+
+  let { data }: PageProps = $props();
 
   let name = $state('');
   let avatar = $state('');
   let palette = $state<PaletteChoice>('bauhaus');
-  let importFile = $state<File | null>(null);
-  let importPreview = $state<{ count: number } | null>(null);
-  let importError = $state<string | null>(null);
   let submitting = $state(false);
   let errorMsg = $state<string | null>(null);
   const initial = $derived(name ? initialOf(name) : '?');
+
+  /* Import-related state. The TMDB key field is shown only when the
+   * key isn't already managed (env or saved in settings). In local
+   * target there's never an env, so the user always sees it on
+   * first launch. */
+  let tmdbKey = $state('');
+  let importFile = $state<File | null>(null);
+  let importPassword = $state('');
+  let importProgress = $state<api.TvTimeImportProgress | null>(null);
+  let importSummary = $state<api.TvTimeImportSummary | null>(null);
+  let importOverlayOpen = $state(false);
+  /* Local state for the <details> open flag — using `open={expr}` would
+   * fight the user's manual toggle because every reactive update would
+   * write the attribute back. With bind:open + a local $state the
+   * user's interaction is preserved. `untrack` tells Svelte we only
+   * want the initial value (no later sync from the prop). */
+  let importDetailsOpen = $state(untrack(() => !data.tmdb.hasKey));
+  const needsTmdbKey = $derived(!data.tmdb.hasKey);
+  const importReady = $derived(
+    !!importFile && !!importPassword && (!needsTmdbKey || !!tmdbKey.trim())
+  );
 
   $effect(() => {
     palette = readStoredPalette();
@@ -35,27 +59,9 @@
     void api.updateLocale(value).catch(() => undefined);
   }
 
-  async function onFileChange(event: Event) {
-    importError = null;
-    importPreview = null;
+  function onFileChange(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
     importFile = file;
-    if (!file) return;
-    try {
-      const { parseTvTimeExport } = await import('$lib/data/tvtime-import');
-      const text = await file.text();
-      const entries = parseTvTimeExport(text);
-      importPreview = { count: entries.length };
-    } catch (err) {
-      importError = err instanceof Error ? err.message : $t('onboarding.importBadFile');
-      importFile = null;
-    }
-  }
-
-  function clearFile() {
-    importFile = null;
-    importPreview = null;
-    importError = null;
   }
 
   async function finalize(withImport: boolean) {
@@ -66,26 +72,61 @@
     }
     submitting = true;
     errorMsg = null;
+    importProgress = null;
+    importSummary = null;
     try {
-      if (withImport && importFile) await api.importTvTime(importFile);
+      /* Save TMDB key first if the user typed one — we need it for the
+       * import to resolve series, and persisting before the import
+       * means a later retry in Settings already has the key in place. */
+      if (withImport && needsTmdbKey && tmdbKey.trim()) {
+        await api.updateTmdbKey(tmdbKey.trim());
+      }
+
+      /* Persist the profile early so the user is "logged in" even if
+       * the import fails halfway. They can retry from Settings → Data. */
       await api.completeOnboarding(name.trim(), avatar);
+
+      if (withImport && importFile && importPassword) {
+        importOverlayOpen = true;
+        const summary = await api.importTvTime(importFile, importPassword, (p) => {
+          importProgress = p;
+        });
+        importSummary = summary;
+        /* When the overlay's CTA fires, the user lands on the home
+         * page. We don't redirect immediately so they can read the
+         * "all set" celebration first. */
+        return;
+      }
+
       await invalidateAll();
       await goto('/');
     } catch (err) {
-      errorMsg = err instanceof Error ? err.message : $t('common.error');
+      errorMsg =
+        err instanceof api.ImportError
+          ? $t(importErrorKey(err.code))
+          : err instanceof Error
+            ? err.message
+            : $t('common.error');
       submitting = false;
+      importOverlayOpen = false;
+      importProgress = null;
     }
+  }
+
+  async function onImportComplete() {
+    await invalidateAll();
+    await goto('/');
   }
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
-    void finalize(true);
+    void finalize(importReady);
   }
 
   function skipImport(event: MouseEvent) {
     event.preventDefault();
     importFile = null;
-    importPreview = null;
+    importPassword = '';
     void finalize(false);
   }
 </script>
@@ -136,6 +177,7 @@
         maxlength="80"
         autocomplete="given-name"
         bind:value={name}
+        disabled={submitting}
       />
     </div>
 
@@ -184,7 +226,7 @@
       </div>
     </div>
 
-    <details class="onboarding__import">
+    <details class="onboarding__import" bind:open={importDetailsOpen}>
       <summary>
         <span class="onboarding__import-title">{$t('onboarding.importTitle')}</span>
         <span class="onboarding__import-meta">{$t('common.optional')}</span>
@@ -195,49 +237,64 @@
 
         <ol class="onboarding__howto">
           <li>
-            {$t('onboarding.importStep1Pre')}<strong>{$t('onboarding.importStep1Account')}</strong
-            >{$t('onboarding.importStep1Sep1')}<strong>{$t('onboarding.importStep1Privacy')}</strong
-            >{$t('onboarding.importStep1Sep2')}<strong
-              >{$t('onboarding.importStep1Download')}</strong
-            >{$t('onboarding.importStep1Suf')}
+            {$t('onboarding.importStep1Lead')}<a href="mailto:support@tvtime.com"
+              ><code>support@tvtime.com</code></a
+            >{$t('onboarding.importStep1Suf')}<a
+              href={$t('onboarding.importStep1PrivacyUrl')}
+              target="_blank"
+              rel="noopener">{$t('onboarding.importStep1PrivacyLink')}</a
+            >{$t('onboarding.importStep1End')}
           </li>
           <li>{$t('onboarding.importStep2')}</li>
-          <li>
-            {$t('onboarding.importStep3Pre')}<code>tracking.json</code>{$t(
-              'onboarding.importStep3Or'
-            )}<code>seen_episode.json</code>{$t('onboarding.importStep3Suf')}
-          </li>
-          <li>{$t('onboarding.importStep4')}</li>
         </ol>
 
-        <label class="onboarding__file-row">
+        {#if needsTmdbKey}
+          <div class="field" style="margin-top: var(--s-3)">
+            <label class="field__label" for="onboarding-tmdb">{$t('settings.tmdbLabel')}</label>
+            <input
+              class="field__input"
+              type="password"
+              id="onboarding-tmdb"
+              autocomplete="off"
+              bind:value={tmdbKey}
+              disabled={submitting}
+            />
+            <span class="field__help">
+              {$t('settings.tmdbGetKey')}
+              <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener"
+                >themoviedb.org</a
+              >
+            </span>
+          </div>
+        {/if}
+
+        <div class="field">
+          <label class="field__label" for="onboarding-file">{$t('settings.importTitle')}</label>
           <input
+            class="field__input"
             type="file"
-            accept=".json,application/json"
+            id="onboarding-file"
+            accept=".zip,application/zip"
             onchange={onFileChange}
             disabled={submitting}
           />
-        </label>
+          <span class="field__help">{$t('settings.importHelp')}</span>
+        </div>
 
-        {#if importError}
-          <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
-            {importError}
-          </p>
-        {/if}
-
-        {#if importPreview}
-          <div class="onboarding__import-result">
-            <strong>{importPreview.count}</strong>
-            <span
-              >{$t('onboarding.importPreview', { count: importPreview.count }).replace(
-                /^\d+\s*/,
-                ''
-              )}</span
-            >
-            <button type="button" class="link-btn" onclick={clearFile}>{$t('common.cancel')}</button
-            >
-          </div>
-        {/if}
+        <div class="field">
+          <label class="field__label" for="onboarding-password"
+            >{$t('settings.importPasswordLabel')}</label
+          >
+          <input
+            class="field__input"
+            type="password"
+            id="onboarding-password"
+            autocomplete="off"
+            bind:value={importPassword}
+            disabled={submitting}
+          />
+          <span class="field__help">{$t('settings.importPasswordHelp')}</span>
+        </div>
       </div>
     </details>
 
@@ -249,12 +306,14 @@
 
     <button type="submit" class="btn btn--accent btn--block btn--lg" disabled={submitting}>
       {submitting
-        ? $t('onboarding.submitting')
-        : importFile
+        ? importReady
+          ? $t('settings.importRunning')
+          : $t('onboarding.submitting')
+        : importReady
           ? $t('onboarding.submitWithImport')
           : $t('onboarding.submit')}
     </button>
-    {#if importFile}
+    {#if importReady && !submitting}
       <button
         type="button"
         class="btn btn--secondary btn--block"
@@ -265,3 +324,7 @@
     {/if}
   </form>
 </main>
+
+{#if importOverlayOpen}
+  <ImportProgress progress={importProgress} summary={importSummary} onDone={onImportComplete} />
+{/if}

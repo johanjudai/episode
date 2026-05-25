@@ -4,11 +4,11 @@
   import BottomNav from '$lib/components/BottomNav.svelte';
   import AvatarPicker from '$lib/components/AvatarPicker.svelte';
   import { initialOf } from '$lib/utils/format';
-  import { IS_LOCAL } from '$lib/config';
   import * as api from '$lib/api';
-  import { parseTvTimeExport, TvTimeImportError } from '$lib/data/tvtime-import';
+  import ImportProgress from '$lib/components/ImportProgress.svelte';
   import { t, locale, type Locale } from '$lib/i18n';
   import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
+  import { importErrorKey } from '$lib/utils/import-progress';
 
   let { data }: PageProps = $props();
 
@@ -27,8 +27,12 @@
   let omdbKey = $state('');
   let omdbStatus = $state<'' | 'saved' | 'error'>('');
   let omdbError = $state<string | null>(null);
-  let importStatus = $state<'' | 'success' | 'error'>('');
+  let importStatus = $state<'' | 'running' | 'success' | 'error'>('');
   let importMessage = $state<string | null>(null);
+  let importPassword = $state('');
+  let importProgress = $state<api.TvTimeImportProgress | null>(null);
+  let importSummary = $state<api.TvTimeImportSummary | null>(null);
+  let importOverlayOpen = $state(false);
 
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
   let palette = $state<PaletteChoice>('bauhaus');
@@ -179,30 +183,40 @@
       importMessage = $t('settings.fileRequired');
       return;
     }
+    if (!importPassword) {
+      importStatus = 'error';
+      importMessage = $t('settings.importPasswordRequired');
+      return;
+    }
+    importStatus = 'running';
+    importMessage = null;
+    importProgress = null;
+    importSummary = null;
+    importOverlayOpen = true;
     try {
-      if (IS_LOCAL) {
-        const text = await file.text();
-        const entries = parseTvTimeExport(text);
-        importStatus = 'success';
-        importMessage = $t('settings.importResult', { count: entries.length });
-      } else {
-        const fd = new FormData();
-        fd.set('file', file);
-        const res = await fetch('/api/import/tvtime', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error(await res.text().catch(() => $t('common.error')));
-        const body = (await res.json()) as { count: number };
-        importStatus = 'success';
-        importMessage = $t('settings.importResult', { count: body.count });
-      }
+      const summary = await api.importTvTime(file, importPassword, (p) => {
+        importProgress = p;
+      });
+      importStatus = 'success';
+      importSummary = summary;
+      importPassword = '';
+      await invalidateAll();
     } catch (err) {
       importStatus = 'error';
       importMessage =
-        err instanceof TvTimeImportError
-          ? err.message
+        err instanceof api.ImportError
+          ? $t(importErrorKey(err.code))
           : err instanceof Error
             ? err.message
             : $t('common.error');
+      importOverlayOpen = false;
+    } finally {
+      importProgress = null;
     }
+  }
+
+  function closeImportOverlay() {
+    importOverlayOpen = false;
   }
 
   $effect(loadPrefs);
@@ -303,18 +317,82 @@
   <section class="settings-group">
     <div class="settings-group__title">{$t('settings.data')}</div>
     <form onsubmit={importTvTime}>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row__label">{$t('settings.importTitle')}</div>
-          <small class="settings-row__help">{$t('settings.importHelp')}</small>
-        </div>
-        <input type="file" name="file" accept=".json,application/json" required />
+      <div class="field">
+        <label class="field__label" for="tvtime-file">{$t('settings.importTitle')}</label>
+        <input
+          class="field__input"
+          type="file"
+          name="file"
+          id="tvtime-file"
+          accept=".zip,application/zip"
+          required
+          disabled={importStatus === 'running'}
+        />
+        <span class="field__help">{$t('settings.importHelp')}</span>
       </div>
-      <button class="btn btn--accent btn--block" type="submit" style="margin-top: var(--s-3)"
-        >{$t('settings.importBtn')}</button
+      <div class="field">
+        <label class="field__label" for="tvtime-password"
+          >{$t('settings.importPasswordLabel')}</label
+        >
+        <input
+          class="field__input"
+          type="password"
+          name="password"
+          id="tvtime-password"
+          autocomplete="off"
+          bind:value={importPassword}
+          disabled={importStatus === 'running'}
+        />
+        <span class="field__help">{$t('settings.importPasswordHelp')}</span>
+      </div>
+      <button
+        class="btn btn--accent btn--block"
+        type="submit"
+        style="margin-top: var(--s-3)"
+        disabled={importStatus === 'running'}
       >
-      {#if importStatus === 'success' && importMessage}
-        <p class="field__help" style="margin-top: var(--s-2)">{importMessage}</p>
+        {importStatus === 'running' ? $t('settings.importRunning') : $t('settings.importBtn')}
+      </button>
+      {#if importStatus === 'success' && importSummary && !importOverlayOpen}
+        <div class="field__help" style="margin-top: var(--s-3)">
+          <p>
+            <strong>{$t('settings.importDone')}</strong>
+          </p>
+          <ul style="margin-top: var(--s-2); padding-left: var(--s-4)">
+            <li>
+              {$t('settings.importStatsSeries', {
+                synced: importSummary.seriesSynced,
+                matched: importSummary.seriesMatched
+              })}
+            </li>
+            <li>
+              {$t('settings.importStatsWatches', {
+                applied: importSummary.watchesApplied,
+                skipped: importSummary.watchesSkipped
+              })}
+            </li>
+            {#if importSummary.syncFailed.length > 0}
+              <li style="color: var(--bw-red)">
+                {$t('settings.importStatsSyncFailed', { count: importSummary.syncFailed.length })}
+              </li>
+            {/if}
+            {#if importSummary.unresolved.length > 0}
+              <li style="color: var(--bw-red)">
+                {$t('settings.importStatsUnresolved', { count: importSummary.unresolved.length })}
+              </li>
+            {/if}
+          </ul>
+          {#if importSummary.unresolved.length > 0}
+            <details style="margin-top: var(--s-2)">
+              <summary>{$t('settings.importUnresolvedShow')}</summary>
+              <ul style="margin-top: var(--s-2); padding-left: var(--s-4)">
+                {#each importSummary.unresolved as u (u.tvdbId)}
+                  <li>{u.name} <small>(TVDB #{u.tvdbId})</small></li>
+                {/each}
+              </ul>
+            </details>
+          {/if}
+        </div>
       {/if}
       {#if importStatus === 'error' && importMessage}
         <p class="field__help" style="color: var(--bw-red); margin-top: var(--s-2)">
@@ -523,3 +601,7 @@
   <div class="spacer"></div>
   <BottomNav current="profile" />
 </main>
+
+{#if importOverlayOpen}
+  <ImportProgress progress={importProgress} summary={importSummary} onDone={closeImportOverlay} />
+{/if}

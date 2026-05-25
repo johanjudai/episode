@@ -460,6 +460,117 @@
   mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='7' r='3'/><path d='M4 19 C4 15 7 12 11 12 C15 12 18 15 18 19'/><path d='M3 8 C2 7 3 5 4 6'/><path d='M19 8 C20 7 19 5 18 6'/></svg>");
 }
 
+/* Import-overlay decoration — three floating shapes that fill the
+ * background during the TV Time import. Lives in global CSS (not the
+ * Svelte component scope) so palette-specific overrides can swap the
+ * shape silhouettes without fighting Svelte's class hash. */
+.import-overlay__deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+}
+.import-overlay__deco .shape {
+  position: absolute;
+  display: block;
+  animation: import-overlay-floaty 14s ease-in-out infinite;
+}
+.import-overlay__deco .shape--circle {
+  top: 12%;
+  left: 8%;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--bw-yellow);
+  animation-delay: -2s;
+}
+.import-overlay__deco .shape--square {
+  top: 18%;
+  right: 10%;
+  width: 90px;
+  height: 90px;
+  background: var(--fg);
+  transform: rotate(8deg);
+  animation-delay: -6s;
+}
+.import-overlay__deco .shape--tri {
+  bottom: 14%;
+  left: 14%;
+  width: 0;
+  height: 0;
+  border-left: 70px solid transparent;
+  border-right: 70px solid transparent;
+  border-bottom: 120px solid var(--bw-blue);
+  animation-delay: -10s;
+}
+
+@keyframes import-overlay-floaty {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(8px, -12px, 0) rotate(2deg);
+  }
+  50% {
+    transform: translate3d(-6px, 6px, 0) rotate(-3deg);
+  }
+  75% {
+    transform: translate3d(10px, 8px, 0) rotate(1deg);
+  }
+}
+[data-motion='reduced'] .import-overlay__deco .shape {
+  animation: none;
+}
+
+/* Art Nouveau: replace the Bauhaus geometric primitives with floral
+ * ornaments — an iris silhouette (circle slot), a quatrefoil medallion
+ * (square slot) and a whiplash flourish (triangle slot). Same
+ * mask-image technique as the bottom-nav: the SVG is a black
+ * silhouette, the element's background-color does the tinting, so
+ * the deco still adapts to any future palette shift on `--bw-yellow`
+ * / `--fg` / `--bw-blue`. */
+[data-palette='artnouveau'] .import-overlay__deco .shape--circle {
+  border-radius: 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='black'><path d='M50 5 C40 22 40 38 50 50 C60 38 60 22 50 5 Z'/><path d='M50 95 C40 78 40 62 50 50 C60 62 60 78 50 95 Z'/><path d='M5 50 C22 40 38 40 50 50 C38 60 22 60 5 50 Z'/><path d='M95 50 C78 40 62 40 50 50 C62 60 78 60 95 50 Z'/><circle cx='50' cy='50' r='5'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='black'><path d='M50 5 C40 22 40 38 50 50 C60 38 60 22 50 5 Z'/><path d='M50 95 C40 78 40 62 50 50 C60 62 60 78 50 95 Z'/><path d='M5 50 C22 40 38 40 50 50 C38 60 22 60 5 50 Z'/><path d='M95 50 C78 40 62 40 50 50 C62 60 78 60 95 50 Z'/><circle cx='50' cy='50' r='5'/></svg>");
+}
+[data-palette='artnouveau'] .import-overlay__deco .shape--square {
+  /* Lift the 8° tilt — the quatrefoil reads better square-on. */
+  transform: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='black'><circle cx='50' cy='25' r='25'/><circle cx='50' cy='75' r='25'/><circle cx='25' cy='50' r='25'/><circle cx='75' cy='50' r='25'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='black'><circle cx='50' cy='25' r='25'/><circle cx='50' cy='75' r='25'/><circle cx='25' cy='50' r='25'/><circle cx='75' cy='50' r='25'/></svg>");
+}
+[data-palette='artnouveau'] .import-overlay__deco .shape--tri {
+  /* The base shape uses the classic `border-bottom` triangle hack.
+   * We need to undo that here: real width/height, no border, and
+   * a solid `background` so the mask can tint the SVG glyph. */
+  width: 80px;
+  height: 140px;
+  border: none;
+  background: var(--bw-blue);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 140' fill='none' stroke='black' stroke-width='9' stroke-linecap='round'><path d='M30 130 C 30 105 10 90 22 70 C 32 56 48 50 38 28 C 32 16 46 6 50 18'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 140' fill='none' stroke='black' stroke-width='9' stroke-linecap='round'><path d='M30 130 C 30 105 10 90 22 70 C 32 56 48 50 38 28 C 32 16 46 6 50 18'/></svg>");
+}
+
 /* The season-number chip switches from a coloured fill to an outlined
  * cell with display-italic numerals — matches the mockup's editorial
  * treatment of the season list. `display: grid; place-items: center`

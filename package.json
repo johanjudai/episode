@@ -41,9 +41,9 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
     "@types/sql.js": "^1.4.11",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "^3.0.0",
     "cross-env": "^7.0.3",
-    "drizzle-kit": "^0.30.6",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.46.1",
@@ -55,14 +55,28 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
-    "vite": "^6.0.5",
-    "vitest": "^2.1.8"
+    "vite": "^6.4.2",
+    "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@zip.js/zip.js": "^2.8.26",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.2",
     "idb": "^8.0.3",
     "sql.js": "^1.14.1",
     "zod": "^3.24.1"
+  },
+  "overrides": {
+    "cookie": "^0.7.2",
+    "uuid": "^11.1.1",
+    "esbuild": "^0.25.0",
+    "@capacitor/cli": {
+      "tar": "^7.5.15"
+    },
+    "@trapezedev/project": {
+      "replace": {
+        "minimatch": "^9.0.5"
+      }
+    }
   }
 }

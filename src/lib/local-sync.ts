@@ -10,7 +10,7 @@ import { getDb } from './db';
 import { getSetting } from './data/queries';
 import * as sync from './data/sync';
 
-async function readApiKey(): Promise<string> {
+export async function readApiKey(): Promise<string> {
   const db = await getDb();
   const key = await getSetting(db, 'tmdb.api_key');
   if (!key) throw new Error('Clé TMDB manquante');
@@ -20,7 +20,7 @@ async function readApiKey(): Promise<string> {
 /* Map the stored locale ('fr' | 'en') to the BCP-47 language code TMDB
  * accepts. Fallback to fr-FR matches the previous (locale-agnostic)
  * behaviour for users who haven't picked a language yet. */
-async function readLanguage(): Promise<string> {
+export async function readLanguage(): Promise<string> {
   const db = await getDb();
   const locale = await getSetting(db, 'locale');
   return locale === 'en' ? 'en-US' : 'fr-FR';
