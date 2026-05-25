@@ -37,3 +37,9 @@ ios/App/build
 *.keystore
 *.jks
 release.keystore
+
+# Personal TV Time export archives placed at the repo root for ad-hoc
+# inspection. Contains watch history, IP addresses, OAuth tokens, etc.
+# — never commit.
+/tv-time-personal-data/
+*.tvtime.zip

@@ -127,6 +127,41 @@ describe('createTmdbClient', () => {
     expect(season.episodes[0].runtime).toBe(56);
   });
 
+  it('findByExternalId calls /find/{id} with external_source', async () => {
+    const f = vi.fn(async (url: string) => {
+      const u = new URL(url);
+      expect(u.pathname).toBe('/3/find/70533');
+      expect(u.searchParams.get('external_source')).toBe('tvdb_id');
+      return new Response(
+        JSON.stringify({
+          tv_results: [{ id: 1234, name: 'Twin Peaks', first_air_date: '1990-04-08' }]
+        }),
+        { status: 200 }
+      );
+    });
+    const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
+    const hit = await client.findByExternalId(70533);
+    expect(hit?.id).toBe(1234);
+    expect(hit?.name).toBe('Twin Peaks');
+  });
+
+  it('findByExternalId returns null when tv_results is empty', async () => {
+    const client = createTmdbClient({
+      apiKey: 'TESTKEY123',
+      fetch: mockOk({ tv_results: [] }) as typeof fetch
+    });
+    expect(await client.findByExternalId(999999)).toBeNull();
+  });
+
+  it('findByExternalId accepts imdb_id as source', async () => {
+    const f = vi.fn(async (url: string) => {
+      expect(new URL(url).searchParams.get('external_source')).toBe('imdb_id');
+      return new Response(JSON.stringify({ tv_results: [] }), { status: 200 });
+    });
+    const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
+    await client.findByExternalId('tt0098936', 'imdb_id');
+  });
+
   it('throws TmdbError on non-OK HTTP', async () => {
     const client = createTmdbClient({
       apiKey: 'TESTKEY123',
