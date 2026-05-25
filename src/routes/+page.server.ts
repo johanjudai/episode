@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
 import { IS_LOCAL } from '$lib/config';
-import { pickNextPerSeries } from '$lib/utils/episodes';
 
 export const load: PageServerLoad = async () => {
   if (IS_LOCAL) {
@@ -16,14 +15,16 @@ export const load: PageServerLoad = async () => {
    * 7 days but lets the user expand to the full window with a single
    * click. Payload stays small (a handful of episodes per series even
    * for power users) so doing the slice client-side is cheaper than
-   * a round trip on toggle. */
-  const [allUnwatched, upcoming, recent] = await Promise.all([
+   * a round trip on toggle.
+   * getEpisodesToWatch now returns ONE row per series (the earliest
+   * unwatched aired episode), so no JS-side dedupe is needed. */
+  const [toWatch, upcoming, recent] = await Promise.all([
     getEpisodesToWatch(serverDb, now),
     getUpcomingEpisodes(serverDb, 90, now),
     getRecentWatched(serverDb, 5)
   ]);
   return {
-    toWatch: pickNextPerSeries(allUnwatched),
+    toWatch,
     upcoming,
     recent,
     now: now.toISOString()

@@ -1,14 +1,17 @@
 /**
  * Write-side operations. Like queries.ts, every function takes a `Db`
  * argument so it works with any synchronous Drizzle SQLite driver.
- *
- * `setSetting(db, key, null)` deletes the key (instead of storing a NULL
- * value) so that `getSetting` returns `null` for unset keys consistently.
  */
-import { and, eq, lt, lte, or } from 'drizzle-orm';
+import { and, eq, inArray, lt, lte, or } from 'drizzle-orm';
 import type { Db } from './db-types';
 import { episodes, seasons, series, settings, watched } from './schema';
 
+/**
+ * Upsert a settings row. Passing `value: null` stores a literal NULL —
+ * which getSetting() reads back as `null`, the same shape as if the
+ * row didn't exist at all. Both states are interchangeable from the
+ * caller's perspective, so we don't bother deleting the row.
+ */
 export async function setSetting(db: Db, key: string, value: string | null): Promise<void> {
   db.insert(settings)
     .values({ key, value, updatedAt: new Date() })
@@ -19,6 +22,10 @@ export async function setSetting(db: Db, key: string, value: string | null): Pro
     .run();
 }
 
+/* Idempotent by design: re-marking an already-watched episode is a
+ * no-op and DOES NOT update the existing watchedAt. The TV Time
+ * importer relies on this so a second run doesn't shift the timeline
+ * of episodes the user has already marked since their first import. */
 export async function markEpisodeWatched(
   db: Db,
   episodeId: number,
@@ -34,6 +41,19 @@ export async function unmarkEpisodeWatched(db: Db, episodeId: number): Promise<v
   db.delete(watched).where(eq(watched.episodeId, episodeId)).run();
 }
 
+/* Bulk-watched helpers all share the same pattern: SELECT a set of
+ * episode IDs, then issue a SINGLE multi-row INSERT instead of N
+ * per-episode INSERTs. The multi-row form keeps SQLite usage at one
+ * statement per call (instead of N), which on the browser target also
+ * means one IDB snapshot instead of N (see db.browser.ts wrapper). */
+function markEpisodeIds(db: Db, ids: number[], at: Date): void {
+  if (ids.length === 0) return;
+  db.insert(watched)
+    .values(ids.map((episodeId) => ({ episodeId, watchedAt: at })))
+    .onConflictDoNothing({ target: watched.episodeId })
+    .run();
+}
+
 export async function markSeasonWatched(
   db: Db,
   seriesTmdbId: number,
@@ -47,12 +67,7 @@ export async function markSeasonWatched(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function unmarkSeasonWatched(
@@ -67,9 +82,10 @@ export async function unmarkSeasonWatched(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.delete(watched).where(eq(watched.episodeId, ep.id)).run();
-  }
+  if (eps.length === 0) return;
+  db.delete(watched)
+    .where(inArray(watched.episodeId, eps.map((e) => e.id)))
+    .run();
 }
 
 export async function markEpisodesUpTo(
@@ -95,12 +111,7 @@ export async function markEpisodesUpTo(
       )
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function markSeasonsUpTo(
@@ -116,12 +127,7 @@ export async function markSeasonsUpTo(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), lte(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function markSeriesWatched(
@@ -134,12 +140,7 @@ export async function markSeriesWatched(
     .from(episodes)
     .where(eq(episodes.seriesTmdbId, seriesTmdbId))
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export interface FollowSeriesInput {
@@ -169,11 +170,30 @@ export async function unfollowSeries(db: Db, tmdbId: number): Promise<void> {
   db.update(series).set({ removedAt: new Date() }).where(eq(series.tmdbId, tmdbId)).run();
 }
 
+/* Force-set follow timestamps. Used by the TV Time importer to
+ * preserve the original "addedAt" (when the user joined the show on
+ * TV Time) and to pre-mark a series as already archived. The regular
+ * follow path always sets addedAt=now / removedAt=null, which is
+ * correct for an interactive follow but wrong when we're back-filling
+ * a multi-year history. */
+export async function setSeriesFollowDates(
+  db: Db,
+  tmdbId: number,
+  dates: { addedAt?: Date | null; removedAt?: Date | null }
+): Promise<void> {
+  const set: Record<string, Date | null> = {};
+  if ('addedAt' in dates) set.addedAt = dates.addedAt ?? null;
+  if ('removedAt' in dates) set.removedAt = dates.removedAt ?? null;
+  if (Object.keys(set).length === 0) return;
+  db.update(series).set(set).where(eq(series.tmdbId, tmdbId)).run();
+}
+
 export interface UpsertSeasonInput {
   seriesTmdbId: number;
   tmdbId?: number | null;
   seasonNumber: number;
   name?: string | null;
+  overview?: string | null;
   airDate?: string | null;
   episodeCount?: number | null;
   posterPath?: string | null;
@@ -189,6 +209,7 @@ export async function upsertSeason(
     tmdbId: input.tmdbId ?? null,
     seasonNumber: input.seasonNumber,
     name: input.name ?? null,
+    overview: input.overview ?? null,
     airDate: input.airDate ?? null,
     episodeCount: input.episodeCount ?? null,
     posterPath: input.posterPath ?? null
@@ -232,6 +253,7 @@ export interface UpsertEpisodeInput {
   seasonNumber: number;
   episodeNumber: number;
   name?: string | null;
+  overview?: string | null;
   airDate?: string | null;
   runtimeMinutes?: number | null;
   stillPath?: string | null;
@@ -249,6 +271,7 @@ export async function upsertEpisode(
     seasonNumber: input.seasonNumber,
     episodeNumber: input.episodeNumber,
     name: input.name ?? null,
+    overview: input.overview ?? null,
     airDate: input.airDate ?? null,
     runtimeMinutes: input.runtimeMinutes ?? null,
     stillPath: input.stillPath ?? null
@@ -284,6 +307,32 @@ export async function getEpisodeIdByCoords(
     )
     .all()[0];
   return row?.id ?? null;
+}
+
+/**
+ * Like getEpisodeIdByCoords, but also returns the episode's air date.
+ * The TV Time importer uses the air_date as a sensible fallback for
+ * `watched_at` when the source row has none — otherwise null watches
+ * would all land in today's history, which is incorrect.
+ */
+export async function getEpisodeForCoords(
+  db: Db,
+  seriesTmdbId: number,
+  seasonNumber: number,
+  episodeNumber: number
+): Promise<{ id: number; airDate: string | null } | null> {
+  const row = db
+    .select({ id: episodes.id, airDate: episodes.airDate })
+    .from(episodes)
+    .where(
+      and(
+        eq(episodes.seriesTmdbId, seriesTmdbId),
+        eq(episodes.seasonNumber, seasonNumber),
+        eq(episodes.episodeNumber, episodeNumber)
+      )
+    )
+    .all()[0];
+  return row ? { id: row.id, airDate: row.airDate ?? null } : null;
 }
 
 export async function seasonExists(

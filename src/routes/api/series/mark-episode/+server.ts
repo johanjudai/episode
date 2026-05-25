@@ -1,8 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
-import { getSetting } from '$lib/data/queries';
+import { requireTmdbKey } from '$lib/server/api-helpers';
 import { ensureEpisodeRow, syncSeriesFull } from '$lib/data/sync';
 import { getSeries } from '$lib/data/queries';
 import { markEpisodeWatched, markEpisodesUpTo, unmarkEpisodeWatched } from '$lib/data/mutations';
@@ -19,8 +18,7 @@ const Body = z.object({
 export const POST: RequestHandler = async ({ request }) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid payload');
-  const apiKey = (await getSetting(serverDb, 'tmdb.api_key')) ?? env.EPISODE_TMDB_API_KEY ?? '';
-  if (!apiKey) throw error(412, 'Clé TMDB manquante');
+  const apiKey = await requireTmdbKey(serverDb);
 
   const existing = await getSeries(serverDb, parsed.data.seriesTmdbId);
   if (!existing || existing.removedAt) {

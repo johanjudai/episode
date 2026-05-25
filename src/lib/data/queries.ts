@@ -27,41 +27,65 @@ export async function getEpisodesToWatch(
   now: Date = new Date()
 ): Promise<Array<Episode & { seriesName: string; seriesPoster: string | null }>> {
   const today = now.toISOString().slice(0, 10);
-  return db
-    .select({
-      id: episodes.id,
-      seasonId: episodes.seasonId,
-      seriesTmdbId: episodes.seriesTmdbId,
-      tmdbId: episodes.tmdbId,
-      seasonNumber: episodes.seasonNumber,
-      episodeNumber: episodes.episodeNumber,
-      name: episodes.name,
-      overview: episodes.overview,
-      airDate: episodes.airDate,
-      runtimeMinutes: episodes.runtimeMinutes,
-      stillPath: episodes.stillPath,
-      seriesName: series.name,
-      seriesPoster: series.posterPath
-    })
-    .from(episodes)
-    .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
-    .leftJoin(watched, eq(watched.episodeId, episodes.id))
-    .where(
-      and(
-        isNull(series.removedAt),
-        isNull(watched.id),
-        lte(episodes.airDate, today),
-        sql`${episodes.airDate} IS NOT NULL`
-      )
-    )
-    /* sort by series → season → episode so the JS-side dedupe picks the
-     * earliest unwatched episode per series */
-    .orderBy(
-      asc(episodes.seriesTmdbId),
-      asc(episodes.seasonNumber),
-      asc(episodes.episodeNumber)
-    )
-    .all();
+  /* Single-row-per-series via window function. The previous shape
+   * returned EVERY unwatched aired episode (potentially hundreds per
+   * series) and de-duplicated to the first one per series in JS — a
+   * 50× transfer waste on a long-running library. SQLite 3.25+
+   * supports ROW_NUMBER() and both drivers (better-sqlite3 11.x,
+   * sql.js 1.x) bundle a new-enough engine.
+   *
+   * Drizzle 0.45 doesn't have a typed builder for window functions
+   * yet, so we drop down to `sql.all<T>`. The shape mirrors
+   * `Episode & { seriesName, seriesPoster }` exactly. */
+  const rows = db.all<{
+    id: number;
+    seasonId: number;
+    seriesTmdbId: number;
+    tmdbId: number | null;
+    seasonNumber: number;
+    episodeNumber: number;
+    name: string | null;
+    overview: string | null;
+    airDate: string | null;
+    runtimeMinutes: number | null;
+    stillPath: string | null;
+    seriesName: string;
+    seriesPoster: string | null;
+  }>(sql`
+    SELECT
+      e.id AS id,
+      e.season_id AS seasonId,
+      e.series_tmdb_id AS seriesTmdbId,
+      e.tmdb_id AS tmdbId,
+      e.season_number AS seasonNumber,
+      e.episode_number AS episodeNumber,
+      e.name AS name,
+      e.overview AS overview,
+      e.air_date AS airDate,
+      e.runtime_minutes AS runtimeMinutes,
+      e.still_path AS stillPath,
+      s.name AS seriesName,
+      s.poster_path AS seriesPoster
+    FROM (
+      SELECT
+        episodes.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY episodes.series_tmdb_id
+          ORDER BY episodes.season_number, episodes.episode_number
+        ) AS rn
+      FROM episodes
+      INNER JOIN series ON series.tmdb_id = episodes.series_tmdb_id
+      LEFT JOIN watched ON watched.episode_id = episodes.id
+      WHERE series.removed_at IS NULL
+        AND watched.id IS NULL
+        AND episodes.air_date IS NOT NULL
+        AND episodes.air_date <= ${today}
+    ) AS e
+    INNER JOIN series s ON s.tmdb_id = e.series_tmdb_id
+    WHERE e.rn = 1
+    ORDER BY e.series_tmdb_id
+  `);
+  return rows as unknown as Array<Episode & { seriesName: string; seriesPoster: string | null }>;
 }
 
 export async function getUpcomingEpisodes(
@@ -236,4 +260,85 @@ export async function getWatchedEpisodeKeys(
     .innerJoin(episodes, eq(episodes.id, watched.episodeId))
     .where(eq(episodes.seriesTmdbId, seriesTmdbId))
     .all();
+}
+
+export interface SeasonWithEpisodes {
+  seasonNumber: number;
+  name: string | null;
+  airDate: string | null;
+  posterPath: string | null;
+  episodes: Array<{
+    seasonNumber: number;
+    episodeNumber: number;
+    name: string | null;
+    overview: string | null;
+    airDate: string | null;
+    runtime: number | null;
+    stillPath: string | null;
+  }>;
+}
+
+/**
+ * Read a series' full season + episode tree from the local DB. Used by
+ * the series detail loader as a cache layer to skip the N TMDB
+ * `seasonDetail` round-trips when we synced this series recently
+ * enough — see `series/[id]/+page.{server,ts}` for the freshness check.
+ *
+ * Returns null if no season has been synced yet (cold start), so the
+ * caller falls back to fetching from TMDB.
+ */
+export async function getSeasonsWithEpisodes(
+  db: Db,
+  seriesTmdbId: number
+): Promise<SeasonWithEpisodes[] | null> {
+  /* Imported lazily to avoid a circular dep at module init. */
+  const { seasons } = await import('./schema');
+  const seasonRows = db
+    .select()
+    .from(seasons)
+    .where(eq(seasons.seriesTmdbId, seriesTmdbId))
+    .orderBy(asc(seasons.seasonNumber))
+    .all();
+  if (seasonRows.length === 0) return null;
+
+  const episodeRows = db
+    .select({
+      seasonNumber: episodes.seasonNumber,
+      episodeNumber: episodes.episodeNumber,
+      name: episodes.name,
+      overview: episodes.overview,
+      airDate: episodes.airDate,
+      runtimeMinutes: episodes.runtimeMinutes,
+      stillPath: episodes.stillPath
+    })
+    .from(episodes)
+    .where(eq(episodes.seriesTmdbId, seriesTmdbId))
+    .orderBy(asc(episodes.seasonNumber), asc(episodes.episodeNumber))
+    .all();
+
+  const bySeason = new Map<number, SeasonWithEpisodes['episodes']>();
+  for (const r of episodeRows) {
+    let list = bySeason.get(r.seasonNumber);
+    if (!list) {
+      list = [];
+      bySeason.set(r.seasonNumber, list);
+    }
+    list.push({
+      seasonNumber: r.seasonNumber,
+      episodeNumber: r.episodeNumber,
+      name: r.name,
+      overview: r.overview,
+      airDate: r.airDate,
+      runtime: r.runtimeMinutes,
+      stillPath: r.stillPath
+    });
+  }
+
+  return seasonRows.map((s) => ({
+    seasonNumber: s.seasonNumber,
+    name: s.name,
+    airDate: s.airDate,
+    posterPath: s.posterPath,
+    episodes: bySeason.get(s.seasonNumber) ?? []
+  }));
 }

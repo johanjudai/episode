@@ -99,6 +99,13 @@ const ExternalIds = z.object({
   tvdb_id: z.number().nullable().optional()
 });
 
+/* /find returns five buckets keyed by media type. We only care about TV
+ * series for the TV Time import, so the schema accepts the rest as
+ * pass-through arrays and we read .tv_results client-side. */
+const FindResponse = z.object({
+  tv_results: z.array(SearchTvResult)
+});
+
 const Video = z.object({
   /* Video metadata returned by /tv/{id}/videos. We only consume YouTube
    * trailers/teasers; other sites (Vimeo) and types (Behind the Scenes,
@@ -161,6 +168,25 @@ export function createTmdbClient(opts: TmdbClientOptions) {
       call('/search/tv', { query, include_adult: 'false' }, SearchTvResponse),
     trendingTv: (window: 'day' | 'week' = 'week') =>
       call(`/trending/tv/${window}`, {}, SearchTvResponse),
+    /**
+     * Resolve an external ID (TheTVDB, IMDb, …) to a TMDB ID.
+     *
+     * Returns the first TV series found, or null. TV Time exports
+     * store TheTVDB IDs (verified empirically: their `tv_show_id`
+     * column matches the TheTVDB show IDs); this is how we pivot to
+     * TMDB without an exact name match.
+     */
+    findByExternalId: async (
+      externalId: string | number,
+      source: 'tvdb_id' | 'imdb_id' = 'tvdb_id'
+    ): Promise<TmdbSearchResult | null> => {
+      const resp = await call(
+        `/find/${encodeURIComponent(String(externalId))}`,
+        { external_source: source },
+        FindResponse
+      );
+      return resp.tv_results[0] ?? null;
+    },
     tvDetail: (id: number) => call(`/tv/${id}`, {}, TvDetail),
     seasonDetail: (id: number, seasonNumber: number) =>
       call(`/tv/${id}/season/${seasonNumber}`, {}, SeasonDetail),

@@ -9,57 +9,51 @@ import {
 
 describe('format utils', () => {
   describe('formatEpisodeCode', () => {
-    it('zero-pads to 2 digits', () => {
-      expect(formatEpisodeCode(1, 2)).toBe('S01E02');
-      expect(formatEpisodeCode(12, 34)).toBe('S12E34');
-    });
-    it('handles single-digit season and episode', () => {
-      expect(formatEpisodeCode(0, 0)).toBe('S00E00');
+    it.each([
+      [1, 2, 'S01E02'],
+      [12, 34, 'S12E34'],
+      [0, 0, 'S00E00']
+    ])('formatEpisodeCode(%i, %i) = %s', (s, e, expected) => {
+      expect(formatEpisodeCode(s, e)).toBe(expected);
     });
   });
 
   describe('formatRuntime', () => {
-    it('formats minutes with unit', () => {
-      expect(formatRuntime(45)).toBe('45 min');
-    });
-    it('returns empty for falsy / non-positive values', () => {
-      expect(formatRuntime(0)).toBe('');
-      expect(formatRuntime(null)).toBe('');
-      expect(formatRuntime(undefined)).toBe('');
-      expect(formatRuntime(-5)).toBe('');
+    it.each([
+      [45, '45 min'],
+      [0, ''],
+      [null, ''],
+      [undefined, ''],
+      [-5, '']
+    ])('formatRuntime(%s) = "%s"', (input, expected) => {
+      expect(formatRuntime(input as number | null | undefined)).toBe(expected);
     });
   });
 
   describe('formatTotalTime', () => {
-    it('stays in minutes under 60', () => {
-      expect(formatTotalTime(45)).toEqual({ value: 45, unit: 'min' });
-    });
-    it('switches to hours past 60 minutes', () => {
-      expect(formatTotalTime(60)).toEqual({ value: 1, unit: 'h' });
-      expect(formatTotalTime(312 * 60)).toEqual({ value: 312, unit: 'h' });
-      expect(formatTotalTime(48 * 60)).toEqual({ value: 48, unit: 'h' });
-    });
-    it('rounds half-hours to the nearest hour', () => {
-      expect(formatTotalTime(90)).toEqual({ value: 2, unit: 'h' });
-      expect(formatTotalTime(89)).toEqual({ value: 1, unit: 'h' });
+    it.each([
+      ['under 60 stays minutes', 45, { value: 45, unit: 'min' }],
+      ['60 → 1h', 60, { value: 1, unit: 'h' }],
+      ['312h', 312 * 60, { value: 312, unit: 'h' }],
+      ['48h', 48 * 60, { value: 48, unit: 'h' }],
+      ['90 rounds to 2h', 90, { value: 2, unit: 'h' }],
+      ['89 rounds to 1h', 89, { value: 1, unit: 'h' }]
+    ])('%s', (_label, mins, expected) => {
+      expect(formatTotalTime(mins)).toEqual(expected);
     });
   });
 
   describe('seriesInitials', () => {
-    it('takes first letter of two words', () => {
-      expect(seriesInitials('The Bear')).toBe('TB');
-      expect(seriesInitials('House of the Dragon')).toBe('HO');
-    });
-    it('takes first two letters of single word', () => {
-      expect(seriesInitials('Severance')).toBe('SE');
-    });
-    it('handles diacritics and punctuation', () => {
-      expect(seriesInitials('Émilie en Paris')).toBe('ÉE');
-      expect(seriesInitials("It's Always Sunny")).toBe('IA');
-    });
-    it('returns ?? when empty', () => {
-      expect(seriesInitials('')).toBe('??');
-      expect(seriesInitials('   ')).toBe('??');
+    it.each([
+      ['two words → 1st of each', 'The Bear', 'TB'],
+      ['multi-word → first two', 'House of the Dragon', 'HO'],
+      ['single word → first two letters', 'Severance', 'SE'],
+      ['diacritics', 'Émilie en Paris', 'ÉE'],
+      ['punctuation stays in word', "It's Always Sunny", 'IA'],
+      ['empty → ??', '', '??'],
+      ['blank → ??', '   ', '??']
+    ])('%s: seriesInitials(%s) = %s', (_label, name, expected) => {
+      expect(seriesInitials(name)).toBe(expected);
     });
   });
 

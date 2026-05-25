@@ -2,6 +2,7 @@ import type { PageLoad } from './$types';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
 import { IS_LOCAL } from '$lib/config';
+import { tmdbLanguageFromStored } from '$lib/i18n';
 
 export const load: PageLoad = async ({ data, params }) => {
   if (!IS_LOCAL) return { ...data };
@@ -16,7 +17,8 @@ export const load: PageLoad = async ({ data, params }) => {
   }
 
   const { getDb } = await import('$lib/db');
-  const { getSeries, getSetting, getWatchedEpisodeKeys } = await import('$lib/data/queries');
+  const { getSeasonsWithEpisodes, getSeries, getSetting, getWatchedEpisodeKeys } =
+    await import('$lib/data/queries');
   const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
   const { fetchSeriesRatings } = await import('$lib/data/ratings');
 
@@ -28,36 +30,72 @@ export const load: PageLoad = async ({ data, params }) => {
   ]);
   if (!apiKey) throw error(412, 'Clé TMDB manquante. Configurez-la dans les paramètres.');
 
-  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const language = tmdbLanguageFromStored(storedLocale);
   const tmdb = createTmdbClient({ apiKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(db, id);
 
-  const seasonNumbers = (detail.seasons ?? [])
-    .filter((s) => s.season_number > 0)
-    .map((s) => s.season_number);
+  /* See server loader: skip per-season TMDB fetches when the local
+   * sync is < 7 days old. Same cache window in both targets. */
+  const FRESH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const lastSyncedMs = followed?.lastSyncedAt ? followed.lastSyncedAt.getTime() : 0;
+  const isFresh = !!followed && Date.now() - lastSyncedMs < FRESH_WINDOW_MS;
 
-  const fetchedSeasons = await Promise.all(seasonNumbers.map((n) => tmdb.seasonDetail(id, n)));
+  const cached = isFresh ? await getSeasonsWithEpisodes(db, id) : null;
 
   const watchedKeys = followed ? await getWatchedEpisodeKeys(db, id) : [];
   const watchedSet = new Set(watchedKeys.map((k) => `${k.seasonNumber}-${k.episodeNumber}`));
 
-  const seasonsOut = fetchedSeasons.map((s) => ({
-    seasonNumber: s.season_number,
-    name: s.name ?? `Saison ${s.season_number}`,
-    airDate: s.air_date ?? null,
-    posterPath: s.poster_path ?? null,
-    episodes: s.episodes.map((ep) => ({
-      seasonNumber: ep.season_number,
-      episodeNumber: ep.episode_number,
-      name: ep.name ?? null,
-      overview: ep.overview ?? null,
-      airDate: ep.air_date ?? null,
-      runtime: ep.runtime ?? null,
-      stillPath: ep.still_path ?? null,
-      watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
-    }))
-  }));
+  let seasonsOut: Array<{
+    seasonNumber: number;
+    name: string;
+    airDate: string | null;
+    posterPath: string | null;
+    episodes: Array<{
+      seasonNumber: number;
+      episodeNumber: number;
+      name: string | null;
+      overview: string | null;
+      airDate: string | null;
+      runtime: number | null;
+      stillPath: string | null;
+      watched: boolean;
+    }>;
+  }>;
+
+  if (cached) {
+    seasonsOut = cached.map((s) => ({
+      seasonNumber: s.seasonNumber,
+      name: s.name ?? `Saison ${s.seasonNumber}`,
+      airDate: s.airDate,
+      posterPath: s.posterPath,
+      episodes: s.episodes.map((ep) => ({
+        ...ep,
+        watched: watchedSet.has(`${ep.seasonNumber}-${ep.episodeNumber}`)
+      }))
+    }));
+  } else {
+    const seasonNumbers = (detail.seasons ?? [])
+      .filter((s) => s.season_number > 0)
+      .map((s) => s.season_number);
+    const fetchedSeasons = await Promise.all(seasonNumbers.map((n) => tmdb.seasonDetail(id, n)));
+    seasonsOut = fetchedSeasons.map((s) => ({
+      seasonNumber: s.season_number,
+      name: s.name ?? `Saison ${s.season_number}`,
+      airDate: s.air_date ?? null,
+      posterPath: s.poster_path ?? null,
+      episodes: s.episodes.map((ep) => ({
+        seasonNumber: ep.season_number,
+        episodeNumber: ep.episode_number,
+        name: ep.name ?? null,
+        overview: ep.overview ?? null,
+        airDate: ep.air_date ?? null,
+        runtime: ep.runtime ?? null,
+        stillPath: ep.still_path ?? null,
+        watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
+      }))
+    }));
+  }
 
   const totalEpisodes = seasonsOut.reduce((acc, s) => acc + s.episodes.length, 0);
   const watchedCount = seasonsOut.reduce(

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { env } from '$env/dynamic/private';
 import { IS_LOCAL } from '$lib/config';
+import { tmdbLanguageFromStored } from '$lib/i18n';
 
 export interface SearchResult {
   id: number;
@@ -10,24 +10,30 @@ export interface SearchResult {
   poster: string | null;
 }
 
+/* Hard cap on user-supplied search query length. TMDB's /search/tv
+ * silently accepts anything but ignores text past ~250 chars; refusing
+ * unbounded queries here closes a "burn quota with tiny payloads"
+ * vector that's otherwise gated only by the rate-limiter (60 burst). */
+const MAX_QUERY_LEN = 100;
+
 export const load: PageServerLoad = async ({ url }) => {
-  const q = (url.searchParams.get('q') ?? '').trim();
+  const q = (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY_LEN);
   if (IS_LOCAL) {
     return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
   }
   const { serverDb } = await import('$lib/server/db');
   const { getSetting } = await import('$lib/data/queries');
+  const { getTmdbKey } = await import('$lib/server/api-helpers');
   const { createTmdbClient, posterUrl } = await import('$lib/data/tmdb');
 
-  const [apiKey, storedLocale] = await Promise.all([
-    getSetting(serverDb, 'tmdb.api_key'),
+  const [effectiveKey, storedLocale] = await Promise.all([
+    getTmdbKey(serverDb),
     getSetting(serverDb, 'locale')
   ]);
-  const effectiveKey = apiKey ?? env.EPISODE_TMDB_API_KEY ?? '';
   if (!effectiveKey) {
     return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
   }
-  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const language = tmdbLanguageFromStored(storedLocale);
   const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   try {
     const data = q ? await tmdb.searchTv(q) : await tmdb.trendingTv('week');
