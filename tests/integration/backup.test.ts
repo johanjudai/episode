@@ -22,11 +22,7 @@ import * as schema from '../../src/lib/data/schema';
 import { series, settings as settingsTable } from '../../src/lib/data/schema';
 import type { Db } from '../../src/lib/data/db-types';
 import { getRecentWatched, getSeries, getSetting } from '../../src/lib/data/queries';
-import {
-  followSeries,
-  markEpisodeWatched,
-  setSetting
-} from '../../src/lib/data/mutations';
+import { followSeries, markEpisodeWatched, setSetting } from '../../src/lib/data/mutations';
 import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
@@ -336,7 +332,11 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
           status: 'Returning Series',
           numberOfSeasons: 5
         });
-        await ctx.db.update(series).set({ originalName: 'Local OG Name' }).where(eq(series.tmdbId, 42)).run();
+        await ctx.db
+          .update(series)
+          .set({ originalName: 'Local OG Name' })
+          .where(eq(series.tmdbId, 42))
+          .run();
 
         /* Build a minimal backup with only tmdbId + name + updated
          * numberOfSeasons. originalName/status are absent. */
@@ -367,7 +367,11 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
 
         /* Drop all of seed's data so replace has work to do — but keep
          * one extra row to confirm it gets wiped. */
-        await importBackup(ctx.db, { ...exported, series: [], episodes: [], seasons: [], watched: [], settings: [] }, { mode: 'replace' });
+        await importBackup(
+          ctx.db,
+          { ...exported, series: [], episodes: [], seasons: [], watched: [], settings: [] },
+          { mode: 'replace' }
+        );
 
         expect(await getSeries(ctx.db, 42)).toBeNull();
         expect(await getSeries(ctx.db, 99)).toBeNull();
@@ -488,7 +492,16 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
       it('rejects a future version', () => {
         expect(() =>
           parseBackup(
-            JSON.stringify({ format: BACKUP_FORMAT, version: 999, exportedAt: '', settings: [], series: [], seasons: [], episodes: [], watched: [] })
+            JSON.stringify({
+              format: BACKUP_FORMAT,
+              version: 999,
+              exportedAt: '',
+              settings: [],
+              series: [],
+              seasons: [],
+              episodes: [],
+              watched: []
+            })
           )
         ).toThrow(BackupImportError);
       });

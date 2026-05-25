@@ -588,8 +588,12 @@
       {/if}
     </form>
 
-    <div style="margin-top: var(--s-5); border-top: 1px solid var(--bw-border); padding-top: var(--s-4)">
-      <div class="settings-row__label" style="margin-bottom: var(--s-2)">{$t('settings.backupTitle')}</div>
+    <div
+      style="margin-top: var(--s-5); border-top: 1px solid var(--bw-border); padding-top: var(--s-4)"
+    >
+      <div class="settings-row__label" style="margin-bottom: var(--s-2)">
+        {$t('settings.backupTitle')}
+      </div>
 
       <div class="settings-row">
         <div>
