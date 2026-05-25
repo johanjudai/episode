@@ -2,7 +2,7 @@
 
 Open-source TV series tracker — focused, mobile-first, self-hostable.
 
-Episode is a lightweight alternative to TV Time, dedicated to **TV series only** — no movies, no social network, no recommendations. Your data stays with you, whether you self-host a Docker container or install a `.apk` on your phone.
+Episode is a lightweight alternative to TV Time, dedicated to **TV series only** — no movies, no social network, no recommendations. Your data stays with you: install the `.apk` on your phone or self-host a Docker container.
 
 ---
 
@@ -17,126 +17,63 @@ Episode is a lightweight alternative to TV Time, dedicated to **TV series only**
 
 <p align="center"><a href="screenshots/"><sub>📂 See all screenshots →</sub></a></p>
 
-> GitHub opens any thumbnail in a lightbox when you click it — tap each one to inspect at full resolution.
-
----
-
-## 🚀 Quick start
-
-Two ways to run Episode. Pick one — or both.
-
-### 🐳 Self-host (Docker)
-
-```bash
-git clone https://github.com/johanjudai/episode.git
-cd episode
-docker compose up -d --build
-```
-
-Episode is now live on **http://localhost:3000**. The container builds, runs the full test suite as a hard gate, then starts a Node server that persists everything to a named volume.
-
-Put it behind Caddy/Traefik for HTTPS + auth → [full guide below](#self-hosting-docker-homelab).
-
-### 📱 Android (APK)
-
-Grab the latest release from
-**[github.com/johanjudai/episode/releases/latest](https://github.com/johanjudai/episode/releases/latest)**
-and sideload the `.apk` on your phone (Settings → Apps → _Install unknown apps_ → allow your file manager / browser).
-
-The APK is fully offline — no server, no account, everything lives on the device. Built and signed automatically on every version tag.
-
-→ Build yourself: [Android APK guide](#android-apk-local-target).
-
----
-
 ## Features
 
-- **À voir** — episodes that have already aired, ready to mark watched
-- **À venir** — upcoming episodes for the next 7 days
-- Swipe right to mark watched, swipe left to remove a series (with confirmation)
-- **Recherche** — TMDB-powered, with weekly trending shown by default
-- **Fiche série** — seasons & episodes, bulk-tick a season or the entire series
-- **Profil** — total watch time, episodes watched, recent history
-- **Paramètres** — import TV Time export, TMDB API key, light/dark theme, accessibility (reduced motion, high contrast, text size)
-- Onboarding on first launch (name, avatar, optional import)
-- Bauhaus-inspired design with light and dark themes
+- **À voir / À venir** — aired episodes ready to mark, plus the next 7 days
+- Swipe right to mark watched, left to remove a series
+- **Recherche** TMDB-powered, with weekly trending by default
+- **Fiche série** with bulk-tick (season or full series)
+- **Profil** — total watch time, episodes watched, history
+- TV Time import, light/dark themes, accessibility options (reduced motion, high contrast, text size)
 
-## Two build targets, one codebase
+---
 
-| Target                   | Adapter          | Storage                                        | Use case                                                                                                         |
-| ------------------------ | ---------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **`server`** _(default)_ | `adapter-node`   | `better-sqlite3` file on the host              | Docker / homelab. PWA install on your phone for a native-feel experience over HTTPS.                             |
-| **`local`**              | `adapter-static` | `sql.js` (WASM) → IndexedDB / Capacitor SQLite | Pure SPA. Wrapped by Capacitor into an Android `.apk` — everything (including the database) lives on the device. |
+## 📱 Android (APK)
 
-A single set of queries lives under `src/lib/data/` and takes a Drizzle handle as its first argument, so the same business logic runs against either driver. The split is just at the storage seam.
+Download the latest signed APK from
+**[github.com/johanjudai/episode/releases/latest](https://github.com/johanjudai/episode/releases/latest)**
+and sideload it (Settings → Apps → _Install unknown apps_ → allow your browser / file manager).
 
-## Tech stack
+Fully offline — no server, no account, everything lives on the device.
 
-- **SvelteKit 5** + **TypeScript** — server endpoints in `server` target, pure SPA in `local`
-- **Drizzle ORM** — schema and queries shared by both drivers
-- **better-sqlite3** (server target) and **sql.js + idb** (local target) — synchronous SQLite both sides
-- **Zod** — runtime validation of TMDB responses and TV Time imports
-- **TMDB API** — series metadata (user provides their own key)
-- **Vitest** — unit + integration tests; the integration suite runs against BOTH drivers
-- **Capacitor 6** — APK wrapping (Android only for now)
-- **Playwright** — end-to-end tests
+<details>
+<summary>Build it yourself</summary>
 
-## Quickstart (development)
+Requires Android SDK + JDK 17+.
 
 ```bash
-cp .env.example .env
 npm install
-npm run db:generate   # generate initial Drizzle migration from schema
-npm run db:migrate    # apply to local SQLite file
-npm run dev
+npm run cap:sync                  # build:local + copy into android/
+cd android && ./gradlew assembleDebug
 ```
 
-Open http://localhost:5173 — on first visit you will be redirected to onboarding.
+APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`. Install with `adb install <path>` or open in Android Studio (`npm run cap:open:android`) for a signed build.
 
-## Tests
+Data lives in IndexedDB inside the app's sandbox (`/data/data/fr.iagona.episode/`). Uninstalling wipes it.
 
-```bash
-npm run test:unit          # vitest, watch mode
-npm run test:unit -- --run # one-shot run (CI + prebuild)
-npm run test:e2e           # playwright
-npm run coverage           # coverage report
-```
+</details>
 
-> **Hard gate**: `npm run build` runs `prebuild` which runs the unit-test suite. **If any test fails, the build does not produce an artifact.** The 62 integration tests run twice (once per driver), so any divergence between better-sqlite3 and sql.js is caught immediately.
+---
 
-## Self-hosting (Docker, homelab)
-
-This is the `server` target. The Dockerfile already builds with the right configuration.
-
-### 1. Clone and configure
+## 🐳 Self-host (Docker)
 
 ```bash
 git clone https://github.com/johanjudai/episode.git
 cd episode
-cp .env.example .env
-# edit .env — at minimum set EPISODE_ORIGIN to the URL you'll access from
-```
-
-`.env` example for a homelab behind a reverse proxy at `https://episode.home.lan`:
-
-```env
-EPISODE_ORIGIN=https://episode.home.lan
-EPISODE_TMDB_API_KEY=               # optional — can also be set in /settings
-```
-
-### 2. Build and run
-
-```bash
+cp .env.example .env              # set EPISODE_ORIGIN to your URL
 docker compose up -d --build
 ```
 
-The first build takes ~2-4 minutes — it installs deps, **runs the full test suite (hard gate)**, then builds the SvelteKit bundle. If any test fails the image is not produced.
+Episode is live on **http://localhost:3000**. The build runs the full test suite as a hard gate — no artifact if tests fail. Migrations apply automatically on every container start.
 
-Episode is now serving on `http://<homelab-ip>:3000`. The container runs migrations automatically on every start, then launches the Node server.
+The SQLite database lives in the `episode-data` named volume:
 
-### 3. Put it behind HTTPS
+```bash
+docker run --rm -v episode_episode-data:/data -v $(pwd):/backup \
+  alpine tar czf /backup/episode-backup-$(date +%F).tar.gz -C /data .
+```
 
-PWA install on mobile **requires HTTPS** (Chrome refuses to install a non-secure origin). Easiest setup with Caddy on the homelab:
+**Put it behind HTTPS** — PWA install on mobile requires it. Caddy example:
 
 ```caddy
 episode.home.lan {
@@ -144,226 +81,58 @@ episode.home.lan {
 }
 ```
 
-### 4. Backup
+To update: `git pull && docker compose up -d --build`.
 
-The SQLite database is in the `episode-data` named volume.
-
-```bash
-docker run --rm -v episode_episode-data:/data -v $(pwd):/backup \
-  alpine tar czf /backup/episode-backup-$(date +%F).tar.gz -C /data .
-```
-
-### Updating
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Migrations run automatically on every container start.
-
-## Android APK (local target)
-
-This is the `local` target — everything (queries, mutations, TMDB calls) runs in the WebView. There is no server, no network, no auth. Persistent storage is IndexedDB inside the Capacitor app, scoped to the app's sandbox.
-
-### 1. Build the SPA
-
-```bash
-npm run build:local    # produces build/ — a static SPA with sql.js bundled
-```
-
-### 2. Android setup
-
-The `android/` Gradle project is committed to the repo (only the source skeleton — generated files are gitignored), so a fresh clone is ready to build. You just need a working Android SDK and a JDK 17+. Then:
-
-```bash
-npm run cap:sync       # build:local + copy build/ into android/app/.../public
-```
-
-Two ways to produce the APK from there:
-
-**a) GUI** — open in Android Studio:
-
-```bash
-npm run cap:open:android
-```
-
-Then **Build → Generate Signed Bundle / APK** to produce a `.apk` you can sideload, or **Run** to deploy to a connected phone.
-
-**b) CLI** — straight from the terminal (Windows PowerShell):
-
-```powershell
-cd android
-.\gradlew.bat assembleDebug
-```
-
-The APK lands at `android/app/build/outputs/apk/debug/app-debug.apk` (~4 MB).
-
-### Install on a phone
-
-```bash
-adb install android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-(Requires USB debugging enabled on the phone. `adb` ships with the Android SDK's `platform-tools`.)
-
-### Subsequent updates
-
-```bash
-npm run cap:sync           # rebuild + sync
-cd android && .\gradlew.bat assembleDebug
-```
-
-### Where is the data?
-
-- In development: IndexedDB store named `episode`, key `db` — a Uint8Array snapshot of the full SQLite file.
-- In the APK: same IndexedDB, but it lives in the app's private storage area (`/data/data/fr.iagona.episode/`). Uninstalling the app removes it.
+---
 
 ## TMDB API key
 
-You need a free TMDB v3 API key:
+Episode needs a free TMDB v3 key (<https://www.themoviedb.org/settings/api>). Paste it in **Paramètres → API TMDB**, or pre-seed via `EPISODE_TMDB_API_KEY` in the server target.
 
-1. Sign up at <https://www.themoviedb.org>
-2. Request a key at <https://www.themoviedb.org/settings/api>
-3. Paste it in **Paramètres → API TMDB**
-   - In `server` target you can also pre-seed it via `EPISODE_TMDB_API_KEY`.
-   - In `local` target the key is stored client-side in the local DB (settings table).
+---
 
-## Project structure
+## Development
 
+```bash
+cp .env.example .env
+npm install
+npm run db:generate && npm run db:migrate
+npm run dev                       # http://localhost:5173
 ```
-src/
-├── app.css                       Design system (Bauhaus tokens, components)
-├── app.html                      HTML shell (placeholders replaced at build/run)
-├── hooks.server.ts               Onboarding redirect (server target only; neutered for local)
-├── lib/
-│   ├── api.ts                    Unified mutation facade — server target POSTs JSON,
-│   │                             local target calls the data layer directly
-│   ├── config.ts                 TARGET resolution (Vite define)
-│   ├── db.ts                     Browser DB factory (local target)
-│   ├── db.browser.ts             sql.js + IndexedDB driver
-│   ├── local-sync.ts             Client-side TMDB sync wrapper (reads key from local DB)
-│   ├── server/
-│   │   └── db.ts                 better-sqlite3 driver — server target only
-│   ├── data/                     PORTABLE — works in Node and browser
-│   │   ├── schema.ts             Drizzle schema (single source of truth)
-│   │   ├── db-types.ts           Portable `Db` type (BaseSQLiteDatabase<'sync', …>)
-│   │   ├── queries.ts            Read-side queries, take `Db` as 1st arg
-│   │   ├── mutations.ts          Write-side ops, take `Db` as 1st arg
-│   │   ├── sync.ts               TMDB → DB sync helpers
-│   │   ├── tmdb.ts               Typed TMDB client (Zod-validated)
-│   │   ├── tvtime-import.ts      TV Time JSON parser
-│   │   └── migrations.ts         Embedded SQL for the browser driver
-│   ├── components/               Reusable UI (Mark, BottomNav, EpisodeRow, AvatarPicker)
-│   ├── actions/                  Svelte actions (swipe)
-│   └── utils/                    Date, format, theme, image helpers (pure)
-└── routes/
-    ├── +layout.svelte            Root layout + theme bootstrap
-    ├── +layout.ts                ssr/prerender toggle per target + onboarding guard
-    ├── +layout.server.ts         Onboarding flag (server target)
-    ├── +page.{ts,server.ts,svelte}  "À voir" home
-    ├── onboarding/               First-launch form
-    ├── search/                   TMDB search + trending
-    ├── series/[id]/              Series detail + bulk tick
-    ├── profile/                  Stats + history
-    ├── history/                  Full watch history
-    ├── settings/                 Profile, TMDB key, import, theme, a11y
-    └── api/                      Mutation endpoints called by `$lib/api` (server target)
-        ├── episodes/{mark,unmark}/+server.ts
-        ├── series/{follow,unfollow,mark-episode,mark-season,mark-all}/+server.ts
-        ├── profile/{name,avatar}/+server.ts
-        ├── settings/tmdb-key/+server.ts
-        ├── onboarding/complete/+server.ts
-        └── import/tvtime/+server.ts
 
-drizzle/                          drizzle-kit generated migrations (server target)
+**Stack:** SvelteKit 5 + TypeScript, Drizzle ORM over SQLite (`better-sqlite3` server-side, `sql.js` + IndexedDB local-side), Zod validation, Vitest + Playwright, Capacitor 6 for the APK.
 
-tests/
-├── unit/                         Vitest specs for pure modules
-└── integration/                  Query / mutation suite — runs on BOTH drivers
+**Two targets, one codebase:** queries under `src/lib/data/` take a Drizzle handle as their first argument, so the same business logic runs against either driver. The split is only at the storage seam.
 
-capacitor.config.ts               Android wrapping (Capacitor 6)
-android/                          (Created by `npx cap add android` — gitignored)
-mockups/                          Static HTML/CSS wireframes (design source)
-```
+Tests: `npm run test:unit` (unit + integration, runs on both drivers), `npm run test:e2e`. The integration suite gates the build — any divergence between drivers fails CI.
 
 ## Security & trust model
 
-Episode is a **single-user, no-auth** app by design — there's no login, no
-account, no per-user data partitioning. The threat model assumes that anyone
-who can reach the running instance is _you_.
+Episode is a **single-user, no-auth** app by design — anyone who can reach the running instance is assumed to be you.
 
-**Server target (Docker / homelab)**
+**Server target (Docker):**
 
-- Do **not** expose port 3000 directly to the internet. The recommended
-  setup is to put Episode behind a reverse proxy (Caddy, Traefik, nginx)
-  that:
-  - terminates TLS,
-  - enforces some kind of access control (basic auth, OAuth proxy,
-    Tailscale-only, your VPN of choice).
-- The Node process runs as a non-root user inside the container and
-  the SQLite file lives on a named volume — nothing else is mounted.
-- The server sets defence-in-depth headers on every response:
-  `Content-Security-Policy`, `X-Frame-Options: DENY`,
-  `X-Content-Type-Options: nosniff`, `Referrer-Policy:
-strict-origin-when-cross-origin`, and a `Permissions-Policy` that
-  disables every browser API Episode never uses (camera, mic,
-  geolocation, payment, USB, sensors).
-- A per-IP token-bucket rate limiter (60 burst, 1 req/s sustained)
-  protects every `/api/*` route from brute-force and from amplifying
-  abuse against TMDB / OMDb quotas.
-- All API endpoints validate inputs through Zod. The DB layer is
-  Drizzle ORM (parameterised queries everywhere — no SQL string
-  concatenation).
-- TMDB / OMDb keys are stored in the SQLite settings table; they are
-  **never** returned in load functions (only a `hasKey: boolean`).
-- The TV Time import is capped at 10 MB; the generic
-  `BODY_SIZE_LIMIT` env var caps every other request to 512 KB by default.
+- Do **not** expose port 3000 directly to the internet. Put it behind a reverse proxy that terminates TLS and enforces access control (basic auth, OAuth proxy, Tailscale, VPN).
+- The Node process runs as non-root; SQLite lives on a named volume.
+- Defence-in-depth headers on every response: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a `Permissions-Policy` disabling every browser API Episode never uses.
+- Per-IP token-bucket rate limit (60 burst, 1 req/s sustained) on `/api/*`.
+- All inputs validated through Zod. DB layer is Drizzle (parameterised queries everywhere).
+- TMDB / OMDb keys are stored in the settings table and **never** returned in load functions (only `hasKey: boolean`).
+- TV Time import capped at 10 MB; other requests capped at 512 KB by default.
 
-**Local target (Capacitor APK)**
+**Local target (APK):**
 
-- No server, no network listener. The only attack surface is the data
-  the app makes outbound to TMDB / OMDb / TVMaze / Jikan, all of which
-  are validated by Zod schemas before use.
-- IndexedDB is sandboxed to the app's private storage area
-  (`/data/data/fr.iagona.episode/`). Uninstalling the app wipes it.
-- The TMDB / OMDb keys live in that same IndexedDB. They are _not_
-  encrypted at rest — if an attacker has filesystem access (rooted
-  device + ADB), they can read them. Treat them as low-sensitivity
-  third-party API credentials, not user passwords.
-- Capacitor config has `allowMixedContent: false` and
-  `webContentsDebuggingEnabled: false`; the WebView only loads bundled
-  assets.
+- No server, no network listener. The only outbound traffic is to TMDB / OMDb / TVMaze / Jikan, all validated by Zod.
+- IndexedDB sandboxed to the app's private storage; uninstalling wipes it.
+- TMDB / OMDb keys are **not** encrypted at rest — treat them as low-sensitivity third-party credentials.
+- Capacitor config: `allowMixedContent: false`, `webContentsDebuggingEnabled: false`; the WebView only loads bundled assets.
 
-**Both targets**
+**Both targets:**
 
-- TMDB image paths flow through a regex whitelist in
-  `$lib/utils/images.ts` before being inlined into CSS
-  `background-image: url(...)` — guards against an upstream
-  compromise injecting CSS / script.
-- The avatar upload accepts only `data:image/(png|jpeg|webp);base64,…`
-  (no SVG, no remote URL).
-- All third-party HTTPS endpoints we hit (TMDB, OMDb, TVMaze, Jikan)
-  are wrapped with a Zod schema; any unexpected response shape is
-  rejected at parse-time.
+- TMDB image paths flow through a regex whitelist in `$lib/utils/images.ts` before being inlined into CSS — guards against upstream compromise injecting CSS / script.
+- Avatar uploads accept only `data:image/(png|jpeg|webp);base64,…` (no SVG, no remote URL).
 
-If you find a security issue, please open a GitHub issue
-(<https://github.com/johanjudai/episode/issues>) — or, if it's
-sensitive, get in touch directly.
-
-## Releasing
-
-The release flow (tag a version, build the signed APK, publish a GitHub Release) is documented in [`docs/RELEASING.md`](./docs/RELEASING.md). It's the maintainer's checklist — you don't need it as a user.
-
-## Roadmap
-
-- [ ] Signed release APK + Play Store / F-Droid listing (debug-signed today, sideload-only)
-- [ ] iOS Capacitor wrapping (currently Android-only)
-- [ ] Optional `@capacitor-community/sqlite` driver for native storage on Android (sql.js + IndexedDB works today, but native is faster)
-- [ ] Background TMDB sync (refresh series airing status)
-- [ ] Trakt OAuth import (cleaner than TV Time scraping, real public API)
-- [ ] Optional password protection for self-host
-- [ ] Pre-generated PNG icons for the manifest
+Security issues: open a GitHub issue, or contact directly if sensitive.
 
 ## License
 
