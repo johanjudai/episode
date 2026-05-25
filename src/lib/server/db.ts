@@ -36,10 +36,15 @@ if (existsSync(migrationsFolder)) {
   try {
     migrate(drizzle(sqlite), { migrationsFolder });
   } catch (err) {
-    /* Swallow migration failures in dev/test so a stale schema doesn't
-     * brick the whole server. Production / Docker still pre-runs migrations
-     * via scripts/migrate.mjs, where any failure is surfaced loudly. */
     console.error('[episode] auto-migrate failed:', err);
+    /* In production a failed migration means the schema is out of date
+     * — every subsequent query will throw with a less useful error.
+     * Exit loudly so the operator notices instead of serving 500s. In
+     * dev/test, log and continue so a stale schema doesn't brick the
+     * iteration loop. */
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 }
 

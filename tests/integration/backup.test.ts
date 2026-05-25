@@ -1,7 +1,7 @@
 /**
  * Backup round-trip suite. Like queries.test.ts, runs against BOTH the
  * better-sqlite3 (Node) and sql.js (WASM) drivers so the export/import
- * path is verified on both targets.
+ * path is verified on both targets. Driver glue lives in `_drivers.ts`.
  *
  * Covered:
  *  - round-trip on the same driver: export → wipe → import → identical rows
@@ -13,14 +13,8 @@
  *  - malformed JSON is rejected
  */
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { drizzle as drizzleNode } from 'drizzle-orm/better-sqlite3';
-import { drizzle as drizzleSqlJs } from 'drizzle-orm/sql-js';
 import { eq } from 'drizzle-orm';
-import BetterSqlite3 from 'better-sqlite3';
-import initSqlJs, { type Database as SqlJsDatabase } from 'sql.js';
-import * as schema from '../../src/lib/data/schema';
 import { series, settings as settingsTable } from '../../src/lib/data/schema';
-import type { Db } from '../../src/lib/data/db-types';
 import { getRecentWatched, getSeries, getSetting } from '../../src/lib/data/queries';
 import { followSeries, markEpisodeWatched, setSetting } from '../../src/lib/data/mutations';
 import {
@@ -31,131 +25,41 @@ import {
   importBackup,
   parseBackup
 } from '../../src/lib/data/backup';
-import { EMBEDDED_MIGRATIONS } from '../../src/lib/data/migrations';
+import { DUAL_DRIVERS, type DriverContext } from './_drivers';
 
-const DDL = EMBEDDED_MIGRATIONS.map((m) => m.sql).join('\n');
-
-interface Driver {
-  name: string;
-  setup: () => Promise<DriverContext>;
+function insertSeason(
+  ctx: DriverContext,
+  seriesTmdbId: number,
+  seasonNumber: number,
+  episodeCount: number
+): number {
+  ctx.raw.run(
+    'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)',
+    [seriesTmdbId, seasonNumber, episodeCount]
+  );
+  return ctx.raw.lastInsertId();
 }
 
-interface DriverContext {
-  db: Db;
-  raw: {
-    insertSeason: (seriesTmdbId: number, seasonNumber: number, episodeCount: number) => number;
-    setSeasonOverview: (seasonId: number, overview: string) => void;
-    insertEpisode: (
-      seasonId: number,
-      seriesTmdbId: number,
-      seasonNumber: number,
-      episodeNumber: number,
-      name: string,
-      overview?: string | null
-    ) => void;
-    prepareAll: <T = unknown>(sql: string) => T[];
-  };
-  cleanup: () => Promise<void>;
+function setSeasonOverview(ctx: DriverContext, seasonId: number, overview: string): void {
+  ctx.raw.run('UPDATE seasons SET overview = ? WHERE id = ?', [overview, seasonId]);
 }
 
-const nodeDriver: Driver = {
-  name: 'better-sqlite3',
-  async setup(): Promise<DriverContext> {
-    const sqlite = new BetterSqlite3(':memory:');
-    sqlite.pragma('foreign_keys = ON');
-    sqlite.exec(DDL);
-    const db = drizzleNode(sqlite, { schema }) as unknown as Db;
-    return {
-      db,
-      raw: {
-        prepareAll: <T>(s: string) => sqlite.prepare(s).all() as T[],
-        insertSeason: (seriesTmdbId, seasonNumber, episodeCount) => {
-          const info = sqlite
-            .prepare(
-              'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)'
-            )
-            .run(seriesTmdbId, seasonNumber, episodeCount);
-          return Number(info.lastInsertRowid);
-        },
-        setSeasonOverview: (seasonId, overview) => {
-          sqlite.prepare('UPDATE seasons SET overview = ? WHERE id = ?').run(overview, seasonId);
-        },
-        insertEpisode: (seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, overview) => {
-          sqlite
-            .prepare(
-              `INSERT INTO episodes
-                (season_id, series_tmdb_id, season_number, episode_number, name, overview, runtime_minutes)
-                VALUES (?, ?, ?, ?, ?, ?, 45)`
-            )
-            .run(seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, overview ?? null);
-        }
-      },
-      cleanup: async () => {
-        sqlite.close();
-      }
-    };
-  }
-};
-
-let sqlJsStaticPromise: ReturnType<typeof initSqlJs> | null = null;
-function loadSqlJsStatic() {
-  if (!sqlJsStaticPromise) sqlJsStaticPromise = initSqlJs({});
-  return sqlJsStaticPromise;
+function insertEpisode(
+  ctx: DriverContext,
+  seasonId: number,
+  seriesTmdbId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+  name: string,
+  overview: string | null = null
+): void {
+  ctx.raw.run(
+    `INSERT INTO episodes
+      (season_id, series_tmdb_id, season_number, episode_number, name, overview, runtime_minutes)
+      VALUES (?, ?, ?, ?, ?, ?, 45)`,
+    [seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, overview]
+  );
 }
-
-const sqlJsDriver: Driver = {
-  name: 'sql.js',
-  async setup(): Promise<DriverContext> {
-    const SQL = await loadSqlJsStatic();
-    const sqlite: SqlJsDatabase = new SQL.Database();
-    sqlite.exec('PRAGMA foreign_keys = ON');
-    sqlite.exec(DDL);
-    const db = drizzleSqlJs(sqlite, { schema }) as unknown as Db;
-
-    function execAll<T>(s: string): T[] {
-      const res = sqlite.exec(s);
-      if (res.length === 0) return [];
-      const cols = res[0].columns;
-      return res[0].values.map((row) => {
-        const obj: Record<string, unknown> = {};
-        cols.forEach((c, i) => (obj[c] = row[i]));
-        return obj as T;
-      });
-    }
-
-    return {
-      db,
-      raw: {
-        prepareAll: <T>(s: string) => execAll<T>(s),
-        insertSeason: (seriesTmdbId, seasonNumber, episodeCount) => {
-          const stmt = sqlite.prepare(
-            'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)'
-          );
-          stmt.run([seriesTmdbId, seasonNumber, episodeCount]);
-          stmt.free();
-          return Number(execAll<{ id: number }>('SELECT last_insert_rowid() as id')[0].id);
-        },
-        setSeasonOverview: (seasonId, overview) => {
-          const stmt = sqlite.prepare('UPDATE seasons SET overview = ? WHERE id = ?');
-          stmt.run([overview, seasonId]);
-          stmt.free();
-        },
-        insertEpisode: (seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, overview) => {
-          const stmt = sqlite.prepare(
-            `INSERT INTO episodes
-              (season_id, series_tmdb_id, season_number, episode_number, name, overview, runtime_minutes)
-              VALUES (?, ?, ?, ?, ?, ?, 45)`
-          );
-          stmt.run([seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, overview ?? null]);
-          stmt.free();
-        }
-      },
-      cleanup: async () => {
-        sqlite.close();
-      }
-    };
-  }
-};
 
 async function seed(ctx: DriverContext): Promise<void> {
   /* Realistic fixture: one followed series, two seasons, 2+1 episodes,
@@ -170,13 +74,13 @@ async function seed(ctx: DriverContext): Promise<void> {
     numberOfSeasons: 2,
     numberOfEpisodes: 3
   });
-  const s1 = ctx.raw.insertSeason(42, 1, 2);
-  const s2 = ctx.raw.insertSeason(42, 2, 1);
-  ctx.raw.setSeasonOverview(s1, 'Season 1 overview text');
-  ctx.raw.setSeasonOverview(s2, 'Season 2 overview text');
-  ctx.raw.insertEpisode(s1, 42, 1, 1, 'Pilot', 'Pilot synopsis');
-  ctx.raw.insertEpisode(s1, 42, 1, 2, 'Two', 'Episode 2 synopsis');
-  ctx.raw.insertEpisode(s2, 42, 2, 1, 'Premiere', 'S2 premiere synopsis');
+  const s1 = insertSeason(ctx, 42, 1, 2);
+  const s2 = insertSeason(ctx, 42, 2, 1);
+  setSeasonOverview(ctx, s1, 'Season 1 overview text');
+  setSeasonOverview(ctx, s2, 'Season 2 overview text');
+  insertEpisode(ctx, s1, 42, 1, 1, 'Pilot', 'Pilot synopsis');
+  insertEpisode(ctx, s1, 42, 1, 2, 'Two', 'Episode 2 synopsis');
+  insertEpisode(ctx, s2, 42, 2, 1, 'Premiere', 'S2 premiere synopsis');
 
   await setSetting(ctx.db, 'profile.name', 'Pierre');
   await setSetting(ctx.db, 'tmdb.api_key', 'secret-key');
@@ -188,7 +92,7 @@ async function seed(ctx: DriverContext): Promise<void> {
   await markEpisodeWatched(ctx.db, epIds[2].id, new Date('2024-02-20T18:00:00Z'));
 }
 
-for (const driver of [nodeDriver, sqlJsDriver]) {
+for (const driver of DUAL_DRIVERS) {
   describe(`backup (${driver.name})`, () => {
     let ctx: DriverContext;
 
@@ -434,12 +338,12 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
         const ctxB = await driver.setup();
         try {
           await followSeries(ctxB.db, { tmdbId: 1, name: 'Decoy' });
-          ctxB.raw.insertSeason(1, 1, 5);
+          insertSeason(ctxB, 1, 1, 5);
           for (let i = 1; i <= 5; i++) {
             const seasonRow = ctxB.raw.prepareAll<{ id: number }>(
               'SELECT id FROM seasons WHERE series_tmdb_id = 1'
             )[0];
-            ctxB.raw.insertEpisode(seasonRow.id, 1, 1, i, `Decoy E${i}`);
+            insertEpisode(ctxB, seasonRow.id, 1, 1, i, `Decoy E${i}`);
           }
 
           await importBackup(ctxB.db, exported);

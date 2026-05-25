@@ -32,32 +32,33 @@ describe('palette', () => {
     expect(DEFAULT_PALETTE).toBe('bauhaus');
   });
 
-  it('isPalette accepts known values only', () => {
-    expect(isPalette('bauhaus')).toBe(true);
-    expect(isPalette('ecobrutalism')).toBe(true);
-    expect(isPalette('artnouveau')).toBe(true);
-    expect(isPalette('nope')).toBe(false);
-    expect(isPalette(null)).toBe(false);
-    expect(isPalette(undefined)).toBe(false);
-    expect(isPalette(42)).toBe(false);
+  it.each([
+    ['bauhaus', true],
+    ['ecobrutalism', true],
+    ['artnouveau', true],
+    ['nope', false],
+    [null, false],
+    [undefined, false],
+    [42, false]
+  ])('isPalette(%p) = %s', (input, expected) => {
+    expect(isPalette(input)).toBe(expected);
   });
 
-  it('readStoredPalette returns the default when nothing is stored', () => {
-    const s = new MemoryStorage();
-    expect(readStoredPalette(s)).toBe('bauhaus');
-  });
+  describe('readStoredPalette', () => {
+    it('falls back to default when nothing is stored', () => {
+      expect(readStoredPalette(new MemoryStorage())).toBe('bauhaus');
+    });
 
-  it('readStoredPalette returns a valid stored value', () => {
-    const s = new MemoryStorage();
-    s.setItem('episode.palette', 'ecobrutalism');
-    expect(readStoredPalette(s)).toBe('ecobrutalism');
-    s.setItem('episode.palette', 'artnouveau');
-    expect(readStoredPalette(s)).toBe('artnouveau');
-  });
+    it.each([['ecobrutalism'], ['artnouveau']])('returns valid stored value %s', (stored) => {
+      const s = new MemoryStorage();
+      s.setItem('episode.palette', stored);
+      expect(readStoredPalette(s)).toBe(stored);
+    });
 
-  it('readStoredPalette falls back to default when stored value is garbage', () => {
-    const s = new MemoryStorage();
-    s.setItem('episode.palette', 'nope');
-    expect(readStoredPalette(s)).toBe('bauhaus');
+    it('falls back to default when stored value is garbage', () => {
+      const s = new MemoryStorage();
+      s.setItem('episode.palette', 'nope');
+      expect(readStoredPalette(s)).toBe('bauhaus');
+    });
   });
 });

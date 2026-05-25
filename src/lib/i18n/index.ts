@@ -51,6 +51,17 @@ export function localeCode(l: Locale): string {
   return l === 'en' ? 'en-US' : 'fr-FR';
 }
 
+/**
+ * Translate a raw `locale` settings value (read from the DB, where it
+ * is a free-form string or null) to the BCP-47 tag TMDB expects.
+ * Unknown / missing values fall back to French. Co-located here so the
+ * inline ternary that was duplicated across loaders and API endpoints
+ * has a single source of truth.
+ */
+export function tmdbLanguageFromStored(stored: string | null | undefined): string {
+  return isLocale(stored) ? localeCode(stored) : 'fr-FR';
+}
+
 /** Reactive translator. `$t('key.path')` or `$t('greet', { name: 'X' })`. */
 export const t = derived(locale, ($l) => {
   const dict = dicts[$l];

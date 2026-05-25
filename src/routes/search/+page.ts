@@ -1,11 +1,15 @@
 import type { PageLoad } from './$types';
 import { browser } from '$app/environment';
 import { IS_LOCAL } from '$lib/config';
+import { tmdbLanguageFromStored } from '$lib/i18n';
 import type { SearchResult } from './+page.server';
+
+/* Same cap as +page.server.ts — keep client and server in sync. */
+const MAX_QUERY_LEN = 100;
 
 export const load: PageLoad = async ({ data, url }) => {
   if (!IS_LOCAL) return { ...data };
-  const q = (url.searchParams.get('q') ?? '').trim();
+  const q = (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY_LEN);
   if (!browser) return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
 
   const { getDb } = await import('$lib/db');
@@ -19,7 +23,7 @@ export const load: PageLoad = async ({ data, url }) => {
   ]);
   if (!apiKey) return { q, hasKey: false, results: [] as SearchResult[], error: undefined };
 
-  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const language = tmdbLanguageFromStored(storedLocale);
   const tmdb = createTmdbClient({ apiKey, language });
   try {
     const resp = q ? await tmdb.searchTv(q) : await tmdb.trendingTv('week');

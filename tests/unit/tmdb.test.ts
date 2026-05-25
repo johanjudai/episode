@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createTmdbClient, TmdbError, posterUrl, pickBestTrailer } from '$lib/data/tmdb';
+import { createTmdbClient, TmdbError, pickBestTrailer } from '$lib/data/tmdb';
 import type { TmdbVideo } from '$lib/data/tmdb';
 
 function mockOk(body: unknown): typeof fetch {
@@ -59,30 +59,21 @@ describe('createTmdbClient', () => {
     expect(res.results[0].name).toBe('Severance');
   });
 
-  it('calls /trending/tv/week by default', async () => {
+  it.each([
+    [undefined, '/3/trending/tv/week'],
+    ['day' as const, '/3/trending/tv/day'],
+    ['week' as const, '/3/trending/tv/week']
+  ])('trendingTv(%s) hits %s', async (window, expectedPath) => {
     const f = vi.fn(async (url: string) => {
-      const u = new URL(url);
-      expect(u.pathname).toBe('/3/trending/tv/week');
+      expect(new URL(url).pathname).toBe(expectedPath);
       return new Response(
         JSON.stringify({ page: 1, results: [], total_pages: 0, total_results: 0 }),
         { status: 200 }
       );
     });
     const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
-    await client.trendingTv();
+    await client.trendingTv(window);
     expect(f).toHaveBeenCalledOnce();
-  });
-
-  it('supports trending day window', async () => {
-    const f = vi.fn(async (url: string) => {
-      expect(new URL(url).pathname).toBe('/3/trending/tv/day');
-      return new Response(
-        JSON.stringify({ page: 1, results: [], total_pages: 0, total_results: 0 }),
-        { status: 200 }
-      );
-    });
-    const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
-    await client.trendingTv('day');
   });
 
   it('fetches tv detail with seasons', async () => {
@@ -127,11 +118,14 @@ describe('createTmdbClient', () => {
     expect(season.episodes[0].runtime).toBe(56);
   });
 
-  it('findByExternalId calls /find/{id} with external_source', async () => {
+  it.each([
+    [70533 as const, 'tvdb_id' as const, '/3/find/70533'],
+    ['tt0098936' as const, 'imdb_id' as const, '/3/find/tt0098936']
+  ])('findByExternalId(%s, %s) hits %s', async (id, source, expectedPath) => {
     const f = vi.fn(async (url: string) => {
       const u = new URL(url);
-      expect(u.pathname).toBe('/3/find/70533');
-      expect(u.searchParams.get('external_source')).toBe('tvdb_id');
+      expect(u.pathname).toBe(expectedPath);
+      expect(u.searchParams.get('external_source')).toBe(source);
       return new Response(
         JSON.stringify({
           tv_results: [{ id: 1234, name: 'Twin Peaks', first_air_date: '1990-04-08' }]
@@ -140,9 +134,8 @@ describe('createTmdbClient', () => {
       );
     });
     const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
-    const hit = await client.findByExternalId(70533);
+    const hit = await client.findByExternalId(id, source);
     expect(hit?.id).toBe(1234);
-    expect(hit?.name).toBe('Twin Peaks');
   });
 
   it('findByExternalId returns null when tv_results is empty', async () => {
@@ -151,15 +144,6 @@ describe('createTmdbClient', () => {
       fetch: mockOk({ tv_results: [] }) as typeof fetch
     });
     expect(await client.findByExternalId(999999)).toBeNull();
-  });
-
-  it('findByExternalId accepts imdb_id as source', async () => {
-    const f = vi.fn(async (url: string) => {
-      expect(new URL(url).searchParams.get('external_source')).toBe('imdb_id');
-      return new Response(JSON.stringify({ tv_results: [] }), { status: 200 });
-    });
-    const client = createTmdbClient({ apiKey: 'TESTKEY123', fetch: f as unknown as typeof fetch });
-    await client.findByExternalId('tt0098936', 'imdb_id');
   });
 
   it('throws TmdbError on non-OK HTTP', async () => {
@@ -179,20 +163,7 @@ describe('createTmdbClient', () => {
   });
 });
 
-describe('posterUrl', () => {
-  it('builds w342 URL by default', () => {
-    expect(posterUrl('/abc.jpg')).toBe('https://image.tmdb.org/t/p/w342/abc.jpg');
-  });
-  it('supports w185 and w500', () => {
-    expect(posterUrl('/x.jpg', 'w185')).toBe('https://image.tmdb.org/t/p/w185/x.jpg');
-    expect(posterUrl('/x.jpg', 'w500')).toBe('https://image.tmdb.org/t/p/w500/x.jpg');
-  });
-  it('returns null for null/undefined/empty', () => {
-    expect(posterUrl(null)).toBeNull();
-    expect(posterUrl(undefined)).toBeNull();
-    expect(posterUrl('')).toBeNull();
-  });
-});
+/* posterUrl is tested in images.test.ts — tmdb.ts only re-exports it. */
 
 describe('pickBestTrailer', () => {
   function v(opts: Partial<TmdbVideo>): TmdbVideo {

@@ -2,19 +2,9 @@
  * Query / mutation integration suite. The same suite runs against BOTH the
  * better-sqlite3 (Node) and sql.js (WASM) drivers, so any divergence between
  * the two surfaces (e.g. autoincrement semantics, FK enforcement, NULL handling
- * in indexes) is caught immediately.
- *
- * The two drivers share the schema (`$lib/data/schema`), so we apply the same
- * SQL DDL to a fresh in-memory database before each test, then run the high-
- * level queries from `$lib/data/queries` + `$lib/data/mutations` against it.
+ * in indexes) is caught immediately. Driver glue lives in `_drivers.ts`.
  */
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { drizzle as drizzleNode } from 'drizzle-orm/better-sqlite3';
-import { drizzle as drizzleSqlJs } from 'drizzle-orm/sql-js';
-import BetterSqlite3 from 'better-sqlite3';
-import initSqlJs, { type Database as SqlJsDatabase } from 'sql.js';
-import * as schema from '../../src/lib/data/schema';
-import type { Db } from '../../src/lib/data/db-types';
 import {
   getEpisodesToWatch,
   getFollowedSeriesWithProgress,
@@ -36,23 +26,25 @@ import {
   unmarkEpisodeWatched,
   unmarkSeasonWatched
 } from '../../src/lib/data/mutations';
-import { EMBEDDED_MIGRATIONS } from '../../src/lib/data/migrations';
+import { DUAL_DRIVERS, type DriverContext } from './_drivers';
 
-const DDL = EMBEDDED_MIGRATIONS.map((m) => m.sql).join('\n');
+for (const driver of DUAL_DRIVERS) {
+  describe(`queries / mutations (${driver.name})`, () => {
+    let ctx: DriverContext;
 
-interface Driver {
-  name: string;
-  setup: () => Promise<DriverContext>;
-}
+    function insertSeason(
+      seriesTmdbId: number,
+      seasonNumber: number,
+      episodeCount: number
+    ): number {
+      ctx.raw.run(
+        'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)',
+        [seriesTmdbId, seasonNumber, episodeCount]
+      );
+      return ctx.raw.lastInsertId();
+    }
 
-interface DriverContext {
-  db: Db;
-  raw: {
-    exec: (sql: string) => void;
-    prepareAll: <T = unknown>(sql: string) => T[];
-    prepareGet: <T = unknown>(sql: string) => T | undefined;
-    insertSeason: (seriesTmdbId: number, seasonNumber: number, episodeCount: number) => number;
-    insertEpisode: (
+    function insertEpisode(
       seasonId: number,
       seriesTmdbId: number,
       seasonNumber: number,
@@ -60,126 +52,14 @@ interface DriverContext {
       name: string,
       airDate: string | null,
       runtime: number
-    ) => void;
-  };
-  cleanup: () => Promise<void>;
-}
-
-const nodeDriver: Driver = {
-  name: 'better-sqlite3',
-  async setup(): Promise<DriverContext> {
-    const sqlite = new BetterSqlite3(':memory:');
-    sqlite.pragma('foreign_keys = ON');
-    sqlite.exec(DDL);
-    const db = drizzleNode(sqlite, { schema }) as unknown as Db;
-    return {
-      db,
-      raw: {
-        exec: (s) => sqlite.exec(s),
-        prepareAll: <T>(s: string) => sqlite.prepare(s).all() as T[],
-        prepareGet: <T>(s: string) => sqlite.prepare(s).get() as T | undefined,
-        insertSeason: (seriesTmdbId, seasonNumber, episodeCount) => {
-          const info = sqlite
-            .prepare(
-              'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)'
-            )
-            .run(seriesTmdbId, seasonNumber, episodeCount);
-          return Number(info.lastInsertRowid);
-        },
-        insertEpisode: (
-          seasonId,
-          seriesTmdbId,
-          seasonNumber,
-          episodeNumber,
-          name,
-          airDate,
-          runtime
-        ) => {
-          sqlite
-            .prepare(
-              `INSERT INTO episodes
-                (season_id, series_tmdb_id, season_number, episode_number, name, air_date, runtime_minutes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)`
-            )
-            .run(seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, airDate, runtime);
-        }
-      },
-      cleanup: async () => {
-        sqlite.close();
-      }
-    };
-  }
-};
-
-let sqlJsStaticPromise: ReturnType<typeof initSqlJs> | null = null;
-function loadSqlJsStatic() {
-  if (!sqlJsStaticPromise) sqlJsStaticPromise = initSqlJs({});
-  return sqlJsStaticPromise;
-}
-
-const sqlJsDriver: Driver = {
-  name: 'sql.js',
-  async setup(): Promise<DriverContext> {
-    const SQL = await loadSqlJsStatic();
-    const sqlite: SqlJsDatabase = new SQL.Database();
-    sqlite.exec('PRAGMA foreign_keys = ON');
-    sqlite.exec(DDL);
-    const db = drizzleSqlJs(sqlite, { schema }) as unknown as Db;
-
-    function execAll<T>(sql: string): T[] {
-      const res = sqlite.exec(sql);
-      if (res.length === 0) return [];
-      const cols = res[0].columns;
-      return res[0].values.map((row) => {
-        const obj: Record<string, unknown> = {};
-        cols.forEach((c, i) => (obj[c] = row[i]));
-        return obj as T;
-      });
+    ): void {
+      ctx.raw.run(
+        `INSERT INTO episodes
+          (season_id, series_tmdb_id, season_number, episode_number, name, air_date, runtime_minutes)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, airDate, runtime]
+      );
     }
-
-    return {
-      db,
-      raw: {
-        exec: (s) => sqlite.exec(s),
-        prepareAll: <T>(s: string) => execAll<T>(s),
-        prepareGet: <T>(s: string) => execAll<T>(s)[0],
-        insertSeason: (seriesTmdbId, seasonNumber, episodeCount) => {
-          const stmt = sqlite.prepare(
-            'INSERT INTO seasons (series_tmdb_id, season_number, episode_count) VALUES (?, ?, ?)'
-          );
-          stmt.run([seriesTmdbId, seasonNumber, episodeCount]);
-          stmt.free();
-          const idRow = execAll<{ id: number }>('SELECT last_insert_rowid() as id');
-          return Number(idRow[0].id);
-        },
-        insertEpisode: (
-          seasonId,
-          seriesTmdbId,
-          seasonNumber,
-          episodeNumber,
-          name,
-          airDate,
-          runtime
-        ) => {
-          const stmt = sqlite.prepare(
-            `INSERT INTO episodes
-                (season_id, series_tmdb_id, season_number, episode_number, name, air_date, runtime_minutes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)`
-          );
-          stmt.run([seasonId, seriesTmdbId, seasonNumber, episodeNumber, name, airDate, runtime]);
-          stmt.free();
-        }
-      },
-      cleanup: async () => {
-        sqlite.close();
-      }
-    };
-  }
-};
-
-for (const driver of [nodeDriver, sqlJsDriver]) {
-  describe(`queries / mutations (${driver.name})`, () => {
-    let ctx: DriverContext;
 
     function seedSeason(
       seriesTmdbId: number,
@@ -187,9 +67,9 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
       episodeCount: number,
       airDates: (string | null)[] = []
     ) {
-      const seasonId = ctx.raw.insertSeason(seriesTmdbId, seasonNumber, episodeCount);
+      const seasonId = insertSeason(seriesTmdbId, seasonNumber, episodeCount);
       for (let i = 1; i <= episodeCount; i++) {
-        ctx.raw.insertEpisode(
+        insertEpisode(
           seasonId,
           seriesTmdbId,
           seasonNumber,
@@ -311,22 +191,30 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
       const today = '2026-05-11';
       const now = new Date(`${today}T12:00:00Z`);
 
-      it('returns only released, unwatched episodes for followed series', async () => {
+      /* Contract: returns ONE row per followed series — the earliest
+       * (season, episode) that has aired and isn't watched yet. The
+       * JS-side dedupe (pickNextPerSeries) was removed in favor of a
+       * window function in SQL; tests reflect that. */
+
+      it('returns the earliest released, unwatched episode for each followed series', async () => {
         await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
         seedSeason(1, 1, 3, ['2026-05-09', '2026-05-10', '2026-05-12']);
         const rows = await getEpisodesToWatch(ctx.db, now);
-        expect(rows.map((r) => r.episodeNumber)).toEqual([1, 2]);
+        expect(rows.map((r) => r.episodeNumber)).toEqual([1]);
       });
 
-      it('hides watched episodes', async () => {
+      it('skips watched episodes when picking the next one', async () => {
         await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
         seedSeason(1, 1, 3, ['2026-05-09', '2026-05-10', '2026-05-11']);
         const epIds = ctx.raw.prepareAll<{ id: number }>(
           'SELECT id FROM episodes WHERE series_tmdb_id = 1 ORDER BY episode_number'
         );
-        await markEpisodeWatched(ctx.db, epIds[1].id);
+        /* Watch episode 1 — the next-to-watch should be episode 2 (still
+         * aired, still unwatched). Episode 3 is also unwatched but we
+         * only return the earliest per series. */
+        await markEpisodeWatched(ctx.db, epIds[0].id);
         const rows = await getEpisodesToWatch(ctx.db, now);
-        expect(rows.map((r) => r.episodeNumber)).toEqual([1, 3]);
+        expect(rows.map((r) => r.episodeNumber)).toEqual([2]);
       });
 
       it('excludes unfollowed series', async () => {
@@ -339,18 +227,17 @@ for (const driver of [nodeDriver, sqlJsDriver]) {
         expect(rows.map((r) => r.seriesName)).toEqual(['Kept']);
       });
 
-      it('orders by series, season, episode', async () => {
+      it('picks the earliest (season, episode) across multiple seasons of one series', async () => {
         await followSeries(ctx.db, { tmdbId: 7, name: 'Z' });
         await followSeries(ctx.db, { tmdbId: 8, name: 'A' });
+        /* Seed S2 first to verify ORDER BY isn't accidentally relying
+         * on insertion order. */
         seedSeason(7, 2, 2, ['2026-05-01', '2026-05-02']);
         seedSeason(7, 1, 2, ['2026-04-01', '2026-04-02']);
         seedSeason(8, 1, 1, ['2026-05-09']);
         const rows = await getEpisodesToWatch(ctx.db, now);
         expect(rows.map((r) => `${r.seriesTmdbId}:S${r.seasonNumber}E${r.episodeNumber}`)).toEqual([
           '7:S1E1',
-          '7:S1E2',
-          '7:S2E1',
-          '7:S2E2',
           '8:S1E1'
         ]);
       });

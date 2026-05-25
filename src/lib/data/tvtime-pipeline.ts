@@ -22,7 +22,7 @@
  * (browser + sql.js) call into the same code path.
  */
 import type { Db } from './db-types';
-import { createTmdbClient, type TmdbSearchResult } from './tmdb';
+import { createTmdbClient, TmdbError, type TmdbSearchResult } from './tmdb';
 import { syncSeriesFull } from './sync';
 import { getEpisodeForCoords, markEpisodeWatched, setSeriesFollowDates } from './mutations';
 import {
@@ -220,8 +220,14 @@ async function resolveSeries(
   try {
     const hit = await tmdb.findByExternalId(follow.tvdbId, 'tvdb_id');
     if (hit) return hit;
-  } catch {
-    /* /find can 404 or 5xx — fall through to title search. */
+  } catch (err) {
+    /* /find can 404 or 5xx — fall through to title search.
+     * Re-throw on auth/quota errors so the caller can fail fast instead
+     * of silently treating every series as "unresolved". */
+    if (err instanceof TmdbError && (err.status === 401 || err.status === 403 || err.status === 429)) {
+      throw err;
+    }
+    console.warn(`[tvtime-import] /find failed for "${follow.name}" (tvdb ${follow.tvdbId}):`, err);
   }
 
   try {
@@ -233,7 +239,11 @@ async function resolveSeries(
         normalizeSeriesName(r.original_name ?? '') === target
     );
     return match ?? null;
-  } catch {
+  } catch (err) {
+    if (err instanceof TmdbError && (err.status === 401 || err.status === 403 || err.status === 429)) {
+      throw err;
+    }
+    console.warn(`[tvtime-import] search failed for "${follow.name}":`, err);
     return null;
   }
 }

@@ -54,8 +54,12 @@ export async function resyncAllForLocale(): Promise<{ count: number }> {
   const { getFollowedSeries } = await import('./data/queries');
   const followed = await getFollowedSeries(db);
   for (const s of followed) {
-    await sync.syncSeriesFull(db, apiKey, s.tmdbId, { language, refresh: true }).catch(() => {
-      /* Per-series failures are silent — the next mark/visit will retry. */
+    await sync.syncSeriesFull(db, apiKey, s.tmdbId, { language, refresh: true }).catch((err) => {
+      /* Per-series failure: log but keep going. The next mark/visit on
+       * that series will retry. Silencing entirely (the previous
+       * behaviour) hid TMDB auth/quota errors and made "0 success"
+       * runs look like nothing happened. */
+      console.warn(`[resync-locale] failed for series ${s.tmdbId} (${s.name}):`, err);
     });
   }
   return { count: followed.length };

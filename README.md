@@ -115,10 +115,10 @@ Episode is a **single-user, no-auth** app by design — anyone who can reach the
 - Do **not** expose port 3000 directly to the internet. Put it behind a reverse proxy that terminates TLS and enforces access control (basic auth, OAuth proxy, Tailscale, VPN).
 - The Node process runs as non-root; SQLite lives on a named volume.
 - Defence-in-depth headers on every response: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a `Permissions-Policy` disabling every browser API Episode never uses.
-- Per-IP token-bucket rate limit (60 burst, 1 req/s sustained) on `/api/*`.
+- Per-IP token-bucket rate limit (60 burst, 1 req/s sustained) on `/api/*`. Set `EPISODE_TRUST_PROXY=1` only when a reverse proxy rewrites `X-Forwarded-For`; otherwise the header is ignored to prevent rate-limit bypass.
 - All inputs validated through Zod. DB layer is Drizzle (parameterised queries everywhere).
 - TMDB / OMDb keys are stored in the settings table and **never** returned in load functions (only `hasKey: boolean`).
-- TV Time import capped at 10 MB; other requests capped at 512 KB by default.
+- TV Time import capped at 50 MB at the app layer; the generic `BODY_SIZE_LIMIT` (default 512 KB) must be raised (≥ `52428800`) before a real GDPR export can reach the endpoint.
 
 **Local target (APK):**
 

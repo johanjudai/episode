@@ -18,32 +18,26 @@ describe('date utils', () => {
   });
 
   describe('isReleased', () => {
-    it('is true for today', () => {
-      expect(isReleased('2026-05-11', ref)).toBe(true);
-    });
-    it('is true for past dates', () => {
-      expect(isReleased('2026-05-10', ref)).toBe(true);
-      expect(isReleased('2020-01-01', ref)).toBe(true);
-    });
-    it('is false for future dates', () => {
-      expect(isReleased('2026-05-12', ref)).toBe(false);
-    });
-    it('is false for null / undefined / empty', () => {
-      expect(isReleased(null, ref)).toBe(false);
-      expect(isReleased(undefined, ref)).toBe(false);
-      expect(isReleased('', ref)).toBe(false);
+    it.each([
+      ['today', '2026-05-11', true],
+      ['yesterday', '2026-05-10', true],
+      ['far past', '2020-01-01', true],
+      ['tomorrow', '2026-05-12', false],
+      ['null', null, false],
+      ['undefined', undefined, false],
+      ['empty', '', false]
+    ])('%s: isReleased = %s', (_label, date, expected) => {
+      expect(isReleased(date as string | null | undefined, ref)).toBe(expected);
     });
   });
 
   describe('daysFromNow', () => {
-    it('returns 0 for today', () => {
-      expect(daysFromNow('2026-05-11', ref)).toBe(0);
-    });
-    it('returns positive for future', () => {
-      expect(daysFromNow('2026-05-15', ref)).toBe(4);
-    });
-    it('returns negative for past', () => {
-      expect(daysFromNow('2026-05-10', ref)).toBe(-1);
+    it.each([
+      ['today → 0', '2026-05-11', 0],
+      ['future → positive', '2026-05-15', 4],
+      ['past → negative', '2026-05-10', -1]
+    ])('%s', (_label, date, expected) => {
+      expect(daysFromNow(date, ref)).toBe(expected);
     });
   });
 
@@ -58,22 +52,24 @@ describe('date utils', () => {
   });
 
   describe('formatDateShortFr', () => {
-    it('returns "D MMM" in French', () => {
-      /* Intl FR abbreviations differ slightly from the old hard-coded
-       * array (e.g. "janv." → "Janv" rather than "Jan"). May stays "Mai". */
-      expect(formatDateShortFr('2026-05-11')).toBe('11 Mai');
-      expect(formatDateShortFr('2026-01-01')).toBe('1 Janv');
+    it.each([
+      ['2026-05-11', '11 Mai'],
+      /* Intl FR abbreviations differ from a hard-coded array (e.g.
+       * "janv." → "Janv" rather than "Jan"). May stays "Mai". */
+      ['2026-01-01', '1 Janv']
+    ])('formatDateShortFr(%s) = %s', (input, expected) => {
+      expect(formatDateShortFr(input)).toBe(expected);
     });
   });
 
   describe('relativeFr', () => {
-    it('says today / tomorrow / yesterday', () => {
-      expect(relativeFr('2026-05-11', ref)).toBe("Aujourd'hui");
-      expect(relativeFr('2026-05-12', ref)).toBe('Demain');
-      expect(relativeFr('2026-05-10', ref)).toBe('Hier');
-    });
-    it('shows +Nj for further future', () => {
-      expect(relativeFr('2026-05-17', ref)).toBe('+6j');
+    it.each([
+      ['today', '2026-05-11', "Aujourd'hui"],
+      ['tomorrow', '2026-05-12', 'Demain'],
+      ['yesterday', '2026-05-10', 'Hier'],
+      ['+6 days', '2026-05-17', '+6j']
+    ])('%s → %s', (_label, date, expected) => {
+      expect(relativeFr(date, ref)).toBe(expected);
     });
   });
 });
