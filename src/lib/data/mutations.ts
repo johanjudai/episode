@@ -2,7 +2,7 @@
  * Write-side operations. Like queries.ts, every function takes a `Db`
  * argument so it works with any synchronous Drizzle SQLite driver.
  */
-import { and, eq, lt, lte, or } from 'drizzle-orm';
+import { and, eq, inArray, lt, lte, or } from 'drizzle-orm';
 import type { Db } from './db-types';
 import { episodes, seasons, series, settings, watched } from './schema';
 
@@ -41,6 +41,19 @@ export async function unmarkEpisodeWatched(db: Db, episodeId: number): Promise<v
   db.delete(watched).where(eq(watched.episodeId, episodeId)).run();
 }
 
+/* Bulk-watched helpers all share the same pattern: SELECT a set of
+ * episode IDs, then issue a SINGLE multi-row INSERT instead of N
+ * per-episode INSERTs. The multi-row form keeps SQLite usage at one
+ * statement per call (instead of N), which on the browser target also
+ * means one IDB snapshot instead of N (see db.browser.ts wrapper). */
+function markEpisodeIds(db: Db, ids: number[], at: Date): void {
+  if (ids.length === 0) return;
+  db.insert(watched)
+    .values(ids.map((episodeId) => ({ episodeId, watchedAt: at })))
+    .onConflictDoNothing({ target: watched.episodeId })
+    .run();
+}
+
 export async function markSeasonWatched(
   db: Db,
   seriesTmdbId: number,
@@ -54,12 +67,7 @@ export async function markSeasonWatched(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function unmarkSeasonWatched(
@@ -74,9 +82,10 @@ export async function unmarkSeasonWatched(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), eq(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.delete(watched).where(eq(watched.episodeId, ep.id)).run();
-  }
+  if (eps.length === 0) return;
+  db.delete(watched)
+    .where(inArray(watched.episodeId, eps.map((e) => e.id)))
+    .run();
 }
 
 export async function markEpisodesUpTo(
@@ -102,12 +111,7 @@ export async function markEpisodesUpTo(
       )
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function markSeasonsUpTo(
@@ -123,12 +127,7 @@ export async function markSeasonsUpTo(
       and(eq(episodes.seriesTmdbId, seriesTmdbId), lte(episodes.seasonNumber, seasonNumber))
     )
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export async function markSeriesWatched(
@@ -141,12 +140,7 @@ export async function markSeriesWatched(
     .from(episodes)
     .where(eq(episodes.seriesTmdbId, seriesTmdbId))
     .all();
-  for (const ep of eps) {
-    db.insert(watched)
-      .values({ episodeId: ep.id, watchedAt: at })
-      .onConflictDoNothing({ target: watched.episodeId })
-      .run();
-  }
+  markEpisodeIds(db, eps.map((e) => e.id), at);
 }
 
 export interface FollowSeriesInput {

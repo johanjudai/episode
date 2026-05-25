@@ -13,6 +13,8 @@
   import { formatDateShortFr } from '$lib/utils/date';
   import { posterUrl } from '$lib/utils/images';
   import { countUnwatchedBefore, findInProgressSeason } from '$lib/utils/episodes';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { untrack } from 'svelte';
   import * as api from '$lib/api';
   import { t } from '$lib/i18n';
 
@@ -94,19 +96,18 @@
       : ''
   );
 
-  let expandedSeasons = $state<Set<number>>(
-    (() => {
-      const init = new Set<number>();
-      const inProgress = findInProgressSeason(data.seasons);
-      if (inProgress !== null) init.add(inProgress);
-      return init;
-    })()
-  );
+  /* SvelteSet — direct mutation (add/delete) is reactive without the
+   * reassign-to-a-fresh-Set trick that plain Set required. Seed once
+   * at mount with the season currently in progress (if any). */
+  const expandedSeasons = new SvelteSet<number>();
+  untrack(() => {
+    const inProgress = findInProgressSeason(data.seasons);
+    if (inProgress !== null) expandedSeasons.add(inProgress);
+  });
 
   function toggleSeason(n: number) {
     if (expandedSeasons.has(n)) expandedSeasons.delete(n);
     else expandedSeasons.add(n);
-    expandedSeasons = new Set(expandedSeasons);
   }
 
   type PendingMark =

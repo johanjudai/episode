@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
-import { getSeries, getSetting } from '$lib/data/queries';
+import { requireTmdbKey } from '$lib/server/api-helpers';
+import { getSeries } from '$lib/data/queries';
 import { syncSeason, syncSeriesFull } from '$lib/data/sync';
 import { markSeasonsUpTo, markSeasonWatched, unmarkSeasonWatched } from '$lib/data/mutations';
 import type { RequestHandler } from './$types';
@@ -17,21 +17,32 @@ const Body = z.object({
 export const POST: RequestHandler = async ({ request }) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid payload');
-  const apiKey = (await getSetting(serverDb, 'tmdb.api_key')) ?? env.EPISODE_TMDB_API_KEY ?? '';
 
   if (!parsed.data.watched) {
     await unmarkSeasonWatched(serverDb, parsed.data.seriesTmdbId, parsed.data.seasonNumber);
     return json({ ok: true });
   }
 
-  if (!apiKey) throw error(412, 'Clé TMDB manquante');
+  /* Watched path — TMDB key is mandatory because we may need to
+   * sync seasons not yet cached locally. */
+  const apiKey = await requireTmdbKey(serverDb);
 
   const existing = await getSeries(serverDb, parsed.data.seriesTmdbId);
   if (!existing || existing.removedAt) {
     await syncSeriesFull(serverDb, apiKey, parsed.data.seriesTmdbId, { follow: true });
   }
   await syncSeason(serverDb, apiKey, parsed.data.seriesTmdbId, parsed.data.seasonNumber).catch(
-    () => undefined
+    (err) => {
+      /* Swallow but log: syncSeriesFull above already synced every
+       * season; this is a belt-and-braces refresh of the targeted
+       * season. If it fails we still attempt to mark — markSeasonsUpTo
+       * just won't find episode rows and writes a 0-row mark, which is
+       * the same effective state as before the call. */
+      console.warn(
+        `[mark-season] supplementary syncSeason failed for tmdb ${parsed.data.seriesTmdbId} S${parsed.data.seasonNumber}:`,
+        err
+      );
+    }
   );
 
   if (parsed.data.markPrevious) {

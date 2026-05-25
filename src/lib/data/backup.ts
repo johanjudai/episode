@@ -26,23 +26,36 @@ export const BACKUP_VERSION = 1 as const;
 
 const SECRET_KEYS = new Set(['tmdb.api_key', 'omdb.api_key']);
 
+/* Per-string cap for backup-imported settings values. Without it, a
+ * forged backup with a single multi-MB settings row would be written
+ * verbatim to the SQLite file (text columns are uncapped at the
+ * schema level). 256 KB comfortably fits every value Episode actually
+ * writes — the largest legitimate row is the avatar data URL (capped
+ * separately to MAX_AVATAR_LENGTH ≈ 200 KB in profile/avatar). */
+const MAX_SETTING_VALUE_BYTES = 256 * 1024;
+/* Cap individual text fields on user-supplied rows. TMDB itself caps
+ * overviews to a few thousand chars but a forged backup is unbounded.
+ * 32 KB is more than any plausible legitimate value. */
+const MAX_TEXT_FIELD_BYTES = 32 * 1024;
+const MAX_NAME_BYTES = 1024;
+
 const SettingRow = z.object({
-  key: z.string(),
-  value: z.string().nullable(),
+  key: z.string().max(256),
+  value: z.string().max(MAX_SETTING_VALUE_BYTES).nullable(),
   updatedAt: z.number().int().nullable().optional()
 });
 
 const SeriesRow = z.object({
   tmdbId: z.number().int(),
-  name: z.string(),
-  originalName: z.string().nullable().optional(),
-  overview: z.string().nullable().optional(),
-  posterPath: z.string().nullable().optional(),
-  backdropPath: z.string().nullable().optional(),
-  firstAirDate: z.string().nullable().optional(),
-  lastAirDate: z.string().nullable().optional(),
-  status: z.string().nullable().optional(),
-  network: z.string().nullable().optional(),
+  name: z.string().max(MAX_NAME_BYTES),
+  originalName: z.string().max(MAX_NAME_BYTES).nullable().optional(),
+  overview: z.string().max(MAX_TEXT_FIELD_BYTES).nullable().optional(),
+  posterPath: z.string().max(MAX_NAME_BYTES).nullable().optional(),
+  backdropPath: z.string().max(MAX_NAME_BYTES).nullable().optional(),
+  firstAirDate: z.string().max(64).nullable().optional(),
+  lastAirDate: z.string().max(64).nullable().optional(),
+  status: z.string().max(64).nullable().optional(),
+  network: z.string().max(MAX_NAME_BYTES).nullable().optional(),
   numberOfSeasons: z.number().int().nullable().optional(),
   numberOfEpisodes: z.number().int().nullable().optional(),
   runtimeMinutes: z.number().int().nullable().optional(),
@@ -55,11 +68,11 @@ const SeasonRow = z.object({
   seriesTmdbId: z.number().int(),
   seasonNumber: z.number().int(),
   tmdbId: z.number().int().nullable().optional(),
-  name: z.string().nullable().optional(),
-  overview: z.string().nullable().optional(),
-  airDate: z.string().nullable().optional(),
+  name: z.string().max(MAX_NAME_BYTES).nullable().optional(),
+  overview: z.string().max(MAX_TEXT_FIELD_BYTES).nullable().optional(),
+  airDate: z.string().max(64).nullable().optional(),
   episodeCount: z.number().int().nullable().optional(),
-  posterPath: z.string().nullable().optional()
+  posterPath: z.string().max(MAX_NAME_BYTES).nullable().optional()
 });
 
 const EpisodeRow = z.object({
@@ -67,11 +80,11 @@ const EpisodeRow = z.object({
   seasonNumber: z.number().int(),
   episodeNumber: z.number().int(),
   tmdbId: z.number().int().nullable().optional(),
-  name: z.string().nullable().optional(),
-  overview: z.string().nullable().optional(),
-  airDate: z.string().nullable().optional(),
+  name: z.string().max(MAX_NAME_BYTES).nullable().optional(),
+  overview: z.string().max(MAX_TEXT_FIELD_BYTES).nullable().optional(),
+  airDate: z.string().max(64).nullable().optional(),
   runtimeMinutes: z.number().int().nullable().optional(),
-  stillPath: z.string().nullable().optional()
+  stillPath: z.string().max(MAX_NAME_BYTES).nullable().optional()
 });
 
 const WatchedRow = z.object({

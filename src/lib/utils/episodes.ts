@@ -36,21 +36,3 @@ export function findInProgressSeason(seasons: SeasonProgress[]): number | null {
   }
   return null;
 }
-
-/**
- * Given a list of episodes already ordered by (seriesTmdbId, seasonNumber,
- * episodeNumber), keep only the first occurrence per series. That's the
- * "next episode to watch" for each series.
- */
-export function pickNextPerSeries<
-  T extends { seriesTmdbId: number; seasonNumber: number; episodeNumber: number }
->(episodes: T[]): T[] {
-  const seen = new Set<number>();
-  const out: T[] = [];
-  for (const ep of episodes) {
-    if (seen.has(ep.seriesTmdbId)) continue;
-    seen.add(ep.seriesTmdbId);
-    out.push(ep);
-  }
-  return out;
-}

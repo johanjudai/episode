@@ -102,7 +102,7 @@ npm run test:e2e           # playwright
 npm run coverage           # coverage report
 ```
 
-> **Hard gate**: `npm run build` runs `prebuild` which runs the unit-test suite. **If any test fails, the build does not produce an artifact.** The 62 integration tests run twice (once per driver), so any divergence between better-sqlite3 and sql.js is caught immediately.
+> **Hard gate**: `npm run build` runs `prebuild` which runs the unit-test suite. **If any test fails, the build does not produce an artifact.** The query + mutation integration tests run twice (once per driver), so any divergence between better-sqlite3 and sql.js is caught immediately.
 
 ## Self-hosting (Docker, homelab)
 
@@ -317,8 +317,11 @@ strict-origin-when-cross-origin`, and a `Permissions-Policy` that
   concatenation).
 - TMDB / OMDb keys are stored in the SQLite settings table; they are
   **never** returned in load functions (only a `hasKey: boolean`).
-- The TV Time import is capped at 10 MB; the generic
-  `BODY_SIZE_LIMIT` env var caps every other request to 512 KB by default.
+- The TV Time import is capped at 50 MB at the application layer (see
+  `MAX_UPLOAD_BYTES` in `src/routes/api/import/tvtime/+server.ts`).
+  Note that the generic `BODY_SIZE_LIMIT` env var defaults to 512 KB
+  and **must** be raised (to ≥ `52428800`) before any TV Time upload
+  larger than 512 KB can actually reach the endpoint.
 
 **Local target (Capacitor APK)**
 

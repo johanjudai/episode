@@ -7,18 +7,23 @@
   import * as api from '$lib/api';
   import { BackupImportError } from '$lib/data/backup';
   import ImportProgress from '$lib/components/ImportProgress.svelte';
+  import { untrack } from 'svelte';
   import { t, locale, type Locale } from '$lib/i18n';
   import { applyPalette, readStoredPalette, type PaletteChoice } from '$lib/utils/palette';
+  import { applyTheme, resolveTheme, type ThemeChoice } from '$lib/utils/theme';
   import { importErrorKey } from '$lib/utils/import-progress';
 
   let { data }: PageProps = $props();
 
-  let avatarValue = $state<string>('');
-  let nameValue = $state<string>('');
-  $effect(() => {
-    avatarValue = data.profile.avatar ?? '';
-    nameValue = data.profile.name ?? '';
-  });
+  /* Seed once from load data. We don't use a $effect-backed mirror
+   * here because invalidateAll() after every save would reset
+   * in-flight user input back to the saved (i.e. last known
+   * server-side) value — a problem if a sibling action (locale resync,
+   * background refresh) ever triggers invalidation while the user is
+   * typing. `untrack` silences the "captures initial value only"
+   * compiler warning since that's exactly the intent here. */
+  let avatarValue = $state<string>(untrack(() => data.profile.avatar ?? ''));
+  let nameValue = $state<string>(untrack(() => data.profile.name ?? ''));
   let nameStatus = $state<'' | 'saved' | 'error'>('');
   let avatarStatus = $state<'' | 'saved' | 'error'>('');
   let avatarError = $state<string | null>(null);
@@ -43,7 +48,7 @@
   let backupMessage = $state<string | null>(null);
   let backupConfirmFile = $state<File | null>(null);
 
-  let theme = $state<'auto' | 'light' | 'dark'>('auto');
+  let theme = $state<ThemeChoice>('auto');
   let palette = $state<PaletteChoice>('bauhaus');
   let reduceMotion = $state(false);
   let highContrast = $state(false);
@@ -51,7 +56,7 @@
 
   function loadPrefs() {
     if (typeof localStorage === 'undefined') return;
-    theme = (localStorage.getItem('episode.theme') as 'auto' | 'light' | 'dark') ?? 'auto';
+    theme = (localStorage.getItem('episode.theme') as ThemeChoice) ?? 'auto';
     palette = readStoredPalette();
     reduceMotion = localStorage.getItem('episode.motion') === 'reduced';
     highContrast = localStorage.getItem('episode.contrast') === 'high';
@@ -64,13 +69,11 @@
     applyPalette(value);
   }
 
-  function setTheme(value: 'auto' | 'light' | 'dark') {
+  function setTheme(value: ThemeChoice) {
     theme = value;
     localStorage.setItem('episode.theme', value);
-    const dark =
-      value === 'dark' ||
-      (value === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(resolveTheme(value, prefersDark));
   }
 
   function toggleMotion() {

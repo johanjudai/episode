@@ -34,6 +34,21 @@ async function withLocalDb<T>(fn: (db: import('./data/db-types').Db) => Promise<
   return fn(db);
 }
 
+/**
+ * Suspend the per-mutation IndexedDB snapshot during a bulk flow.
+ * Without this, an import or "mark all" issues one full sql.js export
+ * per row — tens of MB written N times for a long history.
+ *
+ * No-op (just runs fn) on the server target, where there's no
+ * IndexedDB layer at all. The dual-target Vite plugin won't strip the
+ * import path, but the body is cheap.
+ */
+async function withBulkLocalWrites<T>(fn: () => Promise<T>): Promise<T> {
+  if (!IS_LOCAL) return fn();
+  const { withBulkWrites } = await import('./db.browser');
+  return withBulkWrites(fn);
+}
+
 export interface FollowSeriesPayload {
   tmdbId: number;
   apiKey: string;
@@ -168,11 +183,13 @@ export async function followSeries(seriesTmdbId: number): Promise<void> {
 
 export async function markAllForSeries(seriesTmdbId: number): Promise<void> {
   if (IS_LOCAL) {
-    const { syncSeriesFull } = await import('./local-sync');
-    await syncSeriesFull(seriesTmdbId, { follow: true });
-    await withLocalDb(async (db) => {
-      const m = await import('./data/mutations');
-      await m.markSeriesWatched(db, seriesTmdbId);
+    await withBulkLocalWrites(async () => {
+      const { syncSeriesFull } = await import('./local-sync');
+      await syncSeriesFull(seriesTmdbId, { follow: true });
+      await withLocalDb(async (db) => {
+        const m = await import('./data/mutations');
+        await m.markSeriesWatched(db, seriesTmdbId);
+      });
     });
     return;
   }
@@ -320,7 +337,7 @@ export async function importLocalData(
     const text = await file.text();
     const { parseBackup, importBackup } = await import('./data/backup');
     const backup = parseBackup(text);
-    return withLocalDb((db) => importBackup(db, backup, opts));
+    return withBulkLocalWrites(() => withLocalDb((db) => importBackup(db, backup, opts)));
   }
   const fd = new FormData();
   fd.set('file', file);
@@ -411,8 +428,8 @@ export async function importTvTime(
       );
     }
     try {
-      const summary = await withLocalDb((db) =>
-        runImport(db, apiKey, language, file, password, onProgress)
+      const summary = await withBulkLocalWrites(() =>
+        withLocalDb((db) => runImport(db, apiKey, language, file, password, onProgress))
       );
       return {
         seriesMatched: summary.seriesMatched,
@@ -494,9 +511,27 @@ export async function importTvTime(
        * code so the UI still picks SOMETHING translatable. */
       let code: ImportErrorCode = 'INTERNAL';
       let message = `Import failed: ${res.status}`;
+      /* Whitelist of codes we accept from the server payload. A
+       * malformed / forged response that carries an unknown string
+       * would otherwise be passed through to importErrorKey, which
+       * silently falls back to 'INTERNAL' but loses the source code
+       * for diagnostics. */
+      const KNOWN_CODES: ReadonlySet<ImportErrorCode> = new Set([
+        'FILE_TOO_LARGE',
+        'FILE_REQUIRED',
+        'PASSWORD_REQUIRED',
+        'TMDB_KEY_MISSING',
+        'BAD_PASSWORD',
+        'INVALID_ZIP',
+        'MISSING_FOLLOWED_CSV',
+        'CONCURRENT_IMPORT',
+        'INTERNAL'
+      ]);
       try {
         const body = (await res.json()) as { message?: string; code?: string };
-        if (body?.code) code = body.code as ImportErrorCode;
+        if (body?.code && KNOWN_CODES.has(body.code as ImportErrorCode)) {
+          code = body.code as ImportErrorCode;
+        }
         if (body?.message) message = body.message;
       } catch {
         /* non-JSON response (e.g. proxy 502 HTML page) — keep the generic. */

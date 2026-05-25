@@ -1,8 +1,9 @@
 import { json, error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { serverDb } from '$lib/server/db';
+import { getTmdbKey } from '$lib/server/api-helpers';
 import { getSetting, getFollowedSeries } from '$lib/data/queries';
 import { setSetting } from '$lib/data/mutations';
+import { tmdbLanguageFromStored } from '$lib/i18n';
 import {
   parseTvTimeExport,
   importPhase1,
@@ -89,12 +90,14 @@ export const POST: RequestHandler = async ({ request }) => {
     failure(413, 'FILE_TOO_LARGE', 'Upload exceeds the size cap');
   }
 
-  const apiKey = (await getSetting(serverDb, 'tmdb.api_key')) ?? env.EPISODE_TMDB_API_KEY ?? '';
+  /* Can't use requireTmdbKey here — it throws a generic 412 with a
+   * plain message, but this endpoint contracts a typed `{ message,
+   * code }` shape (the client maps codes to localized strings). */
+  const apiKey = await getTmdbKey(serverDb);
   if (!apiKey) {
     failure(412, 'TMDB_KEY_MISSING', 'TMDB API key not configured');
   }
-  const storedLocale = await getSetting(serverDb, 'locale');
-  const language = storedLocale === 'en' ? 'en-US' : 'fr-FR';
+  const language = tmdbLanguageFromStored(await getSetting(serverDb, 'locale'));
 
   /* Clear stale state from a prior run so the progress poller doesn't
    * read leftover counters. */
@@ -146,11 +149,28 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
+/* GET surfaces the import progress for the polling client. We strip
+ * the `detail` field (current series name) from the progress payload
+ * — that's the only side-channel here over the watched library, and
+ * it's only used to update an "(importing «series»)" hint in the UI
+ * after the POST has already authenticated the request. Anyone who
+ * polls without that context just sees counters, which is fine. */
+function scrubProgress(p: string | null): unknown {
+  if (!p) return null;
+  try {
+    const parsed = JSON.parse(p) as { detail?: unknown; [k: string]: unknown };
+    if ('detail' in parsed) delete parsed.detail;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export const GET: RequestHandler = async () => {
   const progress = await getSetting(serverDb, PROGRESS_KEY);
   const summary = await getSetting(serverDb, SUMMARY_KEY);
   return json({
-    progress: progress ? JSON.parse(progress) : null,
+    progress: scrubProgress(progress),
     summary: summary ? JSON.parse(summary) : null,
     running: importRunning
   });

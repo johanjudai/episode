@@ -93,6 +93,15 @@ function makeExecutor(sqlite: SqlJsDb): SqlExecutor {
   };
 }
 
+/* Set by withBulkWrites() to suspend per-mutation snapshots during
+ * imports / mark-all flows. The wrapForPersistence interceptors check
+ * this flag and skip the schedule() call while it's non-zero; once
+ * the bulk operation exits, a single snapshot fires for the whole
+ * batch. Module-scoped because the wrapper closes over the persist
+ * function before any caller can pass a parameter. */
+let bulkDepth = 0;
+let persistFlush: (() => Promise<void>) | null = null;
+
 function attachPersistence(sqlite: SqlJsDb): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let writing = false;
@@ -118,6 +127,9 @@ function attachPersistence(sqlite: SqlJsDb): () => void {
   }
 
   function schedule() {
+    /* During a bulk operation, drop the per-mutation schedule —
+     * withBulkWrites is responsible for flushing once at the end. */
+    if (bulkDepth > 0) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -125,17 +137,62 @@ function attachPersistence(sqlite: SqlJsDb): () => void {
     }, PERSIST_DEBOUNCE_MS);
   }
 
+  /* Expose a synchronous-style flush that bypasses the debounce —
+   * withBulkWrites uses it on exit. */
+  persistFlush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    await flush();
+  };
+
   /* Snapshot one last time on tab close — losing a snapshot just means the
    * last few seconds of writes are re-applied from memory next session,
-   * which can't happen in a single-page app, so we flush synchronously. */
+   * which can't happen in a single-page app, so we flush synchronously.
+   *
+   * Both events are listened: `pagehide` covers desktop tabs and bfcache
+   * navigation; `visibilitychange` (state=hidden) is the only reliable
+   * tab-leave signal on iOS Safari and on Android WebView (Capacitor).
+   * The handler is idempotent — if we double-fire we just overwrite the
+   * same IDB row with the same bytes. */
   if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', () => {
+    const flushSync = () => {
       if (timer) clearTimeout(timer);
       void saveSnapshot(sqlite.export());
+    };
+    window.addEventListener('pagehide', flushSync);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushSync();
     });
   }
 
   return schedule;
+}
+
+/**
+ * Suspend per-mutation IndexedDB snapshots while `fn` runs, then flush
+ * once at the end. Without this, bulk flows (TV Time import, backup
+ * import, "mark all watched") trigger one full `sqlite.export()` per
+ * row — for a 12k-row import that's tens of MB written to IDB N times.
+ * With it, we write once.
+ *
+ * The flag is process-global (sql.js itself is a singleton). Nested
+ * calls are reference-counted so callers can wrap freely.
+ *
+ * No-op on the server target: this module is never loaded there. The
+ * api.ts facade decides whether to call this based on IS_LOCAL.
+ */
+export async function withBulkWrites<T>(fn: () => Promise<T> | T): Promise<T> {
+  bulkDepth++;
+  try {
+    return await fn();
+  } finally {
+    bulkDepth--;
+    if (bulkDepth === 0 && persistFlush) {
+      await persistFlush();
+    }
+  }
 }
 
 async function init(): Promise<Db> {

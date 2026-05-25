@@ -23,12 +23,25 @@ interface Bucket {
 }
 const BUCKET_CAPACITY = 60;
 const BUCKET_REFILL_PER_SEC = 1;
+/* Hard cap on the bucket map size. Without it, an attacker who can
+ * influence the bucket key (via spoofed X-Forwarded-For — see
+ * getClientIp below) can grow the map unboundedly to DoS the process
+ * via memory. With LRU-on-insert eviction we cap memory to ~MAX × 50
+ * bytes ≈ 500 KB. */
+const MAX_BUCKETS = 10_000;
 const buckets = new Map<string, Bucket>();
 
 function consumeToken(ip: string): boolean {
   const now = Date.now();
   let b = buckets.get(ip);
   if (!b) {
+    /* LRU-style eviction: if we hit the cap, drop the oldest entry
+     * before inserting. Map iteration order is insertion order in JS,
+     * so the first key returned is the oldest. */
+    if (buckets.size >= MAX_BUCKETS) {
+      const oldest = buckets.keys().next().value;
+      if (oldest !== undefined) buckets.delete(oldest);
+    }
     b = { tokens: BUCKET_CAPACITY, lastRefill: now };
     buckets.set(ip, b);
   }
@@ -38,6 +51,28 @@ function consumeToken(ip: string): boolean {
   if (b.tokens < 1) return false;
   b.tokens -= 1;
   return true;
+}
+
+/**
+ * Resolve the rate-limit key. By default trust only the connection IP
+ * reported by the adapter; X-Forwarded-For is honoured ONLY when
+ * `EPISODE_TRUST_PROXY=1` is set in the environment (i.e. the operator
+ * has put a reverse proxy in front that rewrites the header). When
+ * trusted, take the LEFT-most entry — the original client per RFC
+ * 7239 — which the proxy appended; subsequent hops are the proxy
+ * chain. This stops a remote attacker from rotating the header to
+ * spawn a new bucket per request and bypass the rate limit.
+ */
+function getClientIp(event: Parameters<Handle>[0]['event']): string {
+  const direct = event.getClientAddress?.();
+  if (process.env.EPISODE_TRUST_PROXY === '1') {
+    const xff = event.request.headers.get('x-forwarded-for');
+    if (xff) {
+      const first = xff.split(',')[0]?.trim();
+      if (first) return first;
+    }
+  }
+  return direct ?? 'unknown';
 }
 
 /* Periodic compaction so the map doesn't grow unbounded across IPs. */
@@ -68,10 +103,24 @@ function maybeCompact() {
  *     bootstrap in +layout.svelte (reads localStorage before
  *     hydration); the rest of the policy is tight.
  */
+/* Resolved once at module load so we don't re-parse env on every
+ * response. HSTS is opt-in via EPISODE_ORIGIN being HTTPS — operators
+ * who use mkcert / plain HTTP can leave it off. EPISODE_HSTS_DISABLE=1
+ * forces it off even with an HTTPS origin (escape hatch). */
+const HSTS_ENABLED =
+  process.env.EPISODE_HSTS_DISABLE !== '1' &&
+  (process.env.EPISODE_ORIGIN ?? '').startsWith('https://');
+
 function setSecurityHeaders(headers: Headers) {
   headers.set('X-Frame-Options', 'DENY');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  /* 180 days, no preload — long enough to matter, short enough that
+   * a self-hosted operator who later wants to flip back to HTTP
+   * only has to wait six months. The reverse proxy can override. */
+  if (HSTS_ENABLED) {
+    headers.set('Strict-Transport-Security', 'max-age=15552000');
+  }
   headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()'
@@ -111,10 +160,7 @@ export const handle: Handle = async ({ event, resolve }) => {
    * either writes to the DB or hits a third-party (TMDB/OMDb). */
   if (isApi) {
     maybeCompact();
-    const ip =
-      event.getClientAddress?.() ??
-      event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-      'unknown';
+    const ip = getClientIp(event);
     if (!consumeToken(ip)) {
       return new Response('Too many requests', {
         status: 429,
