@@ -174,6 +174,7 @@ export interface UpsertSeasonInput {
   tmdbId?: number | null;
   seasonNumber: number;
   name?: string | null;
+  overview?: string | null;
   airDate?: string | null;
   episodeCount?: number | null;
   posterPath?: string | null;
@@ -189,6 +190,7 @@ export async function upsertSeason(
     tmdbId: input.tmdbId ?? null,
     seasonNumber: input.seasonNumber,
     name: input.name ?? null,
+    overview: input.overview ?? null,
     airDate: input.airDate ?? null,
     episodeCount: input.episodeCount ?? null,
     posterPath: input.posterPath ?? null
@@ -232,6 +234,7 @@ export interface UpsertEpisodeInput {
   seasonNumber: number;
   episodeNumber: number;
   name?: string | null;
+  overview?: string | null;
   airDate?: string | null;
   runtimeMinutes?: number | null;
   stillPath?: string | null;
@@ -249,6 +252,7 @@ export async function upsertEpisode(
     seasonNumber: input.seasonNumber,
     episodeNumber: input.episodeNumber,
     name: input.name ?? null,
+    overview: input.overview ?? null,
     airDate: input.airDate ?? null,
     runtimeMinutes: input.runtimeMinutes ?? null,
     stillPath: input.stillPath ?? null

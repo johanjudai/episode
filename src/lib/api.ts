@@ -280,6 +280,61 @@ export async function completeOnboarding(name: string, avatar: string): Promise<
 }
 
 /**
+ * Export all local data as a versioned JSON Backup document. Server
+ * target hits /api/backup/export; local target reads from sql.js. API
+ * keys are excluded unless `includeSecrets` is set.
+ */
+export async function exportLocalData(
+  opts: { includeSecrets?: boolean } = {}
+): Promise<import('./data/backup').Backup> {
+  if (IS_LOCAL) {
+    return withLocalDb(async (db) => {
+      const m = await import('./data/backup');
+      return m.exportBackup(db, { includeSecrets: opts.includeSecrets });
+    });
+  }
+  const url = `/api/backup/export${opts.includeSecrets ? '?secrets=1' : ''}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `Export failed: ${res.status}`);
+  }
+  return (await res.json()) as import('./data/backup').Backup;
+}
+
+export interface ImportLocalDataOptions {
+  mode?: 'merge' | 'replace';
+  includeSecrets?: boolean;
+}
+
+/**
+ * Import a previously exported JSON Backup. Validates the file, then
+ * applies it through the same surface the rest of the app writes
+ * through. Returns row counts so the UI can confirm.
+ */
+export async function importLocalData(
+  file: File,
+  opts: ImportLocalDataOptions = {}
+): Promise<import('./data/backup').ImportResult> {
+  if (IS_LOCAL) {
+    const text = await file.text();
+    const { parseBackup, importBackup } = await import('./data/backup');
+    const backup = parseBackup(text);
+    return withLocalDb((db) => importBackup(db, backup, opts));
+  }
+  const fd = new FormData();
+  fd.set('file', file);
+  if (opts.mode) fd.set('mode', opts.mode);
+  if (opts.includeSecrets) fd.set('secrets', '1');
+  const res = await fetch('/api/backup/import', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `Import failed: ${res.status}`);
+  }
+  return (await res.json()) as import('./data/backup').ImportResult;
+}
+
+/**
  * Upload a TV Time GDPR export. Server target multiparts the file to
  * /api/import/tvtime; local target parses client-side and stages the
  * count in IndexedDB. Both paths return the number of detected entries
