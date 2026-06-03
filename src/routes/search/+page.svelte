@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { goto } from '$app/navigation';
+  import { beforeNavigate, goto } from '$app/navigation';
   import { onDestroy } from 'svelte';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import { t } from '$lib/i18n';
@@ -40,10 +40,9 @@
     }, DEBOUNCE_MS);
   }
 
-  function onInput(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    query = value;
-    scheduleSearch(value);
+  function onInput() {
+    /* `query` is already updated by `bind:value` — just (re)schedule. */
+    scheduleSearch(query);
   }
 
   function onSubmit(event: SubmitEvent) {
@@ -54,6 +53,17 @@
     const target = trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : '/search';
     void goto(target, { keepFocus: true, replaceState: true, noScroll: true });
   }
+
+  /* Cancel any pending debounced search before a real navigation runs.
+   * Without this, tapping a result while the 320 ms timer is still
+   * counting fires a `goto('/search?…')` mid-flight that cancels the
+   * navigation into the series — the "il faut recliquer" symptom. */
+  beforeNavigate(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  });
 
   onDestroy(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -77,12 +87,15 @@
     <input
       bind:this={inputEl}
       class="search__input"
-      type="search"
+      type="text"
+      inputmode="search"
+      enterkeyhint="search"
       id="q"
       name="q"
       placeholder={$t('search.placeholder')}
       autocomplete="off"
-      value={query}
+      autocapitalize="off"
+      bind:value={query}
       oninput={onInput}
     />
   </form>
