@@ -21,6 +21,7 @@ import {
   markSeasonWatched,
   markSeasonsUpTo,
   markSeriesWatched,
+  setSeriesAnime,
   setSetting,
   unfollowSeries,
   unmarkEpisodeWatched,
@@ -452,6 +453,16 @@ for (const driver of DUAL_DRIVERS) {
         /* tmdbId 2 is anime; 1 and 3 (NULL flag) count as regular series. */
         expect(stats.seriesCount).toBe(2);
         expect(stats.animeCount).toBe(1);
+      });
+
+      it('setSeriesAnime backfills a legacy NULL flag', async () => {
+        await followSeries(ctx.db, { tmdbId: 1, name: 'Legacy anime' });
+        expect((await getStats(ctx.db)).animeCount).toBe(0);
+
+        await setSeriesAnime(ctx.db, 1, true);
+        const stats = await getStats(ctx.db);
+        expect(stats.animeCount).toBe(1);
+        expect(stats.seriesCount).toBe(0);
       });
     });
   });

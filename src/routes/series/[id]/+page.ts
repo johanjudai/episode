@@ -20,7 +20,7 @@ export const load: PageLoad = async ({ data, params }) => {
   const { getSeasonsWithEpisodes, getSeries, getSetting, getWatchedEpisodeKeys } =
     await import('$lib/data/queries');
   const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
-  const { fetchSeriesRatings } = await import('$lib/data/ratings');
+  const { fetchSeriesRatings, detectAnime } = await import('$lib/data/ratings');
 
   const db = await getDb();
   const [apiKey, omdbKey, storedLocale] = await Promise.all([
@@ -34,6 +34,15 @@ export const load: PageLoad = async ({ data, params }) => {
   const tmdb = createTmdbClient({ apiKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(db, id);
+
+  /* Backfill the is_anime flag for legacy followed rows (synced before
+   * the column existed → stored NULL) the first time the series is
+   * opened, so the profile's anime/series split is correct without a
+   * full re-sync. */
+  if (followed && followed.isAnime === null) {
+    const { setSeriesAnime } = await import('$lib/data/mutations');
+    await setSeriesAnime(db, id, detectAnime(detail));
+  }
 
   /* See server loader: skip per-season TMDB fetches when the local
    * sync is < 7 days old. Same cache window in both targets. */

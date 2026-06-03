@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ params }) => {
     await import('$lib/data/queries');
   const { getOmdbKey, getTmdbKey } = await import('$lib/server/api-helpers');
   const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
-  const { fetchSeriesRatings } = await import('$lib/data/ratings');
+  const { fetchSeriesRatings, detectAnime } = await import('$lib/data/ratings');
 
   const [effectiveKey, effectiveOmdbKey, storedLocale] = await Promise.all([
     getTmdbKey(serverDb),
@@ -65,6 +65,15 @@ export const load: PageServerLoad = async ({ params }) => {
   const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(serverDb, id);
+
+  /* Backfill the is_anime flag for legacy followed rows (synced before
+   * the column existed → stored NULL) the first time the series is
+   * opened, so the profile's anime/series split is correct without a
+   * full re-sync. */
+  if (followed && followed.isAnime === null) {
+    const { setSeriesAnime } = await import('$lib/data/mutations');
+    await setSeriesAnime(serverDb, id, detectAnime(detail));
+  }
 
   /* Freshness window: if the followed series was synced within the
    * last 7 days, skip the N TMDB seasonDetail round-trips and build
