@@ -87,7 +87,17 @@ CREATE INDEX IF NOT EXISTS "watched_at_idx" ON "watched" ("watched_at");
 `
 };
 
-export const EMBEDDED_MIGRATIONS: EmbeddedMigration[] = [m0000_classy_masque];
+const m0001_gorgeous_abomination: EmbeddedMigration = {
+  name: '0001_gorgeous_abomination',
+  sql: `
+ALTER TABLE "series" ADD "is_anime" integer;
+`
+};
+
+export const EMBEDDED_MIGRATIONS: EmbeddedMigration[] = [
+  m0000_classy_masque,
+  m0001_gorgeous_abomination
+];
 
 const TRACKING_DDL = `
 CREATE TABLE IF NOT EXISTS "__episode_migrations" (

@@ -64,10 +64,14 @@
       <div class="stat__num">{data.stats.episodesWatched}</div>
       <div class="stat__label">{$t('profile.episodesWatched')}</div>
     </a>
-    <div class="stat">
-      <div class="stat__num">—</div>
-      <div class="stat__label">{$t('profile.streak')}</div>
-    </div>
+    <a
+      class="stat stat--link"
+      href="/series"
+      aria-label={$t('profile.animesFollowedAria', { count: data.stats.animeCount })}
+    >
+      <div class="stat__num">{data.stats.animeCount}</div>
+      <div class="stat__label">{$t('profile.animesFollowed')}</div>
+    </a>
   </section>
 
   {#if data.history.length > 0}

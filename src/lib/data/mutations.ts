@@ -153,6 +153,7 @@ export interface FollowSeriesInput {
   network?: string | null;
   numberOfSeasons?: number | null;
   numberOfEpisodes?: number | null;
+  isAnime?: boolean | null;
 }
 
 export async function followSeries(db: Db, seriesData: FollowSeriesInput): Promise<void> {

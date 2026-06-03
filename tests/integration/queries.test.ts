@@ -428,6 +428,7 @@ for (const driver of DUAL_DRIVERS) {
         expect(stats.episodesWatched).toBe(2);
         expect(stats.totalMinutes).toBe(90);
         expect(stats.seriesCount).toBe(2);
+        expect(stats.animeCount).toBe(0);
       });
 
       it('excludes unfollowed series from seriesCount but keeps watched in totals', async () => {
@@ -440,6 +441,17 @@ for (const driver of DUAL_DRIVERS) {
         const stats = await getStats(ctx.db);
         expect(stats.seriesCount).toBe(0);
         expect(stats.episodesWatched).toBe(1);
+      });
+
+      it('splits anime out of seriesCount via the is_anime flag', async () => {
+        await followSeries(ctx.db, { tmdbId: 1, name: 'Regular show' });
+        await followSeries(ctx.db, { tmdbId: 2, name: 'An anime', isAnime: true });
+        await followSeries(ctx.db, { tmdbId: 3, name: 'Legacy (NULL flag)' });
+
+        const stats = await getStats(ctx.db);
+        /* tmdbId 2 is anime; 1 and 3 (NULL flag) count as regular series. */
+        expect(stats.seriesCount).toBe(2);
+        expect(stats.animeCount).toBe(1);
       });
     });
   });

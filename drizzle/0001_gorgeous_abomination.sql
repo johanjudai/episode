@@ -1,0 +1,1 @@
+ALTER TABLE `series` ADD `is_anime` integer;
