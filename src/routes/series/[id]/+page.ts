@@ -84,16 +84,20 @@ export const load: PageLoad = async ({ data, params }) => {
       name: s.name ?? `Saison ${s.season_number}`,
       airDate: s.air_date ?? null,
       posterPath: s.poster_path ?? null,
-      episodes: s.episodes.map((ep) => ({
-        seasonNumber: ep.season_number,
-        episodeNumber: ep.episode_number,
-        name: ep.name ?? null,
-        overview: ep.overview ?? null,
-        airDate: ep.air_date ?? null,
-        runtime: ep.runtime ?? null,
-        stillPath: ep.still_path ?? null,
-        watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
-      }))
+      episodes: s.episodes
+        .map((ep) => ({
+          seasonNumber: ep.season_number,
+          episodeNumber: ep.episode_number,
+          name: ep.name ?? null,
+          overview: ep.overview ?? null,
+          airDate: ep.air_date ?? null,
+          runtime: ep.runtime ?? null,
+          stillPath: ep.still_path ?? null,
+          watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
+        }))
+        /* Defensive: never trust TMDB's array order — render strictly by
+         * episode number so a title can't visually land on the wrong row. */
+        .sort((a, b) => a.episodeNumber - b.episodeNumber)
     }));
   }
 
