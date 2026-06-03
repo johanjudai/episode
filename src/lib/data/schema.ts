@@ -25,6 +25,11 @@ export const series = sqliteTable(
     numberOfSeasons: integer('number_of_seasons'),
     numberOfEpisodes: integer('number_of_episodes'),
     runtimeMinutes: integer('runtime_minutes'),
+    /* Whether TMDB metadata flags this as anime (animation + Japanese
+     * origin — see detectAnime). Lets the profile split the anime count
+     * out of the series count. NULL on rows synced before this column
+     * existed; backfilled on the next sync / follow. */
+    isAnime: integer('is_anime', { mode: 'boolean' }),
     addedAt: integer('added_at', { mode: 'timestamp_ms' }),
     removedAt: integer('removed_at', { mode: 'timestamp_ms' }),
     lastSyncedAt: integer('last_synced_at', { mode: 'timestamp_ms' })

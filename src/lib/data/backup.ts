@@ -59,6 +59,7 @@ const SeriesRow = z.object({
   numberOfSeasons: z.number().int().nullable().optional(),
   numberOfEpisodes: z.number().int().nullable().optional(),
   runtimeMinutes: z.number().int().nullable().optional(),
+  isAnime: z.boolean().nullable().optional(),
   addedAt: z.number().int().nullable().optional(),
   removedAt: z.number().int().nullable().optional(),
   lastSyncedAt: z.number().int().nullable().optional()
@@ -169,6 +170,7 @@ export async function exportBackup(db: Db, opts: ExportOptions = {}): Promise<Ba
       numberOfSeasons: r.numberOfSeasons,
       numberOfEpisodes: r.numberOfEpisodes,
       runtimeMinutes: r.runtimeMinutes,
+      isAnime: r.isAnime,
       addedAt: r.addedAt ? r.addedAt.getTime() : null,
       removedAt: r.removedAt ? r.removedAt.getTime() : null,
       lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.getTime() : null
@@ -359,6 +361,7 @@ export async function importBackup(
       copyDefined('numberOfSeasons', 'numberOfSeasons');
       copyDefined('numberOfEpisodes', 'numberOfEpisodes');
       copyDefined('runtimeMinutes', 'runtimeMinutes');
+      copyDefined('isAnime', 'isAnime');
       copyDefined('addedAt', 'addedAt', (v) => (v == null ? null : new Date(v as number)));
       copyDefined('removedAt', 'removedAt', (v) => (v == null ? null : new Date(v as number)));
       copyDefined('lastSyncedAt', 'lastSyncedAt', (v) =>

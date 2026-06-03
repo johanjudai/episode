@@ -16,6 +16,7 @@ import {
   upsertSeason
 } from './mutations';
 import { getSeries } from './queries';
+import { detectAnime } from './ratings';
 
 export interface SyncOptions {
   /** If true, also upsert the series row (set addedAt=now, removedAt=null). */
@@ -85,7 +86,8 @@ export async function syncSeriesFull(
       status: detail.status ?? null,
       network: detail.networks?.[0]?.name ?? null,
       numberOfSeasons: detail.number_of_seasons ?? null,
-      numberOfEpisodes: detail.number_of_episodes ?? null
+      numberOfEpisodes: detail.number_of_episodes ?? null,
+      isAnime: detectAnime(detail)
     });
   }
 

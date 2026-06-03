@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { invalidateAll } from '$app/navigation';
+  import { afterNavigate, goto, invalidateAll } from '$app/navigation';
   import { slide, scale, fade } from 'svelte/transition';
   import { backOut, quintOut } from 'svelte/easing';
   import BottomNav from '$lib/components/BottomNav.svelte';
@@ -19,6 +19,19 @@
   import { t } from '$lib/i18n';
 
   let { data }: PageProps = $props();
+
+  /* Back-navigation: if we arrived from within the app (e.g. the search
+   * results), go back in history so the previous page — and its `?q=`
+   * query — is restored. Hardcoding `/search` lost the query and showed
+   * an empty result list. Falls back to /search on a cold deep-link. */
+  let cameFromApp = $state(false);
+  afterNavigate((nav) => {
+    if (nav.from) cameFromApp = true;
+  });
+  function goBack() {
+    if (cameFromApp) history.back();
+    else void goto('/search');
+  }
 
   /* Track season + series completeness so we can fire a confetti
    * celebration the instant a mutation flips the boundary from
@@ -286,7 +299,9 @@
 {:else}
   <main class="app">
     <header class="topbar">
-      <a class="iconbtn" href="/search" aria-label={$t('common.back')}>←</a>
+      <button class="iconbtn" type="button" onclick={goBack} aria-label={$t('common.back')}
+        >←</button
+      >
       <div class="topbar__date">{$t('series.detailTitle')}</div>
       <div style="width: 36px"></div>
     </header>

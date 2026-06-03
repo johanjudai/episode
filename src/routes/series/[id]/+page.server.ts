@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ params }) => {
     await import('$lib/data/queries');
   const { getOmdbKey, getTmdbKey } = await import('$lib/server/api-helpers');
   const { createTmdbClient, pickBestTrailer } = await import('$lib/data/tmdb');
-  const { fetchSeriesRatings } = await import('$lib/data/ratings');
+  const { fetchSeriesRatings, detectAnime } = await import('$lib/data/ratings');
 
   const [effectiveKey, effectiveOmdbKey, storedLocale] = await Promise.all([
     getTmdbKey(serverDb),
@@ -65,6 +65,15 @@ export const load: PageServerLoad = async ({ params }) => {
   const tmdb = createTmdbClient({ apiKey: effectiveKey, language });
   const detail = await tmdb.tvDetail(id);
   const followed = await getSeries(serverDb, id);
+
+  /* Backfill the is_anime flag for legacy followed rows (synced before
+   * the column existed → stored NULL) the first time the series is
+   * opened, so the profile's anime/series split is correct without a
+   * full re-sync. */
+  if (followed && followed.isAnime === null) {
+    const { setSeriesAnime } = await import('$lib/data/mutations');
+    await setSeriesAnime(serverDb, id, detectAnime(detail));
+  }
 
   /* Freshness window: if the followed series was synced within the
    * last 7 days, skip the N TMDB seasonDetail round-trips and build
@@ -119,16 +128,20 @@ export const load: PageServerLoad = async ({ params }) => {
       name: s.name ?? `Saison ${s.season_number}`,
       airDate: s.air_date ?? null,
       posterPath: s.poster_path ?? null,
-      episodes: s.episodes.map((ep) => ({
-        seasonNumber: ep.season_number,
-        episodeNumber: ep.episode_number,
-        name: ep.name ?? null,
-        overview: ep.overview ?? null,
-        airDate: ep.air_date ?? null,
-        runtime: ep.runtime ?? null,
-        stillPath: ep.still_path ?? null,
-        watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
-      }))
+      episodes: s.episodes
+        .map((ep) => ({
+          seasonNumber: ep.season_number,
+          episodeNumber: ep.episode_number,
+          name: ep.name ?? null,
+          overview: ep.overview ?? null,
+          airDate: ep.air_date ?? null,
+          runtime: ep.runtime ?? null,
+          stillPath: ep.still_path ?? null,
+          watched: watchedSet.has(`${ep.season_number}-${ep.episode_number}`)
+        }))
+        /* Defensive: never trust TMDB's array order — render strictly by
+         * episode number so a title can't visually land on the wrong row. */
+        .sort((a, b) => a.episodeNumber - b.episodeNumber)
     }));
   }
 
