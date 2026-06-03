@@ -5,7 +5,7 @@ export const load: PageServerLoad = async () => {
   if (IS_LOCAL) {
     return {
       profile: { name: '', avatar: null as string | null, createdAt: null as string | null },
-      stats: { totalMinutes: 0, seriesCount: 0, episodesWatched: 0 },
+      stats: { totalMinutes: 0, seriesCount: 0, animeCount: 0, episodesWatched: 0 },
       history: [] as Awaited<ReturnType<typeof import('$lib/data/queries').getRecentWatched>>
     };
   }

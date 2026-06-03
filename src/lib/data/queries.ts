@@ -218,6 +218,7 @@ export async function getFollowedSeriesWithProgress(db: Db): Promise<FollowedSer
 export async function getStats(db: Db): Promise<{
   totalMinutes: number;
   seriesCount: number;
+  animeCount: number;
   episodesWatched: number;
 }> {
   const totalRow = db
@@ -229,8 +230,14 @@ export async function getStats(db: Db): Promise<{
     .innerJoin(episodes, eq(episodes.id, watched.episodeId))
     .all();
 
+  /* Split followed series into anime vs non-anime. `is_anime` is a 0/1
+   * boolean; NULL (rows synced before the column existed) counts as a
+   * regular series until the next sync backfills it. */
   const seriesRow = db
-    .select({ count: sql<number>`COUNT(*)` })
+    .select({
+      seriesCount: sql<number>`COALESCE(SUM(CASE WHEN ${series.isAnime} = 1 THEN 0 ELSE 1 END), 0)`,
+      animeCount: sql<number>`COALESCE(SUM(CASE WHEN ${series.isAnime} = 1 THEN 1 ELSE 0 END), 0)`
+    })
     .from(series)
     .where(isNull(series.removedAt))
     .all();
@@ -238,7 +245,8 @@ export async function getStats(db: Db): Promise<{
   return {
     totalMinutes: Number(totalRow[0]?.totalMinutes ?? 0),
     episodesWatched: Number(totalRow[0]?.episodesWatched ?? 0),
-    seriesCount: Number(seriesRow[0]?.count ?? 0)
+    seriesCount: Number(seriesRow[0]?.seriesCount ?? 0),
+    animeCount: Number(seriesRow[0]?.animeCount ?? 0)
   };
 }
 

@@ -153,6 +153,7 @@ export interface FollowSeriesInput {
   network?: string | null;
   numberOfSeasons?: number | null;
   numberOfEpisodes?: number | null;
+  isAnime?: boolean | null;
 }
 
 export async function followSeries(db: Db, seriesData: FollowSeriesInput): Promise<void> {
@@ -168,6 +169,18 @@ export async function followSeries(db: Db, seriesData: FollowSeriesInput): Promi
 
 export async function unfollowSeries(db: Db, tmdbId: number): Promise<void> {
   db.update(series).set({ removedAt: new Date() }).where(eq(series.tmdbId, tmdbId)).run();
+}
+
+/* One-shot backfill of the is_anime flag for rows synced before the
+ * column existed (stored NULL). The series detail loader calls this with
+ * detectAnime(detail) so a legacy followed series gets reclassified the
+ * first time it's opened, without waiting for a full re-sync. */
+export async function setSeriesAnime(
+  db: Db,
+  tmdbId: number,
+  isAnime: boolean
+): Promise<void> {
+  db.update(series).set({ isAnime }).where(eq(series.tmdbId, tmdbId)).run();
 }
 
 /* Force-set follow timestamps. Used by the TV Time importer to
