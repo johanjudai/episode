@@ -1,8 +1,19 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin } from 'vite';
+import { readFileSync } from 'node:fs';
 
 const TARGET = (process.env.EPISODE_TARGET ?? 'server') as 'server' | 'local';
 const IS_LOCAL = TARGET === 'local';
+
+/* App version baked into the bundle as a literal. Used as the web/PWA
+ * fallback "current version" for the update check; on the Android APK the
+ * native versionName (from the ApkInstaller plugin) is the source of truth
+ * since it tracks the release tag, which can run ahead of package.json. */
+const APP_VERSION = (
+  JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
+    version: string;
+  }
+).version;
 
 /**
  * In local-target builds the app runs as a static SPA — there is no server
@@ -54,7 +65,8 @@ function neuterServerModulesForLocal(): Plugin {
 export default defineConfig({
   plugins: [neuterServerModulesForLocal(), sveltekit()],
   define: {
-    __EPISODE_TARGET__: JSON.stringify(TARGET)
+    __EPISODE_TARGET__: JSON.stringify(TARGET),
+    __APP_VERSION__: JSON.stringify(APP_VERSION)
   },
   server: { port: 5173, strictPort: false, host: true },
   optimizeDeps: { exclude: ['better-sqlite3'] },

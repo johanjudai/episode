@@ -266,6 +266,48 @@ for (const driver of DUAL_DRIVERS) {
       });
     });
 
+    describe('release_at instant gating', () => {
+      const now = new Date('2026-05-11T12:00:00Z');
+
+      function insertEpisodeWithRelease(
+        seasonId: number,
+        episodeNumber: number,
+        airDate: string,
+        releaseAtMs: number
+      ): void {
+        ctx.raw.run(
+          `INSERT INTO episodes
+            (season_id, series_tmdb_id, season_number, episode_number, name, air_date, release_at, runtime_minutes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [seasonId, 1, 1, episodeNumber, `S1E${episodeNumber}`, airDate, releaseAtMs, 45]
+        );
+      }
+
+      it('air_date today but release instant still in the future → upcoming, not to-watch', async () => {
+        await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
+        const seasonId = insertSeason(1, 1, 1);
+        /* Mirrors a US evening release: air_date is "today" but the actual
+         * instant is hours away — must NOT show as to-watch yet. */
+        const future = new Date('2026-05-11T23:00:00Z').getTime();
+        insertEpisodeWithRelease(seasonId, 1, '2026-05-11', future);
+
+        expect(await getEpisodesToWatch(ctx.db, now)).toHaveLength(0);
+        const up = await getUpcomingEpisodes(ctx.db, 7, now);
+        expect(up.map((r) => r.episodeNumber)).toEqual([1]);
+      });
+
+      it('release instant already passed → to-watch even if air_date reads as tomorrow', async () => {
+        await followSeries(ctx.db, { tmdbId: 1, name: 'A' });
+        const seasonId = insertSeason(1, 1, 1);
+        const past = new Date('2026-05-11T06:00:00Z').getTime();
+        insertEpisodeWithRelease(seasonId, 1, '2026-05-12', past);
+
+        const rows = await getEpisodesToWatch(ctx.db, now);
+        expect(rows.map((r) => r.episodeNumber)).toEqual([1]);
+        expect(await getUpcomingEpisodes(ctx.db, 7, now)).toEqual([]);
+      });
+    });
+
     describe('mark / unmark episode', () => {
       it('mark is idempotent', async () => {
         await followSeries(ctx.db, { tmdbId: 1, name: 'A' });

@@ -3196,3 +3196,61 @@ a {
   transform: scaleY(-1);
   opacity: 0.72;
 }
+
+/* In-app update banner (Android APK only — see routes/+page.svelte) */
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin: var(--s-3) var(--s-4) 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: var(--border-w) solid var(--border);
+}
+.update-banner__text {
+  min-width: 0;
+}
+.update-banner__title {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+}
+.update-banner__body {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.update-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-shrink: 0;
+}
+.update-banner .btn--sm {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.72rem;
+}
+.update-banner__dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.update-banner__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: update-spin 0.8s linear infinite;
+}
+@keyframes update-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

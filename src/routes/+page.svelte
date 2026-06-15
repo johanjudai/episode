@@ -9,12 +9,82 @@
   import EpisodeDetailModal from '$lib/components/EpisodeDetailModal.svelte';
   import OrnateFrame from '$lib/components/OrnateFrame.svelte';
   import FloralDivider from '$lib/components/FloralDivider.svelte';
+  import { onMount } from 'svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDayShortFr, formatDateShortFr, relativeFr } from '$lib/utils/date';
+  import { localIsoDate } from '$lib/utils/airtime';
   import * as api from '$lib/api';
   import { t } from '$lib/i18n';
+  import { IS_LOCAL, APP_VERSION } from '$lib/config';
+  import { checkForUpdate, dueForCheck, type UpdateInfo } from '$lib/update';
 
   let { data }: PageProps = $props();
+
+  /* ---- In-app update banner (Android APK only) ------------------------
+   * On native, check GitHub Releases for a newer signed APK and offer a
+   * one-tap download+install via the native ApkInstaller plugin. Throttled
+   * to once a day via localStorage; entirely no-op on the web/Docker build
+   * (and on the local build running in a plain browser). */
+  const UPDATE_CHECK_KEY = 'episode.update.lastCheck';
+  let updateInfo = $state<UpdateInfo | null>(null);
+  let updatePhase = $state<'idle' | 'downloading' | 'installing' | 'error'>('idle');
+  let updateProgress = $state(-1); // 0..100, or -1 when unknown
+  let updateErrorKey = $state<'error' | 'unknownSources'>('error');
+
+  onMount(() => {
+    let cleanup: (() => void) | undefined;
+    (async () => {
+      if (!IS_LOCAL) return;
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
+
+      const lastRaw = localStorage.getItem(UPDATE_CHECK_KEY);
+      const last = lastRaw ? Number(lastRaw) : null;
+      if (!dueForCheck(last, Date.now())) return;
+      localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
+
+      const { ApkInstaller } = await import('$lib/native/apkInstaller');
+      let current = APP_VERSION;
+      try {
+        const info = await ApkInstaller.getAppInfo();
+        if (info.versionName) current = info.versionName;
+      } catch {
+        /* fall back to the bundled version */
+      }
+
+      const found = await checkForUpdate(current);
+      if (!found) return;
+      updateInfo = found;
+
+      const handle = await ApkInstaller.addListener('downloadProgress', (e) => {
+        updateProgress = e.progress < 0 ? -1 : Math.round(e.progress * 100);
+      });
+      cleanup = () => handle.remove();
+    })();
+    return () => cleanup?.();
+  });
+
+  async function installUpdate() {
+    if (!updateInfo) return;
+    updatePhase = 'downloading';
+    updateProgress = -1;
+    try {
+      const { ApkInstaller } = await import('$lib/native/apkInstaller');
+      await ApkInstaller.installApk({
+        url: updateInfo.apkUrl,
+        fileName: `episode-${updateInfo.tag}.apk`
+      });
+      updatePhase = 'installing';
+    } catch (err) {
+      updateErrorKey =
+        (err as { code?: string })?.code === 'UNKNOWN_SOURCES' ? 'unknownSources' : 'error';
+      updatePhase = 'error';
+    }
+  }
+
+  function dismissUpdate() {
+    updateInfo = null;
+  }
 
   const today = $derived(new Date(data.now));
   const todayLabel = $derived(formatDateShortFr(today));
@@ -31,8 +101,15 @@
     cutoff.setDate(cutoff.getDate() + (upcomingExpanded ? EXPANDED_DAYS : DEFAULT_DAYS));
     return cutoff.toISOString().slice(0, 10);
   });
+  /* An episode's effective day is the local calendar day of its release
+   * instant (release_at, resolved in the device timezone) when we have it —
+   * so a release that unlocks just after local midnight buckets under the
+   * right day. Falls back to the bare air_date for legacy rows. */
+  function effectiveDate(ep: { releaseAt?: number | null; airDate: string | null }): string {
+    return ep.releaseAt != null ? localIsoDate(ep.releaseAt) : (ep.airDate ?? '');
+  }
   const visibleUpcoming = $derived(
-    data.upcoming.filter((ep) => (ep.airDate ?? '') <= upcomingCutoffIso)
+    data.upcoming.filter((ep) => effectiveDate(ep) <= upcomingCutoffIso)
   );
   const hiddenUpcomingCount = $derived(data.upcoming.length - visibleUpcoming.length);
 
@@ -100,6 +177,39 @@
     </div>
     <div class="topbar__date">{todayLabel}</div>
   </header>
+
+  {#if updateInfo}
+    <div class="update-banner" role="status" transition:fade={{ duration: 160 }}>
+      <div class="update-banner__text">
+        <div class="update-banner__title">{$t('update.title')}</div>
+        <p class="update-banner__body">
+          {#if updatePhase === 'downloading'}
+            {updateProgress < 0
+              ? $t('update.preparing')
+              : $t('update.downloading', { percent: updateProgress })}
+          {:else if updatePhase === 'installing'}
+            {$t('update.installing')}
+          {:else if updatePhase === 'error'}
+            {$t(`update.${updateErrorKey}`)}
+          {:else}
+            {$t('update.body', { version: updateInfo.version })}
+          {/if}
+        </p>
+      </div>
+      <div class="update-banner__actions">
+        {#if updatePhase === 'downloading' || updatePhase === 'installing'}
+          <span class="update-banner__spinner" aria-hidden="true"></span>
+        {:else}
+          <button type="button" class="btn btn--accent btn--sm" onclick={installUpdate}>
+            {updatePhase === 'error' ? $t('update.retry') : $t('update.action')}
+          </button>
+          <button type="button" class="update-banner__dismiss" onclick={dismissUpdate}>
+            {$t('update.dismiss')}
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   <section class="home-section home-section--now">
     <div class="section">
@@ -172,7 +282,8 @@
       </div>
       <div class="upcoming">
         {#each visibleUpcoming as ep (ep.id)}
-          {@const d = formatDayShortFr(ep.airDate ?? '')}
+          {@const epDate = effectiveDate(ep)}
+          {@const d = formatDayShortFr(epDate)}
           <div class="upcoming__row">
             <div class="upcoming__day" aria-hidden="true">{d.weekday}<strong>{d.day}</strong></div>
             <button
@@ -189,7 +300,7 @@
                 {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
               </div>
             </button>
-            <span class="ep-date">{relativeFr(ep.airDate ?? '', today)}</span>
+            <span class="ep-date">{relativeFr(epDate, today)}</span>
           </div>
         {/each}
       </div>

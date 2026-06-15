@@ -60,6 +60,7 @@ const SeriesRow = z.object({
   numberOfEpisodes: z.number().int().nullable().optional(),
   runtimeMinutes: z.number().int().nullable().optional(),
   isAnime: z.boolean().nullable().optional(),
+  originCountry: z.string().max(8).nullable().optional(),
   addedAt: z.number().int().nullable().optional(),
   removedAt: z.number().int().nullable().optional(),
   lastSyncedAt: z.number().int().nullable().optional()
@@ -84,6 +85,7 @@ const EpisodeRow = z.object({
   name: z.string().max(MAX_NAME_BYTES).nullable().optional(),
   overview: z.string().max(MAX_TEXT_FIELD_BYTES).nullable().optional(),
   airDate: z.string().max(64).nullable().optional(),
+  releaseAt: z.number().int().nullable().optional(),
   runtimeMinutes: z.number().int().nullable().optional(),
   stillPath: z.string().max(MAX_NAME_BYTES).nullable().optional()
 });
@@ -171,6 +173,7 @@ export async function exportBackup(db: Db, opts: ExportOptions = {}): Promise<Ba
       numberOfEpisodes: r.numberOfEpisodes,
       runtimeMinutes: r.runtimeMinutes,
       isAnime: r.isAnime,
+      originCountry: r.originCountry,
       addedAt: r.addedAt ? r.addedAt.getTime() : null,
       removedAt: r.removedAt ? r.removedAt.getTime() : null,
       lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.getTime() : null
@@ -193,6 +196,7 @@ export async function exportBackup(db: Db, opts: ExportOptions = {}): Promise<Ba
       name: r.name,
       overview: r.overview,
       airDate: r.airDate,
+      releaseAt: r.releaseAt,
       runtimeMinutes: r.runtimeMinutes,
       stillPath: r.stillPath
     })),
@@ -362,6 +366,7 @@ export async function importBackup(
       copyDefined('numberOfEpisodes', 'numberOfEpisodes');
       copyDefined('runtimeMinutes', 'runtimeMinutes');
       copyDefined('isAnime', 'isAnime');
+      copyDefined('originCountry', 'originCountry');
       copyDefined('addedAt', 'addedAt', (v) => (v == null ? null : new Date(v as number)));
       copyDefined('removedAt', 'removedAt', (v) => (v == null ? null : new Date(v as number)));
       copyDefined('lastSyncedAt', 'lastSyncedAt', (v) =>
@@ -429,6 +434,7 @@ export async function importBackup(
       copyDefined('name', 'name');
       copyDefined('overview', 'overview');
       copyDefined('airDate', 'airDate');
+      copyDefined('releaseAt', 'releaseAt');
       copyDefined('runtimeMinutes', 'runtimeMinutes');
       copyDefined('stillPath', 'stillPath');
 
