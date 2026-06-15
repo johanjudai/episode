@@ -5,6 +5,7 @@
 import { and, eq, inArray, lt, lte, or } from 'drizzle-orm';
 import type { Db } from './db-types';
 import { episodes, seasons, series, settings, watched } from './schema';
+import { computeReleaseAtMs, originTimeZone } from '$lib/utils/airtime';
 
 /**
  * Upsert a settings row. Passing `value: null` stores a literal NULL —
@@ -154,6 +155,7 @@ export interface FollowSeriesInput {
   numberOfSeasons?: number | null;
   numberOfEpisodes?: number | null;
   isAnime?: boolean | null;
+  originCountry?: string | null;
 }
 
 export async function followSeries(db: Db, seriesData: FollowSeriesInput): Promise<void> {
@@ -183,6 +185,38 @@ export async function setSeriesAnime(
   db.update(series).set({ isAnime }).where(eq(series.tmdbId, tmdbId)).run();
 }
 
+/* One-shot backfill of origin country + per-episode release instants for
+ * rows synced before those columns existed (stored NULL). The series detail
+ * loader calls this with the freshly-fetched TMDB origin_country so a legacy
+ * series gets correct release-time gating the first time it's opened, without
+ * waiting for a full re-sync. Mirrors the setSeriesAnime backfill pattern.
+ *
+ * Idempotent and cheap: when the origin is unknown there's no timezone to
+ * resolve, so release_at stays NULL and the row keeps the legacy date-string
+ * behaviour. */
+export async function backfillSeriesReleaseTimes(
+  db: Db,
+  tmdbId: number,
+  originCountry: string | null
+): Promise<void> {
+  db.update(series).set({ originCountry }).where(eq(series.tmdbId, tmdbId)).run();
+
+  const tz = originTimeZone(originCountry);
+  if (!tz) return;
+
+  const rows = db
+    .select({ id: episodes.id, airDate: episodes.airDate })
+    .from(episodes)
+    .where(eq(episodes.seriesTmdbId, tmdbId))
+    .all();
+
+  for (const r of rows) {
+    const releaseAt = computeReleaseAtMs(r.airDate, tz);
+    if (releaseAt === null) continue;
+    db.update(episodes).set({ releaseAt }).where(eq(episodes.id, r.id)).run();
+  }
+}
+
 /* Force-set follow timestamps. Used by the TV Time importer to
  * preserve the original "addedAt" (when the user joined the show on
  * TV Time) and to pre-mark a series as already archived. The regular
@@ -198,6 +232,34 @@ export async function setSeriesFollowDates(
   if ('addedAt' in dates) set.addedAt = dates.addedAt ?? null;
   if ('removedAt' in dates) set.removedAt = dates.removedAt ?? null;
   if (Object.keys(set).length === 0) return;
+  db.update(series).set(set).where(eq(series.tmdbId, tmdbId)).run();
+}
+
+/* Record that a series was (re)synced now, optionally refreshing the
+ * cached structural counts. Used by the background freshness sweep: a
+ * cheap tvDetail check touches `lastSyncedAt` so the series rotates out
+ * of the stale set, and when a new season/episode appeared the counts
+ * are updated alongside. NB: this also unfreezes `lastSyncedAt`, which
+ * the original followSeries upsert never updated after the initial
+ * follow. */
+export async function updateSeriesSyncState(
+  db: Db,
+  tmdbId: number,
+  syncedAt: Date,
+  meta?: {
+    numberOfSeasons?: number | null;
+    numberOfEpisodes?: number | null;
+    status?: string | null;
+    lastAirDate?: string | null;
+  }
+): Promise<void> {
+  const set: Record<string, unknown> = { lastSyncedAt: syncedAt };
+  if (meta) {
+    if ('numberOfSeasons' in meta) set.numberOfSeasons = meta.numberOfSeasons ?? null;
+    if ('numberOfEpisodes' in meta) set.numberOfEpisodes = meta.numberOfEpisodes ?? null;
+    if ('status' in meta) set.status = meta.status ?? null;
+    if ('lastAirDate' in meta) set.lastAirDate = meta.lastAirDate ?? null;
+  }
   db.update(series).set(set).where(eq(series.tmdbId, tmdbId)).run();
 }
 
@@ -268,6 +330,7 @@ export interface UpsertEpisodeInput {
   name?: string | null;
   overview?: string | null;
   airDate?: string | null;
+  releaseAt?: number | null;
   runtimeMinutes?: number | null;
   stillPath?: string | null;
 }
@@ -286,6 +349,7 @@ export async function upsertEpisode(
     name: input.name ?? null,
     overview: input.overview ?? null,
     airDate: input.airDate ?? null,
+    releaseAt: input.releaseAt ?? null,
     runtimeMinutes: input.runtimeMinutes ?? null,
     stillPath: input.stillPath ?? null
   };

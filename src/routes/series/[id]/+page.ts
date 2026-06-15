@@ -44,6 +44,13 @@ export const load: PageLoad = async ({ data, params }) => {
     await setSeriesAnime(db, id, detectAnime(detail));
   }
 
+  /* Backfill origin country + per-episode release instants for legacy rows
+   * (synced before the columns existed). See server loader / utils/airtime.ts. */
+  if (followed && followed.originCountry == null) {
+    const { backfillSeriesReleaseTimes } = await import('$lib/data/mutations');
+    await backfillSeriesReleaseTimes(db, id, detail.origin_country?.[0] ?? null);
+  }
+
   /* See server loader: skip per-season TMDB fetches when the local
    * sync is < 7 days old. Same cache window in both targets. */
   const FRESH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;

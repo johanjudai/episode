@@ -14,9 +14,14 @@
 export type Target = 'server' | 'local';
 
 declare const __EPISODE_TARGET__: Target;
+declare const __APP_VERSION__: string;
 
 export const TARGET: Target =
   typeof __EPISODE_TARGET__ !== 'undefined' ? __EPISODE_TARGET__ : 'server';
 
 export const IS_LOCAL = TARGET === 'local';
 export const IS_SERVER_TARGET = TARGET === 'server';
+
+/** Build-time app version (package.json), injected by Vite `define`. */
+export const APP_VERSION: string =
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';

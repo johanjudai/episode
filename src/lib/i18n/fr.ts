@@ -10,6 +10,18 @@ export const fr = {
     title: 'Episode',
     languageName: 'Français'
   },
+  update: {
+    title: 'Mise à jour disponible',
+    body: 'La version {version} est prête à être installée.',
+    action: 'Installer',
+    preparing: 'Préparation…',
+    downloading: 'Téléchargement… {percent}%',
+    installing: 'Lancement de l’installation…',
+    error: 'Échec du téléchargement.',
+    retry: 'Réessayer',
+    dismiss: 'Plus tard',
+    unknownSources: 'Autorise l’installation depuis Episode, puis réessaie.'
+  },
   locale: {
     title: 'Langue',
     fr: 'Français',
