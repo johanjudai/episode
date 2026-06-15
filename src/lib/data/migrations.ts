@@ -94,9 +94,19 @@ ALTER TABLE "series" ADD "is_anime" integer;
 `
 };
 
+const m0002_release_timezone: EmbeddedMigration = {
+  name: '0002_release_timezone',
+  sql: `
+ALTER TABLE "episodes" ADD "release_at" integer;
+CREATE INDEX IF NOT EXISTS "episodes_release_idx" ON "episodes" ("release_at");
+ALTER TABLE "series" ADD "origin_country" text;
+`
+};
+
 export const EMBEDDED_MIGRATIONS: EmbeddedMigration[] = [
   m0000_classy_masque,
-  m0001_gorgeous_abomination
+  m0001_gorgeous_abomination,
+  m0002_release_timezone
 ];
 
 const TRACKING_DDL = `

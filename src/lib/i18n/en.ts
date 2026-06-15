@@ -9,6 +9,18 @@ export const en: Dict = {
     title: 'Episode',
     languageName: 'English'
   },
+  update: {
+    title: 'Update available',
+    body: 'Version {version} is ready to install.',
+    action: 'Install',
+    preparing: 'Preparing…',
+    downloading: 'Downloading… {percent}%',
+    installing: 'Launching installer…',
+    error: 'Download failed.',
+    retry: 'Retry',
+    dismiss: 'Later',
+    unknownSources: 'Allow installs from Episode, then try again.'
+  },
   locale: {
     title: 'Language',
     fr: 'Français',

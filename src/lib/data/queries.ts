@@ -3,7 +3,7 @@
  * synchronous Drizzle SQLite driver (better-sqlite3 on the server, sql.js
  * in the browser, op-sqlite/Capacitor SQLite on mobile if we add them).
  */
-import { and, asc, desc, eq, gt, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Db } from './db-types';
 import type { Episode, Series } from './schema';
 import { episodes, series, settings, watched } from './schema';
@@ -27,6 +27,12 @@ export async function getEpisodesToWatch(
   now: Date = new Date()
 ): Promise<Array<Episode & { seriesName: string; seriesPoster: string | null }>> {
   const today = now.toISOString().slice(0, 10);
+  const nowMs = now.getTime();
+  /* "Released" is decided on the absolute release instant (release_at)
+   * when we have it — that's what stops an evening foreign release from
+   * surfacing a day early. Rows synced before release_at existed (NULL)
+   * fall back to the legacy date-string comparison so they keep working
+   * until a sync / detail-open backfills them. See utils/airtime.ts. */
   /* Single-row-per-series via window function. The previous shape
    * returned EVERY unwatched aired episode (potentially hundreds per
    * series) and de-duplicated to the first one per series in JS — a
@@ -47,6 +53,7 @@ export async function getEpisodesToWatch(
     name: string | null;
     overview: string | null;
     airDate: string | null;
+    releaseAt: number | null;
     runtimeMinutes: number | null;
     stillPath: string | null;
     seriesName: string;
@@ -62,6 +69,7 @@ export async function getEpisodesToWatch(
       e.name AS name,
       e.overview AS overview,
       e.air_date AS airDate,
+      e.release_at AS releaseAt,
       e.runtime_minutes AS runtimeMinutes,
       e.still_path AS stillPath,
       s.name AS seriesName,
@@ -79,7 +87,10 @@ export async function getEpisodesToWatch(
       WHERE series.removed_at IS NULL
         AND watched.id IS NULL
         AND episodes.air_date IS NOT NULL
-        AND episodes.air_date <= ${today}
+        AND (
+          (episodes.release_at IS NOT NULL AND episodes.release_at <= ${nowMs})
+          OR (episodes.release_at IS NULL AND episodes.air_date <= ${today})
+        )
     ) AS e
     INNER JOIN series s ON s.tmdb_id = e.series_tmdb_id
     WHERE e.rn = 1
@@ -94,9 +105,11 @@ export async function getUpcomingEpisodes(
   now: Date = new Date()
 ): Promise<Array<Episode & { seriesName: string }>> {
   const today = now.toISOString().slice(0, 10);
+  const nowMs = now.getTime();
   const end = new Date(now);
   end.setDate(end.getDate() + daysAhead);
   const endIso = end.toISOString().slice(0, 10);
+  const endMs = end.getTime();
 
   return db
     .select({
@@ -109,6 +122,7 @@ export async function getUpcomingEpisodes(
       name: episodes.name,
       overview: episodes.overview,
       airDate: episodes.airDate,
+      releaseAt: episodes.releaseAt,
       runtimeMinutes: episodes.runtimeMinutes,
       stillPath: episodes.stillPath,
       seriesName: series.name
@@ -116,10 +130,28 @@ export async function getUpcomingEpisodes(
     .from(episodes)
     .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
     .where(
-      /* Strict `gt today` — episodes airing today belong in "À voir
-       * maintenant" via getEpisodesToWatch (which uses lte today),
-       * so showing them in "À venir" was double-listing. */
-      and(isNull(series.removedAt), gt(episodes.airDate, today), lte(episodes.airDate, endIso))
+      /* Mirror getEpisodesToWatch: gate on the absolute release instant
+       * when present, fall back to the air_date string otherwise. The
+       * "not yet released" boundary (strictly future) keeps episodes that
+       * have already unlocked in "À voir maintenant", not here — so an
+       * episode whose air_date is today but whose release instant is still
+       * a few hours away correctly shows up as upcoming rather than
+       * double-listing. */
+      and(
+        isNull(series.removedAt),
+        or(
+          and(
+            isNotNull(episodes.releaseAt),
+            gt(episodes.releaseAt, nowMs),
+            lte(episodes.releaseAt, endMs)
+          ),
+          and(
+            isNull(episodes.releaseAt),
+            gt(episodes.airDate, today),
+            lte(episodes.airDate, endIso)
+          )
+        )
+      )
     )
     .orderBy(asc(episodes.airDate))
     .all();

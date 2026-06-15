@@ -32,4 +32,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets the app launch the package installer for a self-downloaded
+         APK (in-app update from the GitHub release). On Android 8+ the user
+         additionally has to allow "install unknown apps" for Episode. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

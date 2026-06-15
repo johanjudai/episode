@@ -17,6 +17,7 @@ import {
 } from './mutations';
 import { getSeries } from './queries';
 import { detectAnime } from './ratings';
+import { computeReleaseAtMs, originTimeZone } from '$lib/utils/airtime';
 
 export interface SyncOptions {
   /** If true, also upsert the series row (set addedAt=now, removedAt=null). */
@@ -87,7 +88,8 @@ export async function syncSeriesFull(
       network: detail.networks?.[0]?.name ?? null,
       numberOfSeasons: detail.number_of_seasons ?? null,
       numberOfEpisodes: detail.number_of_episodes ?? null,
-      isAnime: detectAnime(detail)
+      isAnime: detectAnime(detail),
+      originCountry: detail.origin_country?.[0] ?? null
     });
   }
 
@@ -118,6 +120,12 @@ export async function syncSeason(
   if (!opts.refresh && (await seasonExists(db, seriesTmdbId, seasonNumber))) return;
   const tmdb = createTmdbClient({ apiKey, language: opts.language });
   const fetched = await tmdb.seasonDetail(seriesTmdbId, seasonNumber);
+  /* Resolve the broadcaster timezone once for the whole season so each
+   * episode's air_date can be turned into an absolute release instant.
+   * syncSeriesFull upserts the series row (with origin_country) before
+   * fanning out to seasons, so this read sees the current origin. */
+  const seriesRow = await getSeries(db, seriesTmdbId);
+  const originTz = originTimeZone(seriesRow?.originCountry ?? null);
   const seasonId = await upsertSeason(
     db,
     {
@@ -144,6 +152,7 @@ export async function syncSeason(
         name: ep.name ?? null,
         overview: ep.overview ?? null,
         airDate: ep.air_date ?? null,
+        releaseAt: computeReleaseAtMs(ep.air_date ?? null, originTz),
         runtimeMinutes: ep.runtime ?? null,
         stillPath: ep.still_path ?? null
       },

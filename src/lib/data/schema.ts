@@ -25,6 +25,11 @@ export const series = sqliteTable(
     numberOfSeasons: integer('number_of_seasons'),
     numberOfEpisodes: integer('number_of_episodes'),
     runtimeMinutes: integer('runtime_minutes'),
+    /* TMDB `origin_country` (ISO 3166-1 alpha-2, first entry). Used to
+     * resolve the broadcaster's timezone so episode air dates can be
+     * turned into absolute release instants. NULL on rows synced before
+     * this column existed; backfilled on the next sync / detail open. */
+    originCountry: text('origin_country'),
     /* Whether TMDB metadata flags this as anime (animation + Japanese
      * origin — see detectAnime). Lets the profile split the anime count
      * out of the series count. NULL on rows synced before this column
@@ -74,6 +79,13 @@ export const episodes = sqliteTable(
     name: text('name'),
     overview: text('overview'),
     airDate: text('air_date'),
+    /* Absolute instant (epoch ms) the episode is assumed to become
+     * available — air_date interpreted at a default broadcast hour in the
+     * origin timezone. Gating on this instant (vs the bare date string)
+     * is what stops evening foreign releases from surfacing a day early.
+     * NULL when the origin timezone is unknown → row falls back to the
+     * legacy air_date comparison. See utils/airtime.ts. */
+    releaseAt: integer('release_at'),
     runtimeMinutes: integer('runtime_minutes'),
     stillPath: text('still_path')
   },
@@ -83,7 +95,8 @@ export const episodes = sqliteTable(
       t.seasonNumber,
       t.episodeNumber
     ),
-    airIdx: index('episodes_air_idx').on(t.airDate)
+    airIdx: index('episodes_air_idx').on(t.airDate),
+    releaseIdx: index('episodes_release_idx').on(t.releaseAt)
   })
 );
 
