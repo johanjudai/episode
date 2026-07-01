@@ -137,6 +137,7 @@ export const en: Dict = {
     seasonExpandAria: 'Expand season {n}',
     seasonCollapseAria: 'Collapse season {n}',
     episodeViewSynopsisAria: 'View synopsis of {code}',
+    viewSeriesAria: 'View {name} details',
     episodeMarkAriaOn: 'Mark {code} as watched',
     episodeMarkAriaOff: 'Unmark {code}',
     noSynopsis: 'No synopsis available for this episode.',

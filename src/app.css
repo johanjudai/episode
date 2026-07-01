@@ -1079,6 +1079,27 @@ a {
   color: var(--muted);
 }
 
+/* The series name in a feed row is a link to the series detail page.
+ * Kept visually identical to the plain kicker, with a tap/focus affordance.
+ * `align-self: start` stops the link box from spanning the row width so
+ * only the text itself is the tap target. */
+a.episode__series--link {
+  align-self: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+a.episode__series--link:hover,
+a.episode__series--link:focus-visible {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+a.episode__series--link:focus-visible {
+  outline: 2px solid var(--bw-yellow);
+  outline-offset: 2px;
+}
+
 .episode__title {
   font-family: var(--font-display);
   font-weight: 700;
@@ -1093,7 +1114,17 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* Grid cell 2 — a column stacking the series link over the tappable
+ * episode title/meta. */
 .episode__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Episode title + meta — opens the detail popup. Strips every default
+ * button affordance so it reads as text but stays focusable/clickable. */
+.episode__titlebtn {
   appearance: none;
   background: none;
   border: 0;
@@ -1105,7 +1136,7 @@ a {
   cursor: pointer;
   min-width: 0;
 }
-.episode__body:focus-visible {
+.episode__titlebtn:focus-visible {
   outline: 2px solid var(--bw-blue);
   outline-offset: 2px;
 }
@@ -1289,8 +1320,16 @@ a {
   font-weight: 800;
 }
 
+/* Grid cell 2 — stacks the series link over the tappable episode title. */
+.upcoming__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 /* Click-to-open-synopsis button wrapping the episode title block —
- * same pattern as .episode__body in the swipeable rows: strip every
+ * same pattern as .episode__titlebtn in the swipeable rows: strip every
  * default button affordance so it reads as text, but stay focusable
  * and clickable. */
 .upcoming__body {
@@ -2415,6 +2454,24 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--bw-red);
+}
+
+/* Tappable series name in the episode popup — reads as the kicker but
+ * behaves as a link to the series detail page. */
+a.modal__kicker--link {
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}
+a.modal__kicker--link:hover,
+a.modal__kicker--link:focus-visible {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+a.modal__kicker--link:focus-visible {
+  outline: 2px solid var(--bw-yellow);
+  outline-offset: 2px;
 }
 
 .modal__title {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import { setLocale } from '$lib/i18n';
+  import { onMount } from 'svelte';
+  import { initBackButton } from '$lib/native/back';
   interface Props {
     data?: { locale?: 'fr' | 'en' };
     children: import('svelte').Snippet;
@@ -11,6 +13,14 @@
    * Re-runs whenever invalidateAll() refreshes the data. */
   $effect(() => {
     if (data?.locale) setLocale(data.locale);
+  });
+
+  /* Route the Android hardware back button / edge-swipe through in-app
+   * navigation. No-op on web/Docker; only the native APK installs it. */
+  onMount(() => {
+    let cleanup: (() => void) | undefined;
+    void initBackButton().then((c) => (cleanup = c));
+    return () => cleanup?.();
   });
 </script>
 
