@@ -129,6 +129,7 @@
    * either home section. */
   type EpisodeModalData = {
     seriesName: string;
+    seriesTmdbId: number;
     seasonNumber: number;
     episodeNumber: number;
     name: string | null;
@@ -286,20 +287,26 @@
           {@const d = formatDayShortFr(epDate)}
           <div class="upcoming__row">
             <div class="upcoming__day" aria-hidden="true">{d.weekday}<strong>{d.day}</strong></div>
-            <button
-              type="button"
-              class="upcoming__body"
-              onclick={() => openEpisodeDetail(ep)}
-              aria-label={$t('series.episodeViewSynopsisAria', {
-                code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
-              })}
-            >
-              <div class="episode__series">{ep.seriesName}</div>
-              <h3 class="episode__title">{ep.name ?? `Épisode ${ep.episodeNumber}`}</h3>
-              <div class="episode__meta">
-                {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
-              </div>
-            </button>
+            <div class="upcoming__main">
+              <a
+                class="episode__series episode__series--link"
+                href={`/series/${ep.seriesTmdbId}`}
+                aria-label={$t('series.viewSeriesAria', { name: ep.seriesName })}>{ep.seriesName}</a
+              >
+              <button
+                type="button"
+                class="upcoming__body"
+                onclick={() => openEpisodeDetail(ep)}
+                aria-label={$t('series.episodeViewSynopsisAria', {
+                  code: formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)
+                })}
+              >
+                <h3 class="episode__title">{ep.name ?? `Épisode ${ep.episodeNumber}`}</h3>
+                <div class="episode__meta">
+                  {formatEpisodeCode(ep.seasonNumber, ep.episodeNumber)}
+                </div>
+              </button>
+            </div>
             <span class="ep-date">{relativeFr(epDate, today)}</span>
           </div>
         {/each}
@@ -323,6 +330,7 @@
 {#if episodeModal}
   <EpisodeDetailModal
     seriesName={episodeModal.seriesName}
+    seriesTmdbId={episodeModal.seriesTmdbId}
     seasonNumber={episodeModal.seasonNumber}
     episodeNumber={episodeModal.episodeNumber}
     name={episodeModal.name}

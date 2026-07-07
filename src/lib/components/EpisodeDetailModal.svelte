@@ -1,14 +1,18 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
+  import { onMount } from 'svelte';
   import { formatEpisodeCode } from '$lib/utils/format';
   import { formatDateShortFr } from '$lib/utils/date';
   import { stillUrl } from '$lib/utils/images';
   import { t } from '$lib/i18n';
+  import { pushBackInterceptor } from '$lib/native/back';
   import OrnateFrame from './OrnateFrame.svelte';
 
   interface Props {
     seriesName: string;
+    /** When set, the series name links to that series' detail page. */
+    seriesTmdbId?: number | null;
     seasonNumber: number;
     episodeNumber: number;
     name: string | null;
@@ -21,6 +25,7 @@
   }
   let {
     seriesName,
+    seriesTmdbId = null,
     seasonNumber,
     episodeNumber,
     name,
@@ -33,6 +38,14 @@
   }: Props = $props();
 
   const still = $derived(stillUrl(stillPath, 'w500'));
+
+  /* Android back button / swipe closes the modal instead of navigating. */
+  onMount(() =>
+    pushBackInterceptor(() => {
+      onClose();
+      return true;
+    })
+  );
 </script>
 
 <div
@@ -62,7 +75,16 @@
         </div>
       {/if}
       <div class="modal__inner">
-        <div class="modal__kicker">{seriesName}</div>
+        {#if seriesTmdbId != null}
+          <a
+            class="modal__kicker modal__kicker--link"
+            href={`/series/${seriesTmdbId}`}
+            onclick={onClose}
+            aria-label={$t('series.viewSeriesAria', { name: seriesName })}>{seriesName}</a
+          >
+        {:else}
+          <div class="modal__kicker">{seriesName}</div>
+        {/if}
         <h2 class="modal__title" id="ep-modal-title">
           {name ?? `Episode ${episodeNumber}`}
         </h2>

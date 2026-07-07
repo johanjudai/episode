@@ -138,6 +138,7 @@ export const fr = {
     seasonExpandAria: 'Déplier la saison {n}',
     seasonCollapseAria: 'Replier la saison {n}',
     episodeViewSynopsisAria: 'Voir le synopsis de {code}',
+    viewSeriesAria: 'Voir la fiche de {name}',
     episodeMarkAriaOn: 'Marquer {code} vu',
     episodeMarkAriaOff: 'Marquer {code} non vu',
     noSynopsis: 'Pas de synopsis disponible pour cet épisode.',

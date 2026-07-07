@@ -2,6 +2,7 @@
   import { formatEpisodeCode, formatRuntime, seriesInitials } from '$lib/utils/format';
   import { posterUrl } from '$lib/utils/images';
   import { swipeable } from '$lib/actions/swipe';
+  import { t } from '$lib/i18n';
 
   interface Props {
     episodeId: number;
@@ -80,25 +81,30 @@
       <a class={coverClass} href={`/series/${seriesTmdbId}`} aria-hidden="true" style={posterCss}>
         {#if !seriesPoster}{seriesInitials(seriesName)}{/if}
       </a>
-      {#if onTitleClick}
-        <button type="button" class="episode__body" onclick={onTitleClick}>
-          <div class="episode__series">{seriesName}</div>
-          <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
-          <div class="episode__meta">
-            {formatEpisodeCode(seasonNumber, episodeNumber)}
-            {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+      <div class="episode__body">
+        <a
+          class="episode__series episode__series--link"
+          href={`/series/${seriesTmdbId}`}
+          aria-label={$t('series.viewSeriesAria', { name: seriesName })}>{seriesName}</a
+        >
+        {#if onTitleClick}
+          <button type="button" class="episode__titlebtn" onclick={onTitleClick}>
+            <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
+            <div class="episode__meta">
+              {formatEpisodeCode(seasonNumber, episodeNumber)}
+              {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+            </div>
+          </button>
+        {:else}
+          <div>
+            <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
+            <div class="episode__meta">
+              {formatEpisodeCode(seasonNumber, episodeNumber)}
+              {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
+            </div>
           </div>
-        </button>
-      {:else}
-        <div>
-          <div class="episode__series">{seriesName}</div>
-          <h3 class="episode__title">{episodeName ?? `Épisode ${episodeNumber}`}</h3>
-          <div class="episode__meta">
-            {formatEpisodeCode(seasonNumber, episodeNumber)}
-            {#if runtimeMinutes}· {formatRuntime(runtimeMinutes)}{/if}
-          </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
       <button
         class="episode__action"
         type="button"
