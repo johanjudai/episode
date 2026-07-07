@@ -1,7 +1,9 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
+  import { onMount } from 'svelte';
   import { t } from '$lib/i18n';
+  import { pushBackInterceptor } from '$lib/native/back';
 
   /**
    * Fullscreen-ish overlay that embeds a YouTube video via the
@@ -20,6 +22,14 @@
 
   const embedUrl = $derived(
     `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0&modestbranding=1`
+  );
+
+  /* Android back button / swipe closes the trailer instead of navigating. */
+  onMount(() =>
+    pushBackInterceptor(() => {
+      onClose();
+      return true;
+    })
   );
 </script>
 

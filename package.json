@@ -59,6 +59,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.3",
     "@zip.js/zip.js": "^2.8.26",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.2",
