@@ -3311,3 +3311,43 @@ a.modal__kicker--link:focus-visible {
     transform: rotate(360deg);
   }
 }
+
+/* Transient error toast — floats above the bottom nav, centered, and
+ * carries the same hard-bordered treatment as .modal. The red left edge
+ * flags it as an error without needing a separate icon set. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + var(--s-4) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: min(440px, calc(100vw - var(--s-5)));
+  padding: var(--s-3) var(--s-4);
+  background: var(--bg);
+  color: var(--fg);
+  border: var(--border-w) solid var(--border);
+  border-left: 6px solid var(--bw-red);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  box-shadow: 0 8px 26px -10px color-mix(in srgb, var(--border) 60%, transparent);
+}
+.toast__msg {
+  flex: 1;
+}
+.toast__close {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+.toast__close:hover,
+.toast__close:focus-visible {
+  color: var(--fg);
+}

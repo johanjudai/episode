@@ -96,7 +96,9 @@ export async function resyncStaleFollowedSeries(
 
     const client = opts.client ?? createTmdbClient({ apiKey, language: opts.language });
     const deepSync =
-      opts.deepSync ?? ((tmdbId: number) => syncSeriesFull(db, apiKey, tmdbId, { language: opts.language }));
+      opts.deepSync ??
+      ((tmdbId: number) =>
+        syncSeriesFull(db, apiKey, tmdbId, { language: opts.language, fillMissing: true }));
 
     let updated = 0;
     for (const s of stale) {
@@ -107,8 +109,12 @@ export async function resyncStaleFollowedSeries(
           (detail.number_of_seasons ?? 0) > (s.numberOfSeasons ?? 0);
 
         if (grew) {
-          /* Non-refresh full sync: existing seasons short-circuit on
-           * `seasonExists`, so only the genuinely new season(s) hit TMDB. */
+          /* fillMissing full sync: re-fetches each season and inserts any
+           * newly-aired episodes WITHOUT overwriting existing rows. Covers
+           * both a brand-new season AND an episode that dropped into an
+           * already-synced ongoing season (weekly anime) — the latter was
+           * silently skipped by the old `seasonExists` short-circuit, so the
+           * episode never reached the local DB and never surfaced in the feed. */
           await deepSync(s.tmdbId);
           await updateSeriesSyncState(db, s.tmdbId, now, {
             numberOfSeasons: detail.number_of_seasons ?? null,

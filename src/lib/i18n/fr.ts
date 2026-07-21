@@ -67,7 +67,9 @@ export const fr = {
     unfollowConfirmTitle: 'Retirer {name} de votre suivi ?',
     unfollowConfirmBody:
       "Vos épisodes déjà vus restent dans l'historique. Vous pouvez réajouter la série à tout moment.",
-    unfollowConfirmAction: 'Retirer'
+    unfollowConfirmAction: 'Retirer',
+    markFailed: 'Impossible de mettre à jour cet épisode. Réessayez.',
+    unfollowFailed: 'Impossible de retirer cette série. Réessayez.'
   },
   swipe: {
     watched: '✓ Vu',
@@ -149,7 +151,8 @@ export const fr = {
     seriesListTitle: 'Mes séries',
     seriesListEmpty: 'Aucune série suivie',
     seriesListEmptyBody: 'Ajoutez votre première série depuis la recherche.',
-    seriesListDiscover: 'Découvrir'
+    seriesListDiscover: 'Découvrir',
+    markFailed: 'Impossible de mettre à jour cet épisode. Réessayez.'
   },
   celebration: {
     seasonDone: 'Saison terminée !',

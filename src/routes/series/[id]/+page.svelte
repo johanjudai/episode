@@ -143,6 +143,28 @@
   let pending = $state<PendingMark | null>(null);
   let busy = $state(false);
 
+  /* Transient error toast. A failed mutation used to be swallowed
+   * silently (the checkbox just wouldn't move), which is exactly how the
+   * "can't check off a just-aired episode" bug read to the user. Surface
+   * it, auto-dismiss after a few seconds, and let it be tapped away. */
+  let toast = $state<string | null>(null);
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  function showError(message: string) {
+    toast = message;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast = null;
+      toastTimer = null;
+    }, 4000);
+  }
+  function dismissToast() {
+    toast = null;
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+  }
+
   async function runEpisode(args: {
     seasonNumber: number;
     episodeNumber: number;
@@ -162,6 +184,9 @@
       });
       await invalidateAll();
       if (args.watched) detectCelebrations(before, snapshotCompletion());
+    } catch (err) {
+      console.error('markEpisodeForSeries failed', err);
+      showError($t('series.markFailed'));
     } finally {
       busy = false;
     }
@@ -184,6 +209,9 @@
       });
       await invalidateAll();
       if (args.watched) detectCelebrations(before, snapshotCompletion());
+    } catch (err) {
+      console.error('markSeasonForSeries failed', err);
+      showError($t('series.markFailed'));
     } finally {
       busy = false;
     }
@@ -282,6 +310,9 @@
       await api.markAllForSeries(seriesId);
       await invalidateAll();
       detectCelebrations(before, snapshotCompletion());
+    } catch (err) {
+      console.error('markAllForSeries failed', err);
+      showError($t('series.markFailed'));
     } finally {
       busy = false;
     }
@@ -558,4 +589,16 @@
 
 {#if celebration}
   <Celebration kind={celebration} onDone={dismissCelebration} />
+{/if}
+
+{#if toast}
+  <div class="toast" role="alert" aria-live="assertive" transition:fade={{ duration: 160 }}>
+    <span class="toast__msg">{toast}</span>
+    <button
+      class="toast__close"
+      type="button"
+      onclick={dismissToast}
+      aria-label={$t('common.close')}>✕</button
+    >
+  </div>
 {/if}
