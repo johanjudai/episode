@@ -29,6 +29,14 @@ export interface SyncOptions {
    *  TMDB-localized strings (titles, overviews) replace the stale ones
    *  that were stored under the previous language. */
   refresh?: boolean;
+  /** When true, re-fetch each season from TMDB and INSERT any episodes
+   *  that are missing locally, WITHOUT overwriting rows that already
+   *  exist. Unlike `refresh` it preserves already-stored (localized)
+   *  fields — it only fills gaps. This is what pulls in an episode that
+   *  aired into an ALREADY-synced season (a weekly anime, a running
+   *  show's current season), which the `seasonExists` short-circuit
+   *  would otherwise skip forever. */
+  fillMissing?: boolean;
 }
 
 /**
@@ -97,7 +105,8 @@ export async function syncSeriesFull(
   await runWithLimit(seasonsToSync, SEASON_CONCURRENCY, async (s) => {
     await syncSeason(db, apiKey, tmdbId, s.season_number, {
       language: opts.language,
-      refresh: opts.refresh
+      refresh: opts.refresh,
+      fillMissing: opts.fillMissing
     }).catch((err) => {
       console.warn(
         `[sync] syncSeason failed for tmdb ${tmdbId} S${s.season_number}:`,
@@ -115,9 +124,15 @@ export async function syncSeason(
   apiKey: string,
   seriesTmdbId: number,
   seasonNumber: number,
-  opts: { language?: string; refresh?: boolean } = {}
+  opts: { language?: string; refresh?: boolean; fillMissing?: boolean } = {}
 ): Promise<void> {
-  if (!opts.refresh && (await seasonExists(db, seriesTmdbId, seasonNumber))) return;
+  /* Skip the TMDB round-trip only when the season is already cached AND we
+   * are neither refreshing localized strings nor filling in newly-aired
+   * episodes. `fillMissing` deliberately bypasses this so an episode that
+   * aired into an existing (ongoing) season still gets inserted — the
+   * upsert below stays non-refresh, so existing rows are left untouched. */
+  if (!opts.refresh && !opts.fillMissing && (await seasonExists(db, seriesTmdbId, seasonNumber)))
+    return;
   const tmdb = createTmdbClient({ apiKey, language: opts.language });
   const fetched = await tmdb.seasonDetail(seriesTmdbId, seasonNumber);
   /* Resolve the broadcaster timezone once for the whole season so each
@@ -174,7 +189,18 @@ export async function ensureEpisodeRow(
   opts: { language?: string } = {}
 ): Promise<number> {
   await syncSeason(db, apiKey, seriesTmdbId, seasonNumber, { language: opts.language });
-  const id = await getEpisodeIdByCoords(db, seriesTmdbId, seasonNumber, episodeNumber);
+  let id = await getEpisodeIdByCoords(db, seriesTmdbId, seasonNumber, episodeNumber);
+  if (id === null) {
+    /* The season row already existed, so the first syncSeason short-circuited
+     * before fetching TMDB — but this episode aired after that season was last
+     * synced (weekly anime / a running show's ongoing season). Re-fetch the
+     * season and insert the missing episode(s) without clobbering the rest. */
+    await syncSeason(db, apiKey, seriesTmdbId, seasonNumber, {
+      language: opts.language,
+      fillMissing: true
+    });
+    id = await getEpisodeIdByCoords(db, seriesTmdbId, seasonNumber, episodeNumber);
+  }
   if (id === null) throw new Error('Épisode introuvable après synchronisation');
   return id;
 }
