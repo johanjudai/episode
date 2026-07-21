@@ -123,6 +123,28 @@
 
   let removeModal = $state<null | { seriesTmdbId: number; seriesName: string }>(null);
 
+  /* Transient error toast. A swipe-to-mark or unfollow that fails used to
+   * be swallowed silently — the row would fly out and then reappear on the
+   * next load with no explanation. Surface it, auto-dismiss after a few
+   * seconds, and let it be tapped away. Same pattern as the series page. */
+  let toast = $state<string | null>(null);
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  function showError(message: string) {
+    toast = message;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast = null;
+      toastTimer = null;
+    }, 4000);
+  }
+  function dismissToast() {
+    toast = null;
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+  }
+
   /* Modal shape accepts either a toWatch row or an upcoming row — both
    * carry the fields the popup needs. The structural type matches any
    * episode-like with seriesName, so that we can open the modal from
@@ -147,8 +169,13 @@
   }
 
   async function markEpisode(episodeId: number) {
-    await api.markEpisodeWatched(episodeId);
-    await invalidateAll();
+    try {
+      await api.markEpisodeWatched(episodeId);
+      await invalidateAll();
+    } catch (err) {
+      console.error('markEpisodeWatched failed', err);
+      showError($t('home.markFailed'));
+    }
   }
 
   function requestUnfollow(seriesTmdbId: number, seriesName: string) {
@@ -159,8 +186,13 @@
     if (!removeModal) return;
     const id = removeModal.seriesTmdbId;
     removeModal = null;
-    await api.unfollowSeries(id);
-    await invalidateAll();
+    try {
+      await api.unfollowSeries(id);
+      await invalidateAll();
+    } catch (err) {
+      console.error('unfollowSeries failed', err);
+      showError($t('home.unfollowFailed'));
+    }
   }
 
   function cancelUnfollow() {
@@ -365,5 +397,17 @@
         >
       </div>
     </div>
+  </div>
+{/if}
+
+{#if toast}
+  <div class="toast" role="alert" aria-live="assertive" transition:fade={{ duration: 160 }}>
+    <span class="toast__msg">{toast}</span>
+    <button
+      class="toast__close"
+      type="button"
+      onclick={dismissToast}
+      aria-label={$t('common.close')}>✕</button
+    >
   </div>
 {/if}

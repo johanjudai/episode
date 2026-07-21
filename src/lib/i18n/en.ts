@@ -66,7 +66,9 @@ export const en: Dict = {
     unfollowConfirmTitle: 'Drop {name} from your tracker?',
     unfollowConfirmBody:
       'The episodes you already watched stay in your history. You can add the series back any time.',
-    unfollowConfirmAction: 'Drop'
+    unfollowConfirmAction: 'Drop',
+    markFailed: "Couldn't update this episode. Try again.",
+    unfollowFailed: "Couldn't drop this series. Try again."
   },
   swipe: {
     watched: '✓ Watched',
@@ -148,7 +150,8 @@ export const en: Dict = {
     seriesListTitle: 'My series',
     seriesListEmpty: 'No tracked series',
     seriesListEmptyBody: 'Add your first series from the search page.',
-    seriesListDiscover: 'Discover'
+    seriesListDiscover: 'Discover',
+    markFailed: "Couldn't update this episode. Try again."
   },
   celebration: {
     seasonDone: 'Season complete!',
