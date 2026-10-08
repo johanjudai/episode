@@ -88,9 +88,9 @@ for (const driver of DUAL_DRIVERS) {
       expect(id).not.toBeNull();
     });
 
-    it('fillMissing preserves existing episode rows (insert-only)', async () => {
+    it('fillMissing preserves the localized strings of existing rows', async () => {
       /* Serve altered names for the existing episodes alongside the new one;
-       * fillMissing must NOT overwrite what's already stored. */
+       * fillMissing must NOT overwrite the stored titles. */
       const original = globalThis.fetch;
       globalThis.fetch = (async () => {
         const p = seasonPayload(11);
@@ -110,6 +110,26 @@ for (const driver of DUAL_DRIVERS) {
       expect(eps).toHaveLength(11);
       expect(eps.find((e) => e.episodeNumber === 1)?.name).toBe('Épisode 1');
       expect(eps.find((e) => e.episodeNumber === 11)?.name).toBe('CLOBBERED 11');
+    });
+
+    it('fillMissing refreshes the air date of an already-stored episode', async () => {
+      /* TMDB listed the episode before its date was final. */
+      const original = globalThis.fetch;
+      globalThis.fetch = (async () => {
+        const p = seasonPayload(10);
+        p.episodes[9].air_date = '2026-03-05';
+        return new Response(JSON.stringify(p), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }) as typeof fetch;
+      try {
+        await syncSeason(ctx.db, KEY, SERIES_ID, 1, { fillMissing: true });
+      } finally {
+        globalThis.fetch = original;
+      }
+      const eps = (await getSeasonsWithEpisodes(ctx.db, SERIES_ID))?.[0].episodes ?? [];
+      expect(eps.find((e) => e.episodeNumber === 10)?.airDate).toBe('2026-03-05');
     });
 
     it('ensureEpisodeRow recovers a mid-season episode instead of throwing', async () => {
