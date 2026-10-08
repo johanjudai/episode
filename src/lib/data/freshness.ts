@@ -1,39 +1,41 @@
 /**
  * Background freshness sweep for followed series.
  *
- * The home view only ever reads the local DB, and nothing re-syncs a
- * followed series on its own — so a show you finished and never reopen
- * would never resurface when a new season drops two years later. This
- * sweep closes that gap *cheaply*:
+ * The home view only ever reads the local DB, so anything TMDB learns after
+ * a series was synced (a newly-listed episode, a date that moved, a new
+ * season) only reaches the feed through this sweep:
  *
- *   - It runs fire-and-forget from the home loader (never blocks render).
- *   - A persisted cooldown caps it to one sweep per COOLDOWN_MS, so
- *     hammering the home page doesn't fan out to TMDB.
- *   - Each sweep only looks at series not synced for STALE_MS, oldest
- *     first, and at most MAX_PER_SWEEP of them — so a large library is
- *     rotated through a few series at a time rather than all at once.
- *   - Per series it costs a SINGLE light `tvDetail` call; the expensive
- *     full season sync only fires when the season/episode count actually
- *     grew. The cheap check touches `lastSyncedAt` either way, so a
- *     checked series rotates out of the stale set until next time.
- *
- * Budget: at most MAX_PER_SWEEP upstream calls every COOLDOWN_MS (plus one
- * full sync per series that genuinely gained content). With the defaults
- * that's ≤ 8 requests / 12 h in the common steady state.
+ *   - It is triggered from the home page (never blocks render) and
+ *     self-throttles via a persisted cooldown.
+ *   - Running series are re-checked every ACTIVE_STALE_MS; ended/canceled
+ *     ones only every ENDED_STALE_MS (they rarely change, but can be revived).
+ *     Running series go first, at most MAX_PER_SWEEP per sweep.
+ *   - Per series it costs one `tvDetail` call. A season is only re-fetched
+ *     when that detail disagrees with the local DB: counts grew (full sync),
+ *     or TMDB's last/next aired episode is missing locally or carries a
+ *     different date (just those seasons).
  */
 import type { Db } from './db-types';
-import { createTmdbClient, type TmdbClient } from './tmdb';
+import { createTmdbClient, type TmdbClient, type TmdbTvDetail } from './tmdb';
 import { getFollowedSeries, getSetting } from './queries';
-import { setSetting, updateSeriesSyncState } from './mutations';
-import { syncSeriesFull } from './sync';
+import {
+  getEpisodeForCoords,
+  refreshUpcomingReleaseTimes,
+  setSetting,
+  updateSeriesSyncState
+} from './mutations';
+import { syncSeason, syncSeriesFull } from './sync';
 
 const COOLDOWN_KEY = 'bg_resync.last_at';
 /** At most one sweep per this window, persisted so it survives restarts. */
-const COOLDOWN_MS = 12 * 60 * 60 * 1000;
-/** Only re-check series not synced within this window. */
-const STALE_MS = 2 * 24 * 60 * 60 * 1000;
+const COOLDOWN_MS = 60 * 60 * 1000;
+const ACTIVE_STALE_MS = 12 * 60 * 60 * 1000;
+const ENDED_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Hard cap on series checked (= upstream tvDetail calls) per sweep. */
-const MAX_PER_SWEEP = 8;
+const MAX_PER_SWEEP = 20;
+/** How far back release instants are re-derived (older rows are long released). */
+const RELEASE_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+const ENDED_STATUSES = new Set(['Ended', 'Canceled']);
 
 /* Process-/tab-local guard so two concurrent home loads in the same
  * runtime don't launch overlapping sweeps before the persisted cooldown
@@ -46,9 +48,8 @@ export interface FreshnessOptions {
   now?: Date;
   /** Injectable TMDB client for the cheap check; defaults to a real one. */
   client?: Pick<TmdbClient, 'tvDetail'>;
-  /** Injectable deep-sync for the growth path; defaults to syncSeriesFull.
-   *  Exposed for tests so the suite stays offline. */
-  deepSync?: (tmdbId: number) => Promise<void>;
+  /** Injectable deep-sync (offline tests); `seasons` omitted = whole series. */
+  deepSync?: (tmdbId: number, seasons?: number[]) => Promise<void>;
 }
 
 export interface FreshnessResult {
@@ -56,29 +57,41 @@ export interface FreshnessResult {
   ran: boolean;
   /** Number of series checked against TMDB this sweep. */
   checked: number;
-  /** Number of series that gained content and were deep-synced. */
+  /** Number of series whose episodes were re-synced. */
   updated: number;
+  /** Number of stored release instants corrected by the timing rules. */
+  releaseTimesFixed: number;
+}
+
+/** Seasons whose last/next aired episode is missing locally or dated differently. */
+async function driftedSeasons(db: Db, tmdbId: number, detail: Partial<TmdbTvDetail>): Promise<number[]> {
+  const drifted = new Set<number>();
+  for (const ref of [detail.last_episode_to_air, detail.next_episode_to_air]) {
+    if (!ref || ref.season_number <= 0) continue;
+    const local = await getEpisodeForCoords(db, tmdbId, ref.season_number, ref.episode_number);
+    if (!local || local.airDate !== (ref.air_date ?? null)) drifted.add(ref.season_number);
+  }
+  return [...drifted];
 }
 
 /**
- * Re-check the stalest followed series for newly-released content and pull
- * it into the local DB. Safe to call on every home load — it self-throttles.
+ * Re-check the stalest followed series for new or re-dated episodes and pull
+ * them into the local DB. Safe to call on every home load — it self-throttles.
  */
 export async function resyncStaleFollowedSeries(
   db: Db,
   apiKey: string,
   opts: FreshnessOptions = {}
 ): Promise<FreshnessResult> {
-  if (sweeping) return { ran: false, checked: 0, updated: 0 };
+  const skipped = { ran: false, checked: 0, updated: 0, releaseTimesFixed: 0 };
+  if (sweeping) return skipped;
 
   const now = opts.now ?? new Date();
   const nowMs = now.getTime();
 
   const lastRaw = await getSetting(db, COOLDOWN_KEY);
   const last = lastRaw ? Number(lastRaw) : 0;
-  if (Number.isFinite(last) && nowMs - last < COOLDOWN_MS) {
-    return { ran: false, checked: 0, updated: 0 };
-  }
+  if (Number.isFinite(last) && nowMs - last < COOLDOWN_MS) return skipped;
 
   sweeping = true;
   try {
@@ -86,19 +99,33 @@ export async function resyncStaleFollowedSeries(
      * bails out instead of double-running. */
     await setSetting(db, COOLDOWN_KEY, String(nowMs));
 
+    const sinceIso = new Date(nowMs - RELEASE_LOOKBACK_MS).toISOString().slice(0, 10);
+    const releaseTimesFixed = await refreshUpcomingReleaseTimes(db, sinceIso);
+
+    const isEnded = (status: string | null) => !!status && ENDED_STATUSES.has(status);
     const followed = await getFollowedSeries(db);
     const stale = followed
-      .filter((s) => nowMs - (s.lastSyncedAt ? s.lastSyncedAt.getTime() : 0) >= STALE_MS)
-      .sort((a, b) => (a.lastSyncedAt?.getTime() ?? 0) - (b.lastSyncedAt?.getTime() ?? 0))
+      .filter((s) => {
+        const age = nowMs - (s.lastSyncedAt ? s.lastSyncedAt.getTime() : 0);
+        return age >= (isEnded(s.status) ? ENDED_STALE_MS : ACTIVE_STALE_MS);
+      })
+      .sort(
+        (a, b) =>
+          Number(isEnded(a.status)) - Number(isEnded(b.status)) ||
+          (a.lastSyncedAt?.getTime() ?? 0) - (b.lastSyncedAt?.getTime() ?? 0)
+      )
       .slice(0, MAX_PER_SWEEP);
 
-    if (stale.length === 0) return { ran: true, checked: 0, updated: 0 };
+    if (stale.length === 0) return { ran: true, checked: 0, updated: 0, releaseTimesFixed };
 
     const client = opts.client ?? createTmdbClient({ apiKey, language: opts.language });
     const deepSync =
       opts.deepSync ??
-      ((tmdbId: number) =>
-        syncSeriesFull(db, apiKey, tmdbId, { language: opts.language, fillMissing: true }));
+      (async (tmdbId: number, seasons?: number[]) => {
+        const syncOpts = { language: opts.language, fillMissing: true };
+        if (!seasons) return syncSeriesFull(db, apiKey, tmdbId, syncOpts);
+        for (const n of seasons) await syncSeason(db, apiKey, tmdbId, n, syncOpts);
+      });
 
     let updated = 0;
     for (const s of stale) {
@@ -109,30 +136,29 @@ export async function resyncStaleFollowedSeries(
           (detail.number_of_seasons ?? 0) > (s.numberOfSeasons ?? 0);
 
         if (grew) {
-          /* fillMissing full sync: re-fetches each season and inserts any
-           * newly-aired episodes WITHOUT overwriting existing rows. Covers
-           * both a brand-new season AND an episode that dropped into an
-           * already-synced ongoing season (weekly anime) — the latter was
-           * silently skipped by the old `seasonExists` short-circuit, so the
-           * episode never reached the local DB and never surfaced in the feed. */
           await deepSync(s.tmdbId);
-          await updateSeriesSyncState(db, s.tmdbId, now, {
-            numberOfSeasons: detail.number_of_seasons ?? null,
-            numberOfEpisodes: detail.number_of_episodes ?? null,
-            status: detail.status ?? null,
-            lastAirDate: detail.last_air_date ?? null
-          });
           updated++;
         } else {
-          /* No change — just rotate it out of the stale set. */
-          await updateSeriesSyncState(db, s.tmdbId, now);
+          const seasons = await driftedSeasons(db, s.tmdbId, detail);
+          if (seasons.length > 0) {
+            await deepSync(s.tmdbId, seasons);
+            updated++;
+          }
         }
+        /* Always refresh status: it decides the cadence (a revived show must
+         * leave the slow "ended" lane). */
+        await updateSeriesSyncState(db, s.tmdbId, now, {
+          numberOfSeasons: detail.number_of_seasons ?? null,
+          numberOfEpisodes: detail.number_of_episodes ?? null,
+          status: detail.status ?? null,
+          lastAirDate: detail.last_air_date ?? null
+        });
       } catch (err) {
         console.warn(`[freshness] check failed for series ${s.tmdbId} (${s.name}):`, err);
       }
     }
 
-    return { ran: true, checked: stale.length, updated };
+    return { ran: true, checked: stale.length, updated, releaseTimesFixed };
   } finally {
     sweeping = false;
   }

@@ -80,6 +80,33 @@ const COUNTRY_TZ: Record<string, string> = {
 };
 
 /**
+ * Global streamers drop episodes at midnight Pacific whatever the show's origin
+ * (≈ 09:00 in Paris), not at prime time — 20:00 origin-time pushed them a day late.
+ */
+const STREAMER_RELEASE = { timeZone: 'America/Los_Angeles', hour: 0 } as const;
+const STREAMING_NETWORKS = new Set([
+  'netflix',
+  'apple tv',
+  'apple tv+',
+  'prime video',
+  'amazon',
+  'disney+',
+  'hulu',
+  'paramount+',
+  'peacock'
+]);
+
+/** Zone + hour at which an episode of this series is assumed to unlock, or null if unknown. */
+export function releaseTiming(
+  originCountry: string | readonly string[] | null | undefined,
+  network: string | null | undefined
+): { timeZone: string; hour: number } | null {
+  if (network && STREAMING_NETWORKS.has(network.trim().toLowerCase())) return STREAMER_RELEASE;
+  const timeZone = originTimeZone(originCountry);
+  return timeZone ? { timeZone, hour: DEFAULT_BROADCAST_HOUR } : null;
+}
+
+/**
  * Resolve a TMDB `origin_country` value to a representative IANA zone.
  * Accepts the raw array (we read the first entry), a single code, or null.
  * Returns null when the country is unknown/unset.
@@ -97,17 +124,24 @@ export function originTimeZone(
  * The UTC offset (in minutes) that the given IANA zone has at a given instant.
  * Positive = east of UTC. Computed via `Intl` so DST is handled for free.
  */
+/* Building a DateTimeFormat is the expensive part; the sweep recomputes many rows. */
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function zoneOffsetMinutes(timeZone: string, atUtcMs: number): number {
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
+  let dtf = zoneFormatters.get(timeZone);
+  if (!dtf) {
+    dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    zoneFormatters.set(timeZone, dtf);
+  }
   const parts = dtf.formatToParts(new Date(atUtcMs));
   const f: Record<string, number> = {};
   for (const p of parts) if (p.type !== 'literal') f[p.type] = Number(p.value);

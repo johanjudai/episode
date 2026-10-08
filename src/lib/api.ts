@@ -172,6 +172,24 @@ export async function markSeasonForSeries(args: SeasonMutationArgs): Promise<voi
   await postJson('/api/series/mark-season', args);
 }
 
+/** Run the throttled TMDB freshness sweep; true when the home feed should reload. */
+export async function refreshStaleSeries(): Promise<boolean> {
+  if (IS_LOCAL) {
+    return withLocalDb(async (db) => {
+      const { getSetting } = await import('./data/queries');
+      const apiKey = await getSetting(db, 'tmdb.api_key');
+      if (!apiKey) return false;
+      const { tmdbLanguageFromStored } = await import('./i18n');
+      const language = tmdbLanguageFromStored(await getSetting(db, 'locale'));
+      const { resyncStaleFollowedSeries } = await import('./data/freshness');
+      const r = await resyncStaleFollowedSeries(db, apiKey, { language });
+      return r.updated > 0 || r.releaseTimesFixed > 0;
+    });
+  }
+  const res = (await postJson('/api/series/refresh-stale', {})) as { changed?: boolean };
+  return !!res.changed;
+}
+
 export async function followSeries(seriesTmdbId: number): Promise<void> {
   if (IS_LOCAL) {
     const { syncSeriesFull } = await import('./local-sync');
