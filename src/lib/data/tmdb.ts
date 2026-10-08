@@ -36,6 +36,12 @@ const SearchTvResponse = z.object({
   total_results: z.number()
 });
 
+const EpisodeRef = z.object({
+  season_number: z.number(),
+  episode_number: z.number(),
+  air_date: z.string().nullable().optional()
+});
+
 const TvDetail = z.object({
   id: z.number(),
   name: z.string(),
@@ -58,6 +64,8 @@ const TvDetail = z.object({
   original_language: z.string().nullable().optional(),
   origin_country: z.array(z.string()).optional(),
   networks: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
+  last_episode_to_air: EpisodeRef.nullable().optional(),
+  next_episode_to_air: EpisodeRef.nullable().optional(),
   seasons: z
     .array(
       z.object({

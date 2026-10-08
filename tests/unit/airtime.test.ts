@@ -3,7 +3,8 @@ import {
   DEFAULT_BROADCAST_HOUR,
   originTimeZone,
   computeReleaseAtMs,
-  localIsoDate
+  localIsoDate,
+  releaseTiming
 } from '$lib/utils/airtime';
 
 describe('airtime utils', () => {
@@ -55,6 +56,31 @@ describe('airtime utils', () => {
       ['malformed date', 'June 15', 'America/New_York']
     ])('%s → null', (_label, airDate, tz) => {
       expect(computeReleaseAtMs(airDate, tz)).toBeNull();
+    });
+  });
+
+  describe('releaseTiming', () => {
+    it('streamers unlock at midnight Pacific, i.e. the same morning in Paris', () => {
+      const timing = releaseTiming('US', 'Netflix');
+      expect(timing).toEqual({ timeZone: 'America/Los_Angeles', hour: 0 });
+      /* 2026-06-15 00:00 PDT === 07:00 UTC === 09:00 Paris, same day. */
+      const ms = computeReleaseAtMs('2026-06-15', timing?.timeZone, timing?.hour);
+      expect(localIsoDate(ms!, 'Europe/Paris')).toBe('2026-06-15');
+    });
+
+    it('streamer timing ignores the origin country', () => {
+      expect(releaseTiming('KR', 'Disney+')).toEqual({ timeZone: 'America/Los_Angeles', hour: 0 });
+    });
+
+    it('linear networks keep prime time in the origin zone', () => {
+      expect(releaseTiming('US', 'HBO')).toEqual({
+        timeZone: 'America/New_York',
+        hour: DEFAULT_BROADCAST_HOUR
+      });
+    });
+
+    it('unknown origin on a linear network → null', () => {
+      expect(releaseTiming(null, 'HBO')).toBeNull();
     });
   });
 

@@ -2,10 +2,10 @@
  * Write-side operations. Like queries.ts, every function takes a `Db`
  * argument so it works with any synchronous Drizzle SQLite driver.
  */
-import { and, eq, inArray, lt, lte, or } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, lte, or } from 'drizzle-orm';
 import type { Db } from './db-types';
 import { episodes, seasons, series, settings, watched } from './schema';
-import { computeReleaseAtMs, originTimeZone } from '$lib/utils/airtime';
+import { computeReleaseAtMs, releaseTiming } from '$lib/utils/airtime';
 
 /**
  * Upsert a settings row. Passing `value: null` stores a literal NULL —
@@ -201,8 +201,13 @@ export async function backfillSeriesReleaseTimes(
 ): Promise<void> {
   db.update(series).set({ originCountry }).where(eq(series.tmdbId, tmdbId)).run();
 
-  const tz = originTimeZone(originCountry);
-  if (!tz) return;
+  const network = db
+    .select({ network: series.network })
+    .from(series)
+    .where(eq(series.tmdbId, tmdbId))
+    .all()[0]?.network;
+  const timing = releaseTiming(originCountry, network);
+  if (!timing) return;
 
   const rows = db
     .select({ id: episodes.id, airDate: episodes.airDate })
@@ -211,10 +216,37 @@ export async function backfillSeriesReleaseTimes(
     .all();
 
   for (const r of rows) {
-    const releaseAt = computeReleaseAtMs(r.airDate, tz);
+    const releaseAt = computeReleaseAtMs(r.airDate, timing.timeZone, timing.hour);
     if (releaseAt === null) continue;
     db.update(episodes).set({ releaseAt }).where(eq(episodes.id, r.id)).run();
   }
+}
+
+/* Re-derive release_at for followed episodes airing on/after `sinceIso`, so a
+ * change in the timing rules reaches rows already stored. Writes only diffs. */
+export async function refreshUpcomingReleaseTimes(db: Db, sinceIso: string): Promise<number> {
+  const rows = db
+    .select({
+      id: episodes.id,
+      airDate: episodes.airDate,
+      releaseAt: episodes.releaseAt,
+      originCountry: series.originCountry,
+      network: series.network
+    })
+    .from(episodes)
+    .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
+    .where(and(isNull(series.removedAt), gte(episodes.airDate, sinceIso)))
+    .all();
+
+  let changed = 0;
+  for (const r of rows) {
+    const timing = releaseTiming(r.originCountry, r.network);
+    const releaseAt = computeReleaseAtMs(r.airDate, timing?.timeZone, timing?.hour);
+    if (releaseAt === null || releaseAt === r.releaseAt) continue;
+    db.update(episodes).set({ releaseAt }).where(eq(episodes.id, r.id)).run();
+    changed++;
+  }
+  return changed;
 }
 
 /* Force-set follow timestamps. Used by the TV Time importer to
@@ -335,10 +367,12 @@ export interface UpsertEpisodeInput {
   stillPath?: string | null;
 }
 
+/* `updateAirtime`: on conflict, refresh only the scheduling fields (TMDB often
+ * lists an episode before its date is final) and keep the localized strings. */
 export async function upsertEpisode(
   db: Db,
   input: UpsertEpisodeInput,
-  opts: { refresh?: boolean } = {}
+  opts: { refresh?: boolean; updateAirtime?: boolean } = {}
 ): Promise<void> {
   const values = {
     seasonId: input.seasonId,
@@ -359,6 +393,20 @@ export async function upsertEpisode(
       .onConflictDoUpdate({
         target: [episodes.seriesTmdbId, episodes.seasonNumber, episodes.episodeNumber],
         set: values
+      })
+      .run();
+  } else if (opts.updateAirtime) {
+    db.insert(episodes)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [episodes.seriesTmdbId, episodes.seasonNumber, episodes.episodeNumber],
+        set: {
+          tmdbId: values.tmdbId,
+          airDate: values.airDate,
+          releaseAt: values.releaseAt,
+          runtimeMinutes: values.runtimeMinutes,
+          stillPath: values.stillPath
+        }
       })
       .run();
   } else {

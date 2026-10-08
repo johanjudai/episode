@@ -17,7 +17,7 @@ import {
 } from './mutations';
 import { getSeries } from './queries';
 import { detectAnime } from './ratings';
-import { computeReleaseAtMs, originTimeZone } from '$lib/utils/airtime';
+import { computeReleaseAtMs, releaseTiming } from '$lib/utils/airtime';
 
 export interface SyncOptions {
   /** If true, also upsert the series row (set addedAt=now, removedAt=null). */
@@ -29,13 +29,11 @@ export interface SyncOptions {
    *  TMDB-localized strings (titles, overviews) replace the stale ones
    *  that were stored under the previous language. */
   refresh?: boolean;
-  /** When true, re-fetch each season from TMDB and INSERT any episodes
-   *  that are missing locally, WITHOUT overwriting rows that already
-   *  exist. Unlike `refresh` it preserves already-stored (localized)
-   *  fields — it only fills gaps. This is what pulls in an episode that
-   *  aired into an ALREADY-synced season (a weekly anime, a running
-   *  show's current season), which the `seasonExists` short-circuit
-   *  would otherwise skip forever. */
+  /** When true, re-fetch each season from TMDB, INSERT episodes missing
+   *  locally and refresh the air date / release instant of existing ones,
+   *  while preserving their localized strings (unlike `refresh`). This is
+   *  what pulls in an episode that aired into an ALREADY-synced season, or
+   *  whose date TMDB only settled after we first stored it. */
   fillMissing?: boolean;
 }
 
@@ -130,17 +128,17 @@ export async function syncSeason(
    * are neither refreshing localized strings nor filling in newly-aired
    * episodes. `fillMissing` deliberately bypasses this so an episode that
    * aired into an existing (ongoing) season still gets inserted — the
-   * upsert below stays non-refresh, so existing rows are left untouched. */
+   * upsert below only refreshes scheduling fields, never localized strings. */
   if (!opts.refresh && !opts.fillMissing && (await seasonExists(db, seriesTmdbId, seasonNumber)))
     return;
   const tmdb = createTmdbClient({ apiKey, language: opts.language });
   const fetched = await tmdb.seasonDetail(seriesTmdbId, seasonNumber);
-  /* Resolve the broadcaster timezone once for the whole season so each
+  /* Resolve the release timing once for the whole season so each
    * episode's air_date can be turned into an absolute release instant.
    * syncSeriesFull upserts the series row (with origin_country) before
    * fanning out to seasons, so this read sees the current origin. */
   const seriesRow = await getSeries(db, seriesTmdbId);
-  const originTz = originTimeZone(seriesRow?.originCountry ?? null);
+  const timing = releaseTiming(seriesRow?.originCountry ?? null, seriesRow?.network ?? null);
   const seasonId = await upsertSeason(
     db,
     {
@@ -167,11 +165,11 @@ export async function syncSeason(
         name: ep.name ?? null,
         overview: ep.overview ?? null,
         airDate: ep.air_date ?? null,
-        releaseAt: computeReleaseAtMs(ep.air_date ?? null, originTz),
+        releaseAt: computeReleaseAtMs(ep.air_date ?? null, timing?.timeZone, timing?.hour),
         runtimeMinutes: ep.runtime ?? null,
         stillPath: ep.still_path ?? null
       },
-      { refresh: opts.refresh }
+      { refresh: opts.refresh, updateAirtime: opts.fillMissing }
     );
   }
 }

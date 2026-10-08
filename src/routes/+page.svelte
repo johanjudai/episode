@@ -31,6 +31,15 @@
   let updateProgress = $state(-1); // 0..100, or -1 when unknown
   let updateErrorKey = $state<'error' | 'unknownSources'>('error');
 
+  /* The feed only reads the local DB: pull what TMDB learned since the last
+   * sync, then reload so a freshly-aired episode shows up without a revisit. */
+  onMount(() => {
+    api
+      .refreshStaleSeries()
+      .then((changed) => (changed ? invalidateAll() : undefined))
+      .catch((err) => console.warn('refreshStaleSeries failed', err));
+  });
+
   onMount(() => {
     let cleanup: (() => void) | undefined;
     (async () => {
