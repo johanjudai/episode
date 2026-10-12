@@ -22,9 +22,10 @@
 
   /* ---- In-app update banner (Android APK only) ------------------------
    * On native, check GitHub Releases for a newer signed APK and offer a
-   * one-tap download+install via the native ApkInstaller plugin. Throttled
-   * to once a day via localStorage; entirely no-op on the web/Docker build
-   * (and on the local build running in a plain browser). */
+   * one-tap download+install via the native ApkInstaller plugin. Re-run on
+   * app resume; only an "up to date" answer (or a dismiss) is throttled, so a
+   * failed check retries and a pending update keeps being offered. No-op on
+   * the web/Docker build and in a plain browser. */
   const UPDATE_CHECK_KEY = 'episode.update.lastCheck';
   let updateInfo = $state<UpdateInfo | null>(null);
   let updatePhase = $state<'idle' | 'downloading' | 'installing' | 'error'>('idle');
@@ -40,37 +41,55 @@
       .catch((err) => console.warn('refreshStaleSeries failed', err));
   });
 
+  async function checkUpdate() {
+    if (updateInfo) return;
+    const lastRaw = localStorage.getItem(UPDATE_CHECK_KEY);
+    if (!dueForCheck(lastRaw ? Number(lastRaw) : null, Date.now())) return;
+
+    const { ApkInstaller } = await import('$lib/native/apkInstaller');
+    let current = APP_VERSION;
+    try {
+      const info = await ApkInstaller.getAppInfo();
+      if (info.versionName) current = info.versionName;
+    } catch {
+      /* fall back to the bundled version */
+    }
+
+    let found: UpdateInfo | null;
+    try {
+      found = await checkForUpdate(current);
+    } catch (err) {
+      console.warn('update check failed', err);
+      return;
+    }
+    if (found) updateInfo = found;
+    else localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
+  }
+
   onMount(() => {
-    let cleanup: (() => void) | undefined;
+    const cleanups: Array<() => void> = [];
+    let unmounted = false;
     (async () => {
       if (!IS_LOCAL) return;
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) return;
 
-      const lastRaw = localStorage.getItem(UPDATE_CHECK_KEY);
-      const last = lastRaw ? Number(lastRaw) : null;
-      if (!dueForCheck(last, Date.now())) return;
-      localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
-
       const { ApkInstaller } = await import('$lib/native/apkInstaller');
-      let current = APP_VERSION;
-      try {
-        const info = await ApkInstaller.getAppInfo();
-        if (info.versionName) current = info.versionName;
-      } catch {
-        /* fall back to the bundled version */
-      }
-
-      const found = await checkForUpdate(current);
-      if (!found) return;
-      updateInfo = found;
-
-      const handle = await ApkInstaller.addListener('downloadProgress', (e) => {
-        updateProgress = e.progress < 0 ? -1 : Math.round(e.progress * 100);
-      });
-      cleanup = () => handle.remove();
+      const { App } = await import('@capacitor/app');
+      const handles = await Promise.all([
+        ApkInstaller.addListener('downloadProgress', (e) => {
+          updateProgress = e.progress < 0 ? -1 : Math.round(e.progress * 100);
+        }),
+        App.addListener('resume', () => void checkUpdate())
+      ]);
+      for (const h of handles) cleanups.push(() => void h.remove());
+      if (unmounted) return cleanups.forEach((c) => c());
+      await checkUpdate();
     })();
-    return () => cleanup?.();
+    return () => {
+      unmounted = true;
+      cleanups.forEach((c) => c());
+    };
   });
 
   async function installUpdate() {
@@ -93,6 +112,7 @@
 
   function dismissUpdate() {
     updateInfo = null;
+    localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
   }
 
   const today = $derived(new Date(data.now));
