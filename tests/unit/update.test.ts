@@ -139,19 +139,19 @@ describe('update helpers', () => {
       expect(await checkForUpdate('0.2.0', okFetch)).toBeNull();
     });
 
-    it('returns null on a non-ok response', async () => {
+    it('rejects on a non-ok response', async () => {
       const badFetch = (async () => ({
         ok: false,
         json: async () => ({})
       })) as unknown as typeof fetch;
-      expect(await checkForUpdate('0.1.0', badFetch)).toBeNull();
+      await expect(checkForUpdate('0.1.0', badFetch)).rejects.toThrow();
     });
 
-    it('returns null when fetch throws (offline)', async () => {
+    it('rejects when fetch throws (offline)', async () => {
       const throwFetch = (async () => {
         throw new Error('offline');
       }) as unknown as typeof fetch;
-      expect(await checkForUpdate('0.1.0', throwFetch)).toBeNull();
+      await expect(checkForUpdate('0.1.0', throwFetch)).rejects.toThrow('offline');
     });
   });
 });

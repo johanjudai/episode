@@ -18,8 +18,8 @@
 export const GITHUB_REPO = 'johanjudai/episode';
 const LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
-/** How often to hit the API at most (throttled by the caller via settings). */
-export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** Min delay between two "up to date" answers (throttled by the caller). */
+export const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export interface UpdateInfo {
   /** Release tag, e.g. `v0.2.0`. */
@@ -125,25 +125,18 @@ export function parseLatestRelease(release: unknown): UpdateInfo | null {
 }
 
 /**
- * Fetch the latest release and return it only if it is newer than
- * `currentVersion`. Returns null on any failure (offline, rate-limited,
- * no APK asset, already up to date) — the caller treats null as
- * "nothing to show".
+ * Latest release if newer than `currentVersion`, else null. Throws when
+ * GitHub couldn't be reached, so the caller doesn't throttle a failed check.
  */
 export async function checkForUpdate(
   currentVersion: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<UpdateInfo | null> {
-  let release: unknown;
-  try {
-    const res = await fetchImpl(LATEST_RELEASE_URL, {
-      headers: { Accept: 'application/vnd.github+json' }
-    });
-    if (!res.ok) return null;
-    release = await res.json();
-  } catch {
-    return null;
-  }
+  const res = await fetchImpl(LATEST_RELEASE_URL, {
+    headers: { Accept: 'application/vnd.github+json' }
+  });
+  if (!res.ok) throw new Error(`GitHub releases: HTTP ${res.status}`);
+  const release: unknown = await res.json();
   const info = parseLatestRelease(release);
   if (!info) return null;
   return isNewerVersion(info.version, currentVersion) ? info : null;
