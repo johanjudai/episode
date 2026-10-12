@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
 import { IS_LOCAL } from '$lib/config';
 import { tmdbLanguageFromStored } from '$lib/i18n';
+import type { SeriesRatings } from '$lib/data/ratings';
 
 export const load: PageLoad = async ({ data, params }) => {
   if (!IS_LOCAL) return { ...data };
@@ -123,12 +124,13 @@ export const load: PageLoad = async ({ data, params }) => {
     0
   );
 
-  const ratings = await fetchSeriesRatings({
+  /* Not awaited: the page renders right away, the chips stream in. */
+  const ratings = fetchSeriesRatings({
     tmdbId: id,
     tmdbApiKey: apiKey,
     omdbApiKey: omdbKey,
     tmdbDetail: detail
-  });
+  }).catch((): SeriesRatings => ({ tmdb: null, external: [] }));
 
   /* Optional trailer fetch — failure is silent. */
   const trailer = await tmdb

@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params }) => {
       }>,
       followed: false,
       progress: { watched: 0, total: 0 },
-      ratings: emptyRatings,
+      ratings: Promise.resolve(emptyRatings),
       trailer: null as null | { youtubeKey: string; name: string | null }
     };
   }
@@ -162,13 +162,14 @@ export const load: PageServerLoad = async ({ params }) => {
 
   /* Ratings: pass the TMDB detail we already fetched so the aggregator
    * skips an extra /tv/{id} round-trip and has the genres / origin
-   * fields it needs for anime detection. */
-  const ratings = await fetchSeriesRatings({
+   * fields it needs for anime detection. Not awaited: SvelteKit streams
+   * the promise, so the page renders without waiting on slow sources. */
+  const ratings = fetchSeriesRatings({
     tmdbId: id,
     tmdbApiKey: effectiveKey,
     omdbApiKey: effectiveOmdbKey,
     tmdbDetail: detail
-  });
+  }).catch(() => emptyRatings);
 
   /* Trailer is optional — silently fall back to null if /videos errors
    * out (TMDB sometimes throttles auxiliary endpoints first). The hero
