@@ -361,30 +361,32 @@
                 seasons: data.series.numberOfSeasons
               })}{/if}
           </div>
-          {#if data.ratings && (data.ratings.tmdb || data.ratings.external.length > 0)}
-            <div class="hero__ratings" aria-label="Notes externes">
-              {#if data.ratings.tmdb}
-                <span
-                  class="rating-chip rating-chip--tmdb"
-                  title={`${data.ratings.tmdb.count.toLocaleString('fr-FR')} votes TMDB`}
-                >
-                  <strong>{data.ratings.tmdb.average.toFixed(1)}</strong>
-                  <span>TMDB</span>
-                </span>
-              {/if}
-              {#each data.ratings.external as r (r.source)}
-                <span class={`rating-chip rating-chip--${r.source}`}>
-                  <strong>{r.value}</strong>
-                  <span>
-                    {#if r.source === 'rottentomatoes'}RT
-                    {:else if r.source === 'imdb'}IMDb
-                    {:else if r.source === 'metacritic'}Meta
-                    {/if}
+          {#await data.ratings then ratings}
+            {#if ratings && (ratings.tmdb || ratings.external.length > 0)}
+              <div class="hero__ratings" aria-label="Notes externes">
+                {#if ratings.tmdb}
+                  <span
+                    class="rating-chip rating-chip--tmdb"
+                    title={`${ratings.tmdb.count.toLocaleString('fr-FR')} votes TMDB`}
+                  >
+                    <strong>{ratings.tmdb.average.toFixed(1)}</strong>
+                    <span>TMDB</span>
                   </span>
-                </span>
-              {/each}
-            </div>
-          {/if}
+                {/if}
+                {#each ratings.external as r (r.source)}
+                  <span class={`rating-chip rating-chip--${r.source}`}>
+                    <strong>{r.value}</strong>
+                    <span>
+                      {#if r.source === 'rottentomatoes'}RT
+                      {:else if r.source === 'imdb'}IMDb
+                      {:else if r.source === 'metacritic'}Meta
+                      {/if}
+                    </span>
+                  </span>
+                {/each}
+              </div>
+            {/if}
+          {/await}
         </div>
       </section>
     </OrnateFrame>

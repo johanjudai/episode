@@ -54,10 +54,22 @@ export interface FetchRatingsArgs {
   /** Pre-fetched TMDB detail (saves a round-trip if the caller has it). */
   tmdbDetail: TmdbTvDetail;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+/* The series page awaits these chips: an unreachable source (Jikan dropping
+ * connections) would otherwise hang the navigation for minutes. */
+const OPTIONAL_SOURCE_TIMEOUT_MS = 4000;
+
+function withTimeout(f: typeof fetch, ms: number): typeof fetch {
+  return (input, init) => f(input, { ...init, signal: AbortSignal.timeout(ms) });
 }
 
 export async function fetchSeriesRatings(args: FetchRatingsArgs): Promise<SeriesRatings> {
-  const f = args.fetchImpl ?? globalThis.fetch;
+  const f = withTimeout(
+    args.fetchImpl ?? globalThis.fetch,
+    args.timeoutMs ?? OPTIONAL_SOURCE_TIMEOUT_MS
+  );
   const tmdb = createTmdbClient({ apiKey: args.tmdbApiKey, fetch: f });
 
   const tmdbVote =
