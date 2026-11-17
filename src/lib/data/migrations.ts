@@ -103,10 +103,18 @@ ALTER TABLE "series" ADD "origin_country" text;
 `
 };
 
+const m0003_tvmaze_id: EmbeddedMigration = {
+  name: '0003_tvmaze_id',
+  sql: `
+ALTER TABLE "series" ADD "tvmaze_id" integer;
+`
+};
+
 export const EMBEDDED_MIGRATIONS: EmbeddedMigration[] = [
   m0000_classy_masque,
   m0001_gorgeous_abomination,
-  m0002_release_timezone
+  m0002_release_timezone,
+  m0003_tvmaze_id
 ];
 
 const TRACKING_DDL = `

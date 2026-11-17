@@ -66,6 +66,8 @@ const TvDetail = z.object({
   networks: z.array(z.object({ id: z.number(), name: z.string() })).optional(),
   last_episode_to_air: EpisodeRef.nullable().optional(),
   next_episode_to_air: EpisodeRef.nullable().optional(),
+  /* Appended to /tv/{id}: the TVDB id resolves the TVMaze show for release times. */
+  external_ids: z.object({ tvdb_id: z.number().nullable().optional() }).optional(),
   seasons: z
     .array(
       z.object({
@@ -195,7 +197,8 @@ export function createTmdbClient(opts: TmdbClientOptions) {
       );
       return resp.tv_results[0] ?? null;
     },
-    tvDetail: (id: number) => call(`/tv/${id}`, {}, TvDetail),
+    tvDetail: (id: number) =>
+      call(`/tv/${id}`, { append_to_response: 'external_ids' }, TvDetail),
     seasonDetail: (id: number, seasonNumber: number) =>
       call(`/tv/${id}/season/${seasonNumber}`, {}, SeasonDetail),
     externalIds: (id: number) => call(`/tv/${id}/external_ids`, {}, ExternalIds),

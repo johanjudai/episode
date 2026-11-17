@@ -132,6 +132,20 @@ for (const driver of DUAL_DRIVERS) {
       expect(eps.find((e) => e.episodeNumber === 10)?.airDate).toBe('2026-03-05');
     });
 
+    it('fillMissing keeps a TVMaze-derived release instant while the date is unchanged', async () => {
+      const exact = Date.UTC(2025, 11, 30, 7, 0, 0);
+      ctx.raw.run(
+        'UPDATE episodes SET release_at = ? WHERE series_tmdb_id = ? AND episode_number = 1',
+        [exact, SERIES_ID]
+      );
+      await withSeason(10, () => syncSeason(ctx.db, KEY, SERIES_ID, 1, { fillMissing: true }));
+      const row = ctx.raw.prepareGet<{ release_at: number }>(
+        'SELECT release_at FROM episodes WHERE series_tmdb_id = ? AND episode_number = 1',
+        [SERIES_ID]
+      );
+      expect(row?.release_at).toBe(exact);
+    });
+
     it('ensureEpisodeRow recovers a mid-season episode instead of throwing', async () => {
       /* This is the exact mark-episode path: the season row already exists, so
        * the first internal syncSeason short-circuits and getEpisodeIdByCoords

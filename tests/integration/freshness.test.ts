@@ -118,9 +118,8 @@ for (const driver of DUAL_DRIVERS) {
     });
 
     it('respects the per-sweep cap (does not check the whole library at once)', async () => {
-      /* Seed more stale series than MAX_PER_SWEEP (20) and confirm the
-       * sweep checks at most the cap. */
-      for (let i = 1; i <= 25; i++) await makeStaleSeries(i, 1, 5);
+      /* Seed more stale series than MAX_PER_SWEEP (60). */
+      for (let i = 1; i <= 65; i++) await makeStaleSeries(i, 1, 5);
       const checkedIds: number[] = [];
       const r = await resyncStaleFollowedSeries(ctx.db, 'x'.repeat(16), {
         now,
@@ -131,8 +130,8 @@ for (const driver of DUAL_DRIVERS) {
           }
         }
       });
-      expect(r.checked).toBe(20);
-      expect(checkedIds).toHaveLength(20);
+      expect(r.checked).toBe(60);
+      expect(checkedIds).toHaveLength(60);
     });
 
     async function seedEpisode(tmdbId: number, episodeNumber: number, airDate: string | null) {
@@ -232,6 +231,142 @@ for (const driver of DUAL_DRIVERS) {
       );
       /* 2026-06-20 00:00 PDT. */
       expect(row?.release_at).toBe(Date.UTC(2026, 5, 20, 7, 0, 0));
+    });
+
+    it('moves a streamer episode to the day TVMaze lists (TMDB carries the linear date)', async () => {
+      /* Dexter: Resurrection — TMDB says Sunday, Paramount+ drops it Friday. */
+      await followSeries(ctx.db, {
+        tmdbId: 1,
+        name: 'Dexter: Resurrection',
+        status: 'Returning Series'
+      });
+      await updateSeriesSyncState(ctx.db, 1, ancient);
+      await seedEpisode(1, 4, '2026-06-21');
+      const r = await resyncStaleFollowedSeries(ctx.db, 'x'.repeat(16), {
+        now,
+        client: {
+          tvDetail: async (id: number) => ({
+            id,
+            name: 'Dexter: Resurrection',
+            status: 'Returning Series',
+            networks: [{ id: 6631, name: 'Paramount+ with Showtime' }],
+            origin_country: ['US'],
+            external_ids: { tvdb_id: 452595 }
+          })
+        },
+        tvmaze: {
+          byTvdbId: async () => ({ id: 78665, name: 'Dexter: Resurrection' }),
+          schedule: async (id: number) => ({
+            id,
+            network: null,
+            webChannel: { name: 'Paramount+' },
+            _embedded: {
+              episodes: [
+                {
+                  season: 1,
+                  number: 4,
+                  airdate: '2026-06-19',
+                  airtime: '',
+                  airstamp: '2026-06-19T12:00:00+00:00'
+                }
+              ]
+            }
+          })
+        }
+      });
+      expect(r.releaseTimesFixed).toBeGreaterThan(0);
+      const row = ctx.raw.prepareGet<{ release_at: number }>(
+        'SELECT release_at FROM episodes WHERE series_tmdb_id = 1'
+      );
+      /* Friday 2026-06-19 00:00 PDT, i.e. 09:00 in Paris. */
+      expect(row?.release_at).toBe(Date.UTC(2026, 5, 19, 7, 0, 0));
+      const s = ctx.raw.prepareGet<{ tvmaze_id: number; network: string; origin_country: string }>(
+        'SELECT tvmaze_id, network, origin_country FROM series WHERE tmdb_id = 1'
+      );
+      expect(s).toEqual({
+        tvmaze_id: 78665,
+        network: 'Paramount+ with Showtime',
+        origin_country: 'US'
+      });
+    });
+
+    it('uses the exact TVMaze airstamp when it carries a time', async () => {
+      await followSeries(ctx.db, {
+        tmdbId: 1,
+        name: 'Linear',
+        network: 'HBO',
+        originCountry: 'US'
+      });
+      await updateSeriesSyncState(ctx.db, 1, ancient);
+      ctx.raw.run('UPDATE series SET tvmaze_id = 46562 WHERE tmdb_id = 1');
+      await seedEpisode(1, 1, '2026-06-14');
+      await resyncStaleFollowedSeries(ctx.db, 'x'.repeat(16), {
+        now,
+        client: fakeClient({}),
+        tvmaze: {
+          byTvdbId: async () => null,
+          schedule: async (id: number) => ({
+            id,
+            network: { name: 'HBO' },
+            webChannel: null,
+            _embedded: {
+              episodes: [
+                {
+                  season: 1,
+                  number: 1,
+                  airdate: '2026-06-14',
+                  airtime: '21:00',
+                  airstamp: '2026-06-15T01:00:00+00:00'
+                }
+              ]
+            }
+          })
+        }
+      });
+      const row = ctx.raw.prepareGet<{ release_at: number }>(
+        'SELECT release_at FROM episodes WHERE series_tmdb_id = 1'
+      );
+      expect(row?.release_at).toBe(Date.UTC(2026, 5, 15, 1, 0, 0));
+    });
+
+    it('ignores a TVMaze episode dated too far from TMDB (numbering mismatch)', async () => {
+      await followSeries(ctx.db, {
+        tmdbId: 1,
+        name: 'Anime',
+        network: 'TV Tokyo',
+        originCountry: 'JP'
+      });
+      await updateSeriesSyncState(ctx.db, 1, ancient);
+      ctx.raw.run('UPDATE series SET tvmaze_id = 1 WHERE tmdb_id = 1');
+      await seedEpisode(1, 1, '2026-06-14');
+      await resyncStaleFollowedSeries(ctx.db, 'x'.repeat(16), {
+        now,
+        client: fakeClient({}),
+        tvmaze: {
+          byTvdbId: async () => null,
+          schedule: async (id: number) => ({
+            id,
+            network: { name: 'TV Tokyo' },
+            webChannel: null,
+            _embedded: {
+              episodes: [
+                {
+                  season: 1,
+                  number: 1,
+                  airdate: '2020-01-01',
+                  airtime: '23:00',
+                  airstamp: '2020-01-01T14:00:00+00:00'
+                }
+              ]
+            }
+          })
+        }
+      });
+      const row = ctx.raw.prepareGet<{ release_at: number }>(
+        'SELECT release_at FROM episodes WHERE series_tmdb_id = 1'
+      );
+      /* Heuristic: 20:00 Tokyo. */
+      expect(row?.release_at).toBe(Date.UTC(2026, 5, 14, 11, 0, 0));
     });
 
     it('re-checks running series sooner than ended ones, running first', async () => {

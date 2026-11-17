@@ -34,11 +34,23 @@
 
   /* The feed only reads the local DB: pull what TMDB learned since the last
    * sync, then reload so a freshly-aired episode shows up without a revisit. */
-  onMount(() => {
+  function refreshFeed() {
     api
       .refreshStaleSeries()
       .then((changed) => (changed ? invalidateAll() : undefined))
       .catch((err) => console.warn('refreshStaleSeries failed', err));
+  }
+
+  /* The APK keeps the page mounted for days: re-gate on "now" when it comes back. */
+  onMount(() => {
+    refreshFeed();
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void invalidateAll();
+      refreshFeed();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   });
 
   async function checkUpdate() {
@@ -128,7 +140,7 @@
   const upcomingCutoffIso = $derived.by(() => {
     const cutoff = new Date(today);
     cutoff.setDate(cutoff.getDate() + (upcomingExpanded ? EXPANDED_DAYS : DEFAULT_DAYS));
-    return cutoff.toISOString().slice(0, 10);
+    return localIsoDate(cutoff.getTime());
   });
   /* An episode's effective day is the local calendar day of its release
    * instant (release_at, resolved in the device timezone) when we have it —

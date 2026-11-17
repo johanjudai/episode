@@ -68,6 +68,20 @@ describe('airtime utils', () => {
       expect(localIsoDate(ms!, 'Europe/Paris')).toBe('2026-06-15');
     });
 
+    it.each(['Paramount+ with Showtime', 'Apple TV+', 'Amazon Freevee'])(
+      'recognises the streamer variant %s',
+      (network) => {
+        expect(releaseTiming('US', network)).toEqual({ timeZone: 'America/Los_Angeles', hour: 0 });
+      }
+    );
+
+    it('HBO Max keeps the linear evening slot', () => {
+      expect(releaseTiming('US', 'HBO Max')).toEqual({
+        timeZone: 'America/New_York',
+        hour: DEFAULT_BROADCAST_HOUR
+      });
+    });
+
     it('streamer timing ignores the origin country', () => {
       expect(releaseTiming('KR', 'Disney+')).toEqual({ timeZone: 'America/Los_Angeles', hour: 0 });
     });
