@@ -1,0 +1,1 @@
+ALTER TABLE `series` ADD `tvmaze_id` integer;

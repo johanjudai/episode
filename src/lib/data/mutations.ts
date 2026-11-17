@@ -2,7 +2,7 @@
  * Write-side operations. Like queries.ts, every function takes a `Db`
  * argument so it works with any synchronous Drizzle SQLite driver.
  */
-import { and, eq, gte, inArray, isNull, lt, lte, or } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { Db } from './db-types';
 import { episodes, seasons, series, settings, watched } from './schema';
 import { computeReleaseAtMs, releaseTiming } from '$lib/utils/airtime';
@@ -223,7 +223,8 @@ export async function backfillSeriesReleaseTimes(
 }
 
 /* Re-derive release_at for followed episodes airing on/after `sinceIso`, so a
- * change in the timing rules reaches rows already stored. Writes only diffs. */
+ * change in the timing rules reaches rows already stored. Writes only diffs.
+ * Series matched on TVMaze are skipped: release-times.ts owns their instants. */
 export async function refreshUpcomingReleaseTimes(db: Db, sinceIso: string): Promise<number> {
   const rows = db
     .select({
@@ -235,7 +236,9 @@ export async function refreshUpcomingReleaseTimes(db: Db, sinceIso: string): Pro
     })
     .from(episodes)
     .innerJoin(series, eq(series.tmdbId, episodes.seriesTmdbId))
-    .where(and(isNull(series.removedAt), gte(episodes.airDate, sinceIso)))
+    .where(
+      and(isNull(series.removedAt), isNull(series.tvmazeId), gte(episodes.airDate, sinceIso))
+    )
     .all();
 
   let changed = 0;
@@ -283,10 +286,14 @@ export async function updateSeriesSyncState(
     numberOfEpisodes?: number | null;
     status?: string | null;
     lastAirDate?: string | null;
+    network?: string | null;
+    originCountry?: string | null;
   }
 ): Promise<void> {
   const set: Record<string, unknown> = { lastSyncedAt: syncedAt };
   if (meta) {
+    if ('network' in meta) set.network = meta.network ?? null;
+    if ('originCountry' in meta) set.originCountry = meta.originCountry ?? null;
     if ('numberOfSeasons' in meta) set.numberOfSeasons = meta.numberOfSeasons ?? null;
     if ('numberOfEpisodes' in meta) set.numberOfEpisodes = meta.numberOfEpisodes ?? null;
     if ('status' in meta) set.status = meta.status ?? null;
@@ -367,6 +374,13 @@ export interface UpsertEpisodeInput {
   stillPath?: string | null;
 }
 
+/* A re-sync must not clobber a TVMaze-derived instant with the TMDB guess while the
+ * date is unchanged. SET expressions read the pre-update row, so air_date is the old one. */
+const KEEP_RELEASE_AT_IF_SAME_DAY = sql.raw(
+  'CASE WHEN "episodes"."air_date" IS excluded."air_date" AND "episodes"."release_at" IS NOT NULL ' +
+    'THEN "episodes"."release_at" ELSE excluded."release_at" END'
+);
+
 /* `updateAirtime`: on conflict, refresh only the scheduling fields (TMDB often
  * lists an episode before its date is final) and keep the localized strings. */
 export async function upsertEpisode(
@@ -392,7 +406,7 @@ export async function upsertEpisode(
       .values(values)
       .onConflictDoUpdate({
         target: [episodes.seriesTmdbId, episodes.seasonNumber, episodes.episodeNumber],
-        set: values
+        set: { ...values, releaseAt: KEEP_RELEASE_AT_IF_SAME_DAY }
       })
       .run();
   } else if (opts.updateAirtime) {
@@ -403,7 +417,7 @@ export async function upsertEpisode(
         set: {
           tmdbId: values.tmdbId,
           airDate: values.airDate,
-          releaseAt: values.releaseAt,
+          releaseAt: KEEP_RELEASE_AT_IF_SAME_DAY,
           runtimeMinutes: values.runtimeMinutes,
           stillPath: values.stillPath
         }

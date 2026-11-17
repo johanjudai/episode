@@ -30,6 +30,8 @@ export const series = sqliteTable(
      * turned into absolute release instants. NULL on rows synced before
      * this column existed; backfilled on the next sync / detail open. */
     originCountry: text('origin_country'),
+    /* Cached TVMaze show id (source of exact release instants); NULL until resolved. */
+    tvmazeId: integer('tvmaze_id'),
     /* Whether TMDB metadata flags this as anime (animation + Japanese
      * origin — see detectAnime). Lets the profile split the anime count
      * out of the series count. NULL on rows synced before this column
@@ -79,12 +81,10 @@ export const episodes = sqliteTable(
     name: text('name'),
     overview: text('overview'),
     airDate: text('air_date'),
-    /* Absolute instant (epoch ms) the episode is assumed to become
-     * available — air_date interpreted at a default broadcast hour in the
-     * origin timezone. Gating on this instant (vs the bare date string)
-     * is what stops evening foreign releases from surfacing a day early.
-     * NULL when the origin timezone is unknown → row falls back to the
-     * legacy air_date comparison. See utils/airtime.ts. */
+    /* Absolute instant (epoch ms) the episode becomes available: TVMaze's
+     * airstamp when matched, else air_date at a guessed hour in the origin
+     * timezone. NULL when neither is known → row falls back to the legacy
+     * air_date comparison. See data/release-times.ts. */
     releaseAt: integer('release_at'),
     runtimeMinutes: integer('runtime_minutes'),
     stillPath: text('still_path')

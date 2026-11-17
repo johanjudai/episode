@@ -9,6 +9,7 @@
  */
 import { get } from 'svelte/store';
 import { locale, localeCode, translate } from '$lib/i18n';
+import { localIsoDate } from './airtime';
 
 function activeLocaleCode(): string {
   return localeCode(get(locale));
@@ -19,8 +20,9 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/* Device-local day: in UTC, Paris between 00:00 and 02:00 would still be "yesterday". */
 export function todayIso(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
+  return localIsoDate(now.getTime());
 }
 
 /** Is the airDate (ISO YYYY-MM-DD) on or before the reference day? */
