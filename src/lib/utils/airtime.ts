@@ -21,6 +21,9 @@
  * one representative zone per country) — TMDB simply doesn't carry the
  * granularity for an exact answer. Erring a few hours late is far less
  * annoying than a full day early.
+ *
+ * It is only the fallback: when TVMaze knows the episode, its exact instant
+ * wins (data/release-times.ts).
  */
 
 /**
@@ -83,25 +86,18 @@ const COUNTRY_TZ: Record<string, string> = {
  * Global streamers drop episodes at midnight Pacific whatever the show's origin
  * (≈ 09:00 in Paris), not at prime time — 20:00 origin-time pushed them a day late.
  */
-const STREAMER_RELEASE = { timeZone: 'America/Los_Angeles', hour: 0 } as const;
-const STREAMING_NETWORKS = new Set([
-  'netflix',
-  'apple tv',
-  'apple tv+',
-  'prime video',
-  'amazon',
-  'disney+',
-  'hulu',
-  'paramount+',
-  'peacock'
-]);
+export const STREAMER_RELEASE = { timeZone: 'America/Los_Angeles', hour: 0 } as const;
+/* Prefix match: TMDB names variants like "Paramount+ with Showtime" or "Amazon Freevee".
+ * HBO Max is left out on purpose: it drops at 21:00 ET with the linear broadcast. */
+const STREAMING_NETWORKS =
+  /^(netflix|apple tv|prime video|amazon|disney\+|hulu|paramount\+|peacock)/;
 
 /** Zone + hour at which an episode of this series is assumed to unlock, or null if unknown. */
 export function releaseTiming(
   originCountry: string | readonly string[] | null | undefined,
   network: string | null | undefined
 ): { timeZone: string; hour: number } | null {
-  if (network && STREAMING_NETWORKS.has(network.trim().toLowerCase())) return STREAMER_RELEASE;
+  if (network && STREAMING_NETWORKS.test(network.trim().toLowerCase())) return STREAMER_RELEASE;
   const timeZone = originTimeZone(originCountry);
   return timeZone ? { timeZone, hour: DEFAULT_BROADCAST_HOUR } : null;
 }

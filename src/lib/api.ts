@@ -193,7 +193,7 @@ export async function refreshStaleSeries(): Promise<boolean> {
 export async function followSeries(seriesTmdbId: number): Promise<void> {
   if (IS_LOCAL) {
     const { syncSeriesFull } = await import('./local-sync');
-    await syncSeriesFull(seriesTmdbId, { follow: true });
+    await syncSeriesFull(seriesTmdbId, { follow: true, releaseTimes: true });
     return;
   }
   await postJson('/api/series/follow', { seriesTmdbId });

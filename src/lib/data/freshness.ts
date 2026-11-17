@@ -14,9 +14,12 @@
  *     when that detail disagrees with the local DB: counts grew (full sync),
  *     or TMDB's last/next aired episode is missing locally or carries a
  *     different date (just those seasons).
+ *   - Release instants of recent/upcoming episodes are then re-derived from
+ *     TVMaze (release-times.ts), which is what puts an episode on the right day.
  */
 import type { Db } from './db-types';
 import { createTmdbClient, type TmdbClient, type TmdbTvDetail } from './tmdb';
+import { createTvmazeClient, type TvmazeClient } from './tvmaze';
 import { getFollowedSeries, getSetting } from './queries';
 import {
   getEpisodeForCoords,
@@ -24,17 +27,19 @@ import {
   setSetting,
   updateSeriesSyncState
 } from './mutations';
-import { syncSeason, syncSeriesFull } from './sync';
+import { RELEASE_LOOKBACK_MS, syncSeason, syncSeriesFull } from './sync';
+import { refreshSeriesReleaseTimes } from './release-times';
 
 const COOLDOWN_KEY = 'bg_resync.last_at';
 /** At most one sweep per this window, persisted so it survives restarts. */
 const COOLDOWN_MS = 60 * 60 * 1000;
-const ACTIVE_STALE_MS = 12 * 60 * 60 * 1000;
+/* Weekly shows: 6 h bounds how late a re-dated or newly-listed episode can surface. */
+const ACTIVE_STALE_MS = 6 * 60 * 60 * 1000;
 const ENDED_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Hard cap on series checked (= upstream tvDetail calls) per sweep. */
-const MAX_PER_SWEEP = 20;
-/** How far back release instants are re-derived (older rows are long released). */
-const RELEASE_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+const MAX_PER_SWEEP = 60;
+/* TVMaze allows ~20 requests / 10 s. */
+const TVMAZE_MIN_INTERVAL_MS = 550;
 const ENDED_STATUSES = new Set(['Ended', 'Canceled']);
 
 /* Process-/tab-local guard so two concurrent home loads in the same
@@ -50,6 +55,8 @@ export interface FreshnessOptions {
   client?: Pick<TmdbClient, 'tvDetail'>;
   /** Injectable deep-sync (offline tests); `seasons` omitted = whole series. */
   deepSync?: (tmdbId: number, seasons?: number[]) => Promise<void>;
+  /** Injectable TVMaze client (offline tests); defaults to a paced real one. */
+  tvmaze?: Pick<TvmazeClient, 'byTvdbId' | 'schedule'>;
 }
 
 export interface FreshnessResult {
@@ -100,7 +107,7 @@ export async function resyncStaleFollowedSeries(
     await setSetting(db, COOLDOWN_KEY, String(nowMs));
 
     const sinceIso = new Date(nowMs - RELEASE_LOOKBACK_MS).toISOString().slice(0, 10);
-    const releaseTimesFixed = await refreshUpcomingReleaseTimes(db, sinceIso);
+    let releaseTimesFixed = await refreshUpcomingReleaseTimes(db, sinceIso);
 
     const isEnded = (status: string | null) => !!status && ENDED_STATUSES.has(status);
     const followed = await getFollowedSeries(db);
@@ -127,10 +134,16 @@ export async function resyncStaleFollowedSeries(
         for (const n of seasons) await syncSeason(db, apiKey, tmdbId, n, syncOpts);
       });
 
+    const tvmaze = opts.tvmaze ?? createTvmazeClient({ minIntervalMs: TVMAZE_MIN_INTERVAL_MS });
+
     let updated = 0;
     for (const s of stale) {
       try {
         const detail = await client.tvDetail(s.tmdbId);
+        /* Rows synced before these columns existed keep NULL until the series page
+         * is opened; without them the release-time fallback has no zone. */
+        const network = detail.networks?.[0]?.name ?? s.network;
+        const originCountry = detail.origin_country?.[0] ?? s.originCountry;
         const grew =
           (detail.number_of_episodes ?? 0) > (s.numberOfEpisodes ?? 0) ||
           (detail.number_of_seasons ?? 0) > (s.numberOfSeasons ?? 0);
@@ -151,7 +164,14 @@ export async function resyncStaleFollowedSeries(
           numberOfSeasons: detail.number_of_seasons ?? null,
           numberOfEpisodes: detail.number_of_episodes ?? null,
           status: detail.status ?? null,
-          lastAirDate: detail.last_air_date ?? null
+          lastAirDate: detail.last_air_date ?? null,
+          network,
+          originCountry
+        });
+        releaseTimesFixed += await refreshSeriesReleaseTimes(db, s.tmdbId, {
+          tvdbId: detail.external_ids?.tvdb_id ?? null,
+          sinceIso,
+          tvmaze
         });
       } catch (err) {
         console.warn(`[freshness] check failed for series ${s.tmdbId} (${s.name}):`, err);

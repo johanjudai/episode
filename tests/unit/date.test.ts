@@ -12,7 +12,7 @@ describe('date utils', () => {
   const ref = new Date('2026-05-11T10:00:00Z'); // Lundi 11 Mai
 
   describe('todayIso', () => {
-    it('returns YYYY-MM-DD in UTC', () => {
+    it('returns YYYY-MM-DD in the device timezone', () => {
       expect(todayIso(ref)).toBe('2026-05-11');
     });
   });

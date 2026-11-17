@@ -17,6 +17,7 @@ import {
 } from './mutations';
 import { getSeries } from './queries';
 import { detectAnime } from './ratings';
+import { refreshSeriesReleaseTimes } from './release-times';
 import { computeReleaseAtMs, releaseTiming } from '$lib/utils/airtime';
 
 export interface SyncOptions {
@@ -35,7 +36,13 @@ export interface SyncOptions {
    *  what pulls in an episode that aired into an ALREADY-synced season, or
    *  whose date TMDB only settled after we first stored it. */
   fillMissing?: boolean;
+  /** Also resolve exact release instants via TVMaze (interactive follow only: bulk
+   *  flows would blow TVMaze's rate limit, the freshness sweep covers them). */
+  releaseTimes?: boolean;
 }
+
+/** How far back release instants are re-derived (older rows are long released). */
+export const RELEASE_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Cap parallel season fetches per series. TMDB's documented rate limit
@@ -112,6 +119,13 @@ export async function syncSeriesFull(
       );
     });
   });
+
+  if (opts.releaseTimes) {
+    await refreshSeriesReleaseTimes(db, tmdbId, {
+      tvdbId: detail.external_ids?.tvdb_id ?? null,
+      sinceIso: new Date(Date.now() - RELEASE_LOOKBACK_MS).toISOString().slice(0, 10)
+    });
+  }
 }
 
 /** Fetch a season's episodes from TMDB and insert any missing rows.

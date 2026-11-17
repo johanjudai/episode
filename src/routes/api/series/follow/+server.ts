@@ -11,6 +11,9 @@ export const POST: RequestHandler = async ({ request }) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid series id');
   const apiKey = await requireTmdbKey(serverDb);
-  await syncSeriesFull(serverDb, apiKey, parsed.data.seriesTmdbId, { follow: true });
+  await syncSeriesFull(serverDb, apiKey, parsed.data.seriesTmdbId, {
+    follow: true,
+    releaseTimes: true
+  });
   return json({ ok: true });
 };

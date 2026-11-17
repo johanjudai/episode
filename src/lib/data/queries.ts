@@ -153,7 +153,10 @@ export async function getUpcomingEpisodes(
         )
       )
     )
-    .orderBy(asc(episodes.airDate))
+    /* By release instant: a TVMaze-dated episode can unlock before TMDB's air_date. */
+    .orderBy(
+      sql`COALESCE(${episodes.releaseAt}, CAST(strftime('%s', ${episodes.airDate}) AS INTEGER) * 1000)`
+    )
     .all();
 }
 
